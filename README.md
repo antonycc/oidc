@@ -1,4 +1,4 @@
-Here is a complete repo you can copy-paste. It follows your repo layout and mirrors your site’s simple header/menu style. Node 22 (ESM), CDK Java v2, CloudFront+S3, Lambda URLs behind CloudFront, Cognito federating to your OP, 7-day log retention, destroy-on-delete. Playwright runs hourly, records trace, video, and screenshots. Function URLs are routed via CloudFront so the OIDC issuer and endpoints share one domain. Node 22 on Lambda is supported; Function URL + CloudFront origin integration and OAC are current CDK features. ([Amazon Web Services, Inc.][1], [AWS Documentation][2])
+Here is a complete repo you can copy-paste. It follows your repo layout and mirrors your site’s simple header/menu style. Node 20 (ESM), CDK Java v2, CloudFront+S3, Lambda URLs behind CloudFront, Cognito federating to your OP, 7-day log retention, destroy-on-delete. Playwright runs hourly, records trace, video, and screenshots. Function URLs are routed via CloudFront so the OIDC issuer and endpoints share one domain. Node 20 on Lambda is supported; Function URL + CloudFront origin integration and OAC are current CDK features. ([Amazon Web Services, Inc.][1], [AWS Documentation][2])
 
 ---
 
@@ -47,7 +47,7 @@ cdk.out
 <project xmlns="http://maven.apache.org/POM/4.0.0"  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0  https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>co.uk.diyaccounting</groupId>
+  <groupId>com.antonycc</groupId>
   <artifactId>oidc-provider-root</artifactId>
   <version>1.0.0</version>
   <packaging>pom</packaging>
@@ -65,7 +65,7 @@ cdk.out
 <project xmlns="http://maven.apache.org/POM/4.0.0"  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0  https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>co.uk.diyaccounting</groupId>
+  <groupId>com.antonycc</groupId>
   <artifactId>infra</artifactId>
   <version>1.0.0</version>
   <properties>
@@ -105,7 +105,7 @@ cdk.out
         <artifactId>exec-maven-plugin</artifactId>
         <version>3.2.0</version>
         <configuration>
-          <mainClass>co.uk.diyaccounting.oidc.App</mainClass>
+          <mainClass>com.antonycc.oidc.App</mainClass>
         </configuration>
       </plugin>
       <plugin>
@@ -122,7 +122,7 @@ cdk.out
 ## infra/src/main/java/co/uk/diyaccounting/oidc/App.java
 
 ```java
-package co.uk.diyaccounting.oidc;
+package com.antonycc.oidc;
 
 import software.amazon.awscdk.AppProps;
 import software.amazon.awscdk.Environment;
@@ -157,7 +157,7 @@ public class App {
 ## infra/src/main/java/co/uk/diyaccounting/oidc/OidcStackProps.java
 
 ```java
-package co.uk.diyaccounting.oidc;
+package com.antonycc.oidc;
 
 import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.StackProps;
@@ -191,7 +191,7 @@ public class OidcStackProps implements StackProps {
 ## infra/src/main/java/co/uk/diyaccounting/oidc/OidcStack.java
 
 ```java
-package co.uk.diyaccounting.oidc;
+package com.antonycc.oidc;
 
 import software.amazon.awscdk.*;
 import software.constructs.Construct;
@@ -391,7 +391,7 @@ public class OidcStack extends Stack {
 ## infra/src/test/java/co/uk/diyaccounting/oidc/SynthTest.java
 
 ```java
-package co.uk.diyaccounting.oidc;
+package com.antonycc.oidc;
 
 import org.junit.jupiter.api.Test;
 import software.amazon.awscdk.App;
@@ -560,7 +560,7 @@ function loginFormHtml(qp) {
     <button type='submit'>Continue</button>
   </form>
 </main>
-<footer><small>© 2025 DIY Accounting Limited</small></footer></body></html>`;
+<footer><small>© 2025 Antony Cartwright</small></footer></body></html>`;
 }
 
 function escapeHtml(s=''){ return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])); }
@@ -730,14 +730,14 @@ footer { margin:48px 0 24px; text-align:center; color:#999; }
   </div>
 </header>
 <main class="container">
-  <h1>DIY Accounting Submit — OIDC</h1>
+  <h1>Antony Cartwright — OIDC</h1>
   <div class="card">
     <p>Use Cognito Hosted UI to kick off the flow. This site only hosts simple pages and receives callbacks.</p>
     <p>After deploy, your Cognito domain is output as <code>CognitoAuthDomain</code>. Visit:</p>
     <pre><code>https://&lt;cognito-domain&gt;/oauth2/authorize?client_id=&lt;clientId&gt;&amp;response_type=code&amp;scope=openid+email+profile&amp;redirect_uri=https://&lt;your-subdomain&gt;.&lt;zone&gt;/post-auth.html</code></pre>
   </div>
 </main>
-<footer><small>© 2025 DIY Accounting Limited</small></footer>
+<footer><small>© 2025 Antony Cartwright</small></footer>
 </body></html>
 ```
 
@@ -772,7 +772,7 @@ footer { margin:48px 0 24px; text-align:center; color:#999; }
   document.getElementById('status').textContent = code ? 'Received code=' + code : 'No code present';
   document.querySelector('.login-status').textContent = code ? 'Logged in (via Cognito+OIDC)' : 'Not logged in';
 </script>
-<footer><small>© 2025 DIY Accounting Limited</small></footer>
+<footer><small>© 2025 Antony Cartwright</small></footer>
 </body></html>
 ```
 
@@ -802,7 +802,7 @@ footer { margin:48px 0 24px; text-align:center; color:#999; }
     <p>Go to a Cognito Hosted UI URL as shown on the home page.</p>
   </div>
 </main>
-<footer><small>© 2025 DIY Accounting Limited</small></footer>
+<footer><small>© 2025 Antony Cartwright</small></footer>
 </body></html>
 ```
 
@@ -853,7 +853,7 @@ test('Cognito Hosted UI -> OP login -> redirect back with code', async ({ page }
 
 test('Home renders', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'DIY Accounting Submit — OIDC' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Antony Cartwright — OIDC' })).toBeVisible();
 });
 ```
 
@@ -994,13 +994,13 @@ jobs:
 ## README.md
 
 ````markdown
-# DIY OIDC Provider (Serverless, Cognito-compatible)
+# Antony Cartwright OIDC Provider (Serverless, Cognito-compatible)
 
 **What this is:** An OAuth2/OIDC Provider running on Lambda Function URLs behind CloudFront, with discovery and JWKS on S3, and a Cognito User Pool federated to it for end-to-end login. Everything is pay-per-request, logs retained 7 days, all resources set to destroy on stack deletion.
 
 **Why:** Cheap, inspectable auth for tests and small workloads. Verbose logs aid debugging.
 
-**Tech:** CDK Java v2, Node 22 ESM Lambdas, CloudFront+S3 (OAC), DynamoDB TTL, Cognito Hosted UI. Lambda Node 22 and Function URLs are supported; CloudFront can target Function URLs and S3 via OAC. :contentReference[oaicite:3]{index=3}
+**Tech:** CDK Java v2, Node 20 ESM Lambdas, CloudFront+S3 (OAC), DynamoDB TTL, Cognito Hosted UI. Lambda Node 20 and Function URLs are supported; CloudFront can target Function URLs and S3 via OAC. :contentReference[oaicite:3]{index=3}
 
 ---
 
@@ -1016,7 +1016,7 @@ jobs:
 
 ## Prereqs
 
-- Node 22, Java 21, AWS CLI, CDK v2, Maven wrapper.  
+- Node 20, Java 17, AWS CLI, CDK v2, Maven wrapper.  
 - Existing Route53 hosted zone for your domain.
 
 ---
@@ -1130,7 +1130,7 @@ Artifacts uploaded: `playwright-report` (HTML), `test-results` (traces, screensh
 ## Verbose logging
 
 All handlers log structured JSON on every step (inputs redacted where needed). CloudWatch log groups are set to **ONE\_WEEK** retention.
-Lambda Node 22, Function URLs, and CloudFront origins are standard. ([AWS Documentation][6], [Amazon Web Services, Inc.][1])
+Lambda Node 20, Function URLs, and CloudFront origins are standard. ([AWS Documentation][6], [Amazon Web Services, Inc.][1])
 
 ---
 
@@ -1165,7 +1165,7 @@ Lambda Node 22, Function URLs, and CloudFront origins are standard. ([AWS Docume
 * `BASE_URL=... COGNITO_DOMAIN=... COGNITO_CLIENT_ID=... npx playwright test` → two tests pass.
 * Check **Actions artifacts** for `playwright-report`, `test-results` folders.
 
-If a first cold start slows `/authorize`, Playwright has 90s timeout in config. Lambda Node 22 cold starts are typical and within test budgets. ([AWS Documentation][6])
+If a first cold start slows `/authorize`, Playwright has 90s timeout in config. Lambda Node 20 cold starts are typical and within test budgets. ([AWS Documentation][6])
 
 ```
 

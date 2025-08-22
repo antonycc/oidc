@@ -83,7 +83,10 @@ public class OidcStack extends Stack {
         .removalPolicy(RemovalPolicy.DESTROY).build();
 
     // Lambda code: reuse one Node project for all handlers
-    Code nodeCode = Code.fromAsset("../app/oidc-provider");
+    // When running from infra/, use ../app/oidc-provider
+    // When running from root, use app/oidc-provider  
+    String assetPath = System.getProperty("user.dir").endsWith("infra") ? "../app/oidc-provider" : "app/oidc-provider";
+    Code nodeCode = Code.fromAsset(assetPath);
 
     Function authorize = Function.Builder.create(this, "AuthorizeFn")
         .runtime(Runtime.NODEJS_22_X)

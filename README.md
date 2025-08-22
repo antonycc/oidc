@@ -1179,6 +1179,45 @@ If you want this zipped as a starter repo or need the CDK stack split into web/i
 ::contentReference[oaicite:13]{index=13}
 ```
 
+---
+
+## Prompts used to generate this
+
+Initial landscape:
+```
+Please select a shortlist of solutions from currently available free or low cost (ideally zero cost at rest) oauth2 providers that are compatible with AWS Cognito, completely serverless is prefered, but it's not too bad to stop/start a service for testing, similarly low cost hosted is ok too, ideally logging to CloudWatch, maybe with an API to provision users (optional/tiebreaker). I would like to use this along with my code which deploys using the CDK, a website and some lambdas running node.js/docker runtimes, and built, tested and deployed using github actions workflow. I shall want the tests to run a playwright test that logs in using this oauth provider via cognito during a user journey being tested, these tests will run at least hourly for 2-3 minutes and I don't want to end up paying for 24/7 because once per hour incurs a full hour. Ideally free or the (tiny) transaction cost of rendering the half dozen or so pages and API calls for an oauth2 sign up, authentication and token refresh.
+```
+
+DIY Spec:
+```
+What would be the requirements of standing up my own in a stack using URL Lambdas, and an s3 bucket origin behind couldfront?
+```
+
+Implementation draft:
+```
+| If you want, I can sketch the CDK stack layout and the JSON shapes for the discovery doc and JWKS next.
+Yes, please do that and see if it is possible to heavily use libraries to the extent that the lambda function handlers can be inline defined during the CDK build.
+```
+
+Refinement:
+```
+Hmm, let's go for CDK Java and the functions as a standard node project. For simplicity we'll pull in the whole node project for each lambda and distinguish by handler. Ensure everything thing is set to destroy/do not retain on delete stack etc.. with 7 day retention on logs. Include details of how I might script to provision users on the resultant system and also check the web (esp. GitHub) for similar repositories that already do this. I'm actually wondering if cobbling all this together is actually the basis of an AWS marketplace service, priced significantly below all competitors.
+```
+
+Full repository this document:
+```
+| If you want, I can turn this into a full Maven CDK app scaffold and a working Node repo you can drop into CI.
+Yes, and please follow the style and directory structure used in this repository https://github.com/antonycc/submit.diyaccounting.co.uk/ on the github website and match the page style and html style of this website https://submit.diyaccounting.co.uk/. Include a readme with the steps to take the iteration as it stands into a marketplace app and include on the readme examples of how to provision users and clear down from a github actions workflow. Make the logging pretty verbose, a key selling point is going to be how much being able to look under the cover helps you debug auth. Include the details of how to set up any required AWS roles and create a deploy.yml that deploys to a configured target domain then runs a playwright test of a few scenarios. The same workflow must be runnable with a testOnly flag which doesn't attempt deployment and just runs playwright behaviour tests against the deployed stack and records videos of each scenario and takes screenshots at every screen change and these are gathered as build artefacts from the github actions workflow. Assume the latest LTS versions of any runtime or sdk. Please give me every complete file I need to create a github repository and deploy and run this stack and dry run the setup steps yourself, do so from the perspective if a distracted tired person and then use repetition in different places to help avoid gotchas where things might get overlooked. Create unit tests for the functions and have a Java test that can do a sdk synth. dry run all these tests and dry run the cdk build of the cloudformation template and dry run the deployment of the template and dry run the behaviour tests against what would have been deployed, fix any bugs that come out of the dry runs and repeat until all tests pass then simulate the speed of cold starting lambdas and make sure the test scripts allow enough time.
+```
+
+Roll out:
+```
+Copilot, please examine the readme and create the files and with the contents as specified in the readme. Archive this version to `_developers/archive/initial-README.md` and extract teh read me defined here and also change the java package
+structure and any other naming references or domain names to com.antonycc.oidc. This is hosted under guthub https://github.com/antonycc/ and I also own antonycc.com while this project is called oidc please make the java packaging should show that as should the package.json. Please review all the created files as if you were doing a PR review and also create a coplot instruction file that encourages hard LLM work constantly evaulating multiple concurent scenarios and reviewing the output from multiple angles to refine internally before running actual tests and stress that github copilot has permission to run workflows and does not need to ask to run more times.
+```
+
+---
+
 [1]: https://aws.amazon.com/blogs/compute/node-js-22-runtime-now-available-in-aws-lambda/?utm_source=chatgpt.com "Node.js 22 runtime now available in AWS Lambda"
 [2]: https://docs.aws.amazon.com/cdk/api/v2/java/software/amazon/awscdk/services/lambda/FunctionUrl.html?utm_source=chatgpt.com "FunctionUrl (AWS CDK 2.211.0 API)"
 [3]: https://docs.aws.amazon.com/cdk/v2/guide/deploy.html?utm_source=chatgpt.com "Deploy AWS CDK applications"

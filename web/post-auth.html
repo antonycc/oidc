@@ -1,0 +1,30 @@
+<!doctype html><html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Post Auth</title>
+  <link rel="stylesheet" href="/submit.css">
+</head>
+<body>
+<header>
+  <div class="header-nav">
+    <div class="hamburger-menu">
+      <button class="hamburger-btn">☰</button>
+      <div class="menu-dropdown"><a href="/">Home</a></div>
+    </div>
+    <div class="auth-section"><span class="login-status">Checking…</span></div>
+  </div>
+</header>
+<main class="container">
+  <h1>Post Auth</h1>
+  <div class="card">
+    <p id="status">Looking for authorization code in URL…</p>
+  </div>
+</main>
+<script>
+  const qs = new URL(location.href).searchParams;
+  const code = qs.get('code'); const state = qs.get('state');
+  document.getElementById('status').textContent = code ? 'Received code=' + code : 'No code present';
+  document.querySelector('.login-status').textContent = code ? 'Logged in (via Cognito+OIDC)' : 'Not logged in';
+</script>
+<footer><small>© 2025 Antony Cartwright</small></footer>
+</body></html>

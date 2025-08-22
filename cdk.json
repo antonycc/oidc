@@ -1,0 +1,6 @@
+{
+  "app": "mvn -e -q -f infra/pom.xml compile exec:java",
+  "context": {
+    "@aws-cdk/core:newStyleStackSynthesis": true
+  }
+}

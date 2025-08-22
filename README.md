@@ -1212,8 +1212,8 @@ Yes, and please follow the style and directory structure used in this repository
 
 Roll out:
 ```
-Copilot, please examine the readme and create the files and with the contents as specified in the readme. Archive this version to `_developers/archive/initial-README.md` and extract teh read me defined here and also change the java package
-structure and any other naming references or domain names to com.antonycc.oidc. This is hosted under guthub https://github.com/antonycc/ and I also own antonycc.com while this project is called oidc please make the java packaging should show that as should the package.json. Please review all the created files as if you were doing a PR review and also create a coplot instruction file that encourages hard LLM work constantly evaulating multiple concurent scenarios and reviewing the output from multiple angles to refine internally before running actual tests and stress that github copilot has permission to run workflows and does not need to ask to run more times.
+Please examine the readme and create the files and with the contents as specified in the readme.  
+You should populate the full repository with all the files as specificied plus any implied or required. Evalauate the resulant repository to ensure it will build and deploy from the giuthub actions workflow as described in the readme once the AWS and Github config is applied as specified. Also change the java package structure and any other naming references or domain names to com.antonycc.oidc. This is hosted under guthub https://github.com/antonycc/ and I also own antonycc.com while this project is called oidc please make the java packaging should show that as should the package.json. Please review all the created files as if you were doing a PR review and also create a coplot instruction file that encourages hard LLM work constantly evaulating multiple concurent scenarios and reviewing the output from multiple angles to refine internally before running actual tests and stress that github copilot has permission to run workflows and does not need to ask to run more times.
 ```
 
 ---

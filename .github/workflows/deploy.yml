@@ -43,12 +43,11 @@ jobs:
         uses: actions/setup-java@v4
         with: { distribution: 'temurin', java-version: ${{ env.JAVA_VERSION }} }
 
-      - name: Install Playwright browsers
+      - name: Install dependencies and Playwright browsers
         run: |
           npm -v
           npm ci --ignore-scripts
           npx playwright install --with-deps
-        working-directory: behaviour-tests
 
       - name: Configure AWS creds via OIDC
         if: ${{ inputs.testOnly != 'true' }}
@@ -94,11 +93,7 @@ jobs:
 
       - name: Provision test user
         if: ${{ inputs.testOnly != 'true' }}
-        run: |
-          pushd app/oidc-provider
-          npm ci
-          node scripts/provision-user.mjs test-user Passw0rd!
-          popd
+        run: npm run provision:user test-user Passw0rd!
         env:
           USERS_TABLE: ${{ env.USERS_TABLE }}
 
@@ -111,7 +106,6 @@ jobs:
           COGNITO_DOMAIN='${{ steps.out.outputs.COGNITO_DOMAIN }}' \
           COGNITO_CLIENT_ID='${{ steps.out.outputs.COGNITO_CLIENT_ID }}' \
           npx playwright test --project=chromium
-        working-directory: behaviour-tests
 
       - name: Upload artifacts (report, trace, screenshots, videos)
         if: always()
@@ -119,5 +113,5 @@ jobs:
         with:
           name: playwright-artifacts
           path: |
-            behaviour-tests/playwright-report
-            behaviour-tests/test-results
+            playwright-report
+            test-results

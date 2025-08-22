@@ -543,7 +543,7 @@ const html = (s, b) => ({ statusCode: s, headers: { 'content-type': 'text/html; 
 function loginFormHtml(qp) {
   const hidden = Object.entries(qp).map(([k,v]) => `<input type='hidden' name='${k}' value='${escapeHtml(v)}'>`).join('');
   return `<!doctype html><html lang='en'>
-<head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><link rel='stylesheet' href='/submit.css'><title>Sign in</title></head>
+<head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><link rel='stylesheet' href='/oidc.css'><title>Sign in</title></head>
 <body>
 <header>
   <div class='header-nav'>
@@ -689,7 +689,7 @@ describe('authorize', () => {
 
 ---
 
-## web/submit.css
+## web/oidc.css
 
 ```css
 :root { --bg:#fff; --fg:#111; --muted:#666; --brand:#0066cc; }
@@ -717,7 +717,7 @@ footer { margin:48px 0 24px; text-align:center; color:#999; }
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DIY OIDC Provider</title>
-  <link rel="stylesheet" href="/submit.css">
+  <link rel="stylesheet" href="/oidc.css">
 </head>
 <body>
 <header>
@@ -748,7 +748,7 @@ footer { margin:48px 0 24px; text-align:center; color:#999; }
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Post Auth</title>
-  <link rel="stylesheet" href="/submit.css">
+  <link rel="stylesheet" href="/oidc.css">
 </head>
 <body>
 <header>
@@ -783,7 +783,7 @@ footer { margin:48px 0 24px; text-align:center; color:#999; }
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Direct OP Login</title>
-  <link rel="stylesheet" href="/submit.css">
+  <link rel="stylesheet" href="/oidc.css">
 </head>
 <body>
 <header>
@@ -1008,7 +1008,7 @@ jobs:
 
 - `infra/` – CDK Java app and stack
 - `app/oidc-provider/` – Node ESM Lambdas (authorize, token, userinfo) + scripts
-- `web/` – Static pages (`index.html`, `post-auth.html`, `submit.css`)
+- `web/` – Static pages (`index.html`, `post-auth.html`, `oidc.css`)
 - `behaviour-tests/` – Playwright config and tests
 - `.github/workflows/deploy.yml` – deploy and test workflow
 
@@ -1207,7 +1207,7 @@ Hmm, let's go for CDK Java and the functions as a standard node project. For sim
 Full repository this document:
 ```
 | If you want, I can turn this into a full Maven CDK app scaffold and a working Node repo you can drop into CI.
-Yes, and please follow the style and directory structure used in this repository https://github.com/antonycc/submit.diyaccounting.co.uk/ on the github website and match the page style and html style of this website https://submit.diyaccounting.co.uk/. Include a readme with the steps to take the iteration as it stands into a marketplace app and include on the readme examples of how to provision users and clear down from a github actions workflow. Make the logging pretty verbose, a key selling point is going to be how much being able to look under the cover helps you debug auth. Include the details of how to set up any required AWS roles and create a deploy.yml that deploys to a configured target domain then runs a playwright test of a few scenarios. The same workflow must be runnable with a testOnly flag which doesn't attempt deployment and just runs playwright behaviour tests against the deployed stack and records videos of each scenario and takes screenshots at every screen change and these are gathered as build artefacts from the github actions workflow. Assume the latest LTS versions of any runtime or sdk. Please give me every complete file I need to create a github repository and deploy and run this stack and dry run the setup steps yourself, do so from the perspective if a distracted tired person and then use repetition in different places to help avoid gotchas where things might get overlooked. Create unit tests for the functions and have a Java test that can do a sdk synth. dry run all these tests and dry run the cdk build of the cloudformation template and dry run the deployment of the template and dry run the behaviour tests against what would have been deployed, fix any bugs that come out of the dry runs and repeat until all tests pass then simulate the speed of cold starting lambdas and make sure the test scripts allow enough time.
+Yes, and please follow the style and directory structure used in this repository and implement a complete OIDC provider. Include a readme with the steps to take the iteration as it stands into a marketplace app and include on the readme examples of how to provision users and clear down from a github actions workflow. Make the logging pretty verbose, a key selling point is going to be how much being able to look under the cover helps you debug auth. Include the details of how to set up any required AWS roles and create a deploy.yml that deploys to a configured target domain then runs a playwright test of a few scenarios. The same workflow must be runnable with a testOnly flag which doesn't attempt deployment and just runs playwright behaviour tests against the deployed stack and records videos of each scenario and takes screenshots at every screen change and these are gathered as build artefacts from the github actions workflow. Assume the latest LTS versions of any runtime or sdk. Please give me every complete file I need to create a github repository and deploy and run this stack and dry run the setup steps yourself, do so from the perspective if a distracted tired person and then use repetition in different places to help avoid gotchas where things might get overlooked. Create unit tests for the functions and have a Java test that can do a sdk synth. dry run all these tests and dry run the cdk build of the cloudformation template and dry run the deployment of the template and dry run the behaviour tests against what would have been deployed, fix any bugs that come out of the dry runs and repeat until all tests pass then simulate the speed of cold starting lambdas and make sure the test scripts allow enough time.
 ```
 
 Roll out:

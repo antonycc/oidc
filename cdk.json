@@ -1,5 +1,5 @@
 {
-  "app": "./mvnw -e -q -f infra/pom.xml compile exec:java",
+  "app": "./mvnw -e -q -f pom.xml compile exec:java",
   "context": {
     "@aws-cdk/core:newStyleStackSynthesis": true
   }

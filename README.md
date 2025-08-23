@@ -128,7 +128,7 @@ source scripts/assume-deployment-role.sh
 Synth (generates cdk.out via cdk.json):
 ```bash
 
-./mvnw --errors --file infra/pom.xml clean compile exec:java
+./mvnw --errors --file pom.xml clean compile exec:java
 ```
 
 One time per account CDK set-up:
@@ -156,12 +156,10 @@ Users are stored in DynamoDB (`Users` table). CI calls:
 
 ```bash
 # Create a test user (defaults shown)
-cd app/oidc
-npm ci
-USERS_TABLE=<UsersTableName> node scripts/provision-user.mjs test-user Passw0rd!
+USERS_TABLE=<UsersTableName> npm run provision:user test-user Passw0rd!
 
 # Clear all users
-USERS_TABLE=<UsersTableName> node scripts/clear-users.mjs
+USERS_TABLE=<UsersTableName> npm run clear:users
 ```
 
 ---
@@ -169,7 +167,7 @@ USERS_TABLE=<UsersTableName> node scripts/clear-users.mjs
 ## Run Playwright behaviour tests
 
 ```bash
-cd behaviour-tests
+# from repo root
 npm ci
 npx playwright install --with-deps
 
@@ -225,10 +223,10 @@ Lambda Node 22, Function URLs, and CloudFront origins are standard.
 
 ## Local dry-run checklist (tired-mode)
 
-* `./mvnw -f infra/pom.xml -q compile exec:java` → no exceptions.
+* `./mvnw -f pom.xml -q compile exec:java` → no exceptions.
 * `npx cdk synth` → template appears.
 * `npx cdk deploy` → outputs show `BaseUrl` and Cognito values.
-* `node app/oidc/scripts/provision-user.mjs` → prints `created`.
+* `npm run provision:user` → prints `created`.
 * `BASE_URL=... COGNITO_DOMAIN=... COGNITO_CLIENT_ID=... npx playwright test` → two tests pass.
 * Check **Actions artifacts** for `playwright-report`, `test-results` folders.
 

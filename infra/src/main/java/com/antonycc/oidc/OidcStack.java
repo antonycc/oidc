@@ -6,7 +6,6 @@ import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.services.certificatemanager.Certificate;
-import software.amazon.awscdk.services.certificatemanager.CertificateValidation;
 import software.amazon.awscdk.services.cloudfront.BehaviorOptions;
 import software.amazon.awscdk.services.cloudfront.CachePolicy;
 import software.amazon.awscdk.services.cloudfront.Distribution;
@@ -66,13 +65,14 @@ public class OidcStack extends Stack {
             .hostedZoneId(props.hostedZoneId)
             .zoneName(props.hostedZoneName)
             .build());
-    String domainName = props.subdomain + "." + props.hostedZoneName;
+    String domainName = props.domainName;
+    String recordName = props.hostedZoneName.equals(props.domainName) ? null :
+        (props.domainName.endsWith("." + props.hostedZoneName)
+            ? props.domainName.substring(0, props.domainName.length() - (props.hostedZoneName.length() + 1))
+            : props.domainName);
 
-    // TLS certificate in us-east-1 for CloudFront
-    Certificate cert = Certificate.Builder.create(this, "WebCert")
-        .domainName(props.subdomain + "." + props.hostedZoneName)
-        .validation(CertificateValidation.fromDns(zone))
-        .build();
+    // TLS certificate from existing ACM (must be in us-east-1 for CloudFront)
+    var cert = Certificate.fromCertificateArn(this, "WebCert", props.certificateArn);
 
     // Buckets
     Bucket webBucket = Bucket.Builder.create(this, "WebBucket")
@@ -213,7 +213,7 @@ public class OidcStack extends Stack {
     // A record
     new ARecord(this, "AliasRecord",
         ARecordProps.builder()
-            .recordName(props.subdomain)
+            .recordName(recordName)
             .zone(zone)
             .target(RecordTarget.fromAlias(new CloudFrontTarget(dist)))
             .build());
@@ -232,8 +232,8 @@ public class OidcStack extends Stack {
         .oAuth(OAuthSettings.builder()
             .flows(OAuthFlows.builder().authorizationCodeGrant(true).build())
             .scopes(List.of(OAuthScope.OPENID, OAuthScope.EMAIL, OAuthScope.PROFILE))
-            .callbackUrls(List.of("https://" + props.subdomain + "." + props.hostedZoneName + "/post-auth.html"))
-            .logoutUrls(List.of("https://" + props.subdomain + "." + props.hostedZoneName + "/"))
+            .callbackUrls(List.of("https://" + domainName + "/post-auth.html"))
+            .logoutUrls(List.of("https://" + domainName + "/"))
             .build())
         .supportedIdentityProviders(List.of(UserPoolClientIdentityProvider.custom("OIDC")))
         .build());
@@ -260,7 +260,7 @@ public class OidcStack extends Stack {
     client.getNode().addDependency(oidcIdp);
 
     // Outputs
-    new CfnOutput(this, "BaseUrl", CfnOutputProps.builder().value("https://" + props.subdomain + "." + props.hostedZoneName).build());
+    new CfnOutput(this, "BaseUrl", CfnOutputProps.builder().value("https://" + domainName).build());
     new CfnOutput(this, "CognitoAuthDomain", CfnOutputProps.builder().value(domain.getDomainName()).build());
     new CfnOutput(this, "UserPoolId", CfnOutputProps.builder().value(pool.getUserPoolId()).build());
     new CfnOutput(this, "UserPoolClientId", CfnOutputProps.builder().value(client.getUserPoolClientId()).build());

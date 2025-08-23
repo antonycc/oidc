@@ -34,7 +34,7 @@ cdk.out
 
 ```json
 {
-  "app": "mvn -e -q -f infra/pom.xml compile exec:java",
+  "app": "./mvnw -e -q -f infra/pom.xml compile exec:java",
   "context": {
     "@aws-cdk/core:newStyleStackSynthesis": true
   }
@@ -925,7 +925,7 @@ jobs:
 
       - name: Build CDK and synth
         if: ${{ inputs.testOnly != 'true' }}
-        run: mvn -e -q -f infra/pom.xml clean compile exec:java
+        run: ./mvnw -e -q -f infra/pom.xml clean compile exec:java
 
       - name: Deploy (CDK)
         if: ${{ inputs.testOnly != 'true' }}

@@ -79,9 +79,10 @@ To grant the local use access to assume the role, the local user needs to have t
 ## Configure repo variables (Settings → Secrets and variables → Actions → *Variables*)
 
 * `HOSTED_ZONE_NAME` e.g. `antonycc.com`
-* `HOSTED_ZONE_ID` e.g. `Z123ABC...`
-* `SUB_DOMAIN_NAME` e.g. `oidc`
-* `COGNITO_DOMAIN_PREFIX` e.g. `Z079976717QZCYMJ02NI2`
+* `HOSTED_ZONE_ID` e.g. `Z079976717QZCYMJ02NI2`
+* `DOMAIN_NAME` e.g. `oidc.antonycc.com` (must be within the hosted zone)
+* `CERTIFICATE_ARN` e.g. `arn:aws:acm:us-east-1:403027849202:certificate/62ef0526-06c0-4744-9cee-33300d716633` (ACM in us-east-1 for CloudFront)
+* `COGNITO_DOMAIN_PREFIX` e.g. `com-antonycc-oidc-dev`
 * `DEPLOY_ROLE_ARN` IAM role for GitHub OIDC e.g. `arn:aws:iam::403027849202:role/oidc-github-actions-deploy-role`
 * For testOnly runs against an existing deploy, optionally:
 
@@ -89,25 +90,57 @@ To grant the local use access to assume the role, the local user needs to have t
 
 ---
 
+## Provision domain and certificate (one time)
+
+You must own a Route53 hosted zone for your root domain (e.g. antonycc.com) and provision an ACM certificate in us-east-1
+for the exact domain you will use (e.g. oidc.antonycc.com). The stack expects both to already exist.
+
+Steps:
+- Create or identify your hosted zone in Route53 and note `HOSTED_ZONE_NAME` and `HOSTED_ZONE_ID`.
+- In AWS Certificate Manager in region us-east-1, request a public certificate for `DOMAIN_NAME` (and optionally `www.DOMAIN_NAME` if needed).
+- Choose DNS validation and add the CNAME records to the same Route53 hosted zone.
+- Wait until the certificate is issued, then copy its `CERTIFICATE_ARN`.
+
+Pass `DOMAIN_NAME` and `CERTIFICATE_ARN` via environment variables when deploying.
+
+---
+
 ## Build, Synth, Deploy
 
+From repo root:
 ```bash
-# From repo root
+
 export DEPLOY_ROLE_ARN=arn:aws:iam::403027849202:role/oidc-github-actions-deploy-role
-export ENV=dev
+export ENV_NAME=dev
 export HOSTED_ZONE_NAME=antonycc.com
 export HOSTED_ZONE_ID=Z079976717QZCYMJ02NI2
-export SUB_DOMAIN_NAME=oidc
+export DOMAIN_NAME=oidc.antonycc.com
+export CERTIFICATE_ARN=arn:aws:acm:us-east-1:403027849202:certificate/62ef0526-06c0-4744-9cee-33300d716633
 export COGNITO_DOMAIN_PREFIX=com-antonycc-oidc-dev
+```
 
-# Assume role for local deploys (or use AWS_PROFILE)
+Assume role for local deploys (or use AWS_PROFILE):
+```bash
+
 source scripts/assume-deployment-role.sh
+```
 
-# Synth
-./mvnw --errors --file infra/pom.xml clean compile exec:java   # generates cdk.out via cdk.json
-# Deploy
+Synth (generates cdk.out via cdk.json):
+```bash
+
+./mvnw --errors --file infra/pom.xml clean compile exec:java
+```
+
+One time per account CDK set-up:
+```bash
+
 npx cdk bootstrap
-npx cdk deploy OidcProviderStack-$ENV --require-approval never --outputs-file cdk-outputs.json
+```
+
+Deploy:
+```bash
+
+npx cdk deploy OidcProviderStack-$ENV_NAME --require-approval never --outputs-file cdk-outputs.json
 ```
 
 CDK CLI executes the Java app via `cdk.json`.
@@ -183,16 +216,16 @@ Lambda Node 22, Function URLs, and CloudFront origins are standard.
 ## Common gotchas (repeat, read twice)
 
 * **You must own the hosted zone** in Route53 and set `HOSTED_ZONE_ID` accurately.
-* **Certificates for CloudFront live in `us-east-1`.** We use `DnsValidatedCertificate(region='us-east-1')`.
+* **Certificates for CloudFront live in `us-east-1`.** Bring your own ACM certificate issued in `us-east-1` and pass its ARN via `CERTIFICATE_ARN`.
 * **BASE\_URL env for tests must match the CloudFront domain output.**
-* **Cognito callback URL must be** `https://<subdomain>.<zone>/post-auth.html`.
+* **Cognito callback URL must be** `https://<domain_name>/post-auth.html`.
 * **Playwright browsers must be installed in CI** with `npx playwright install --with-deps`.
 
 ---
 
 ## Local dry-run checklist (tired-mode)
 
-* `mvn -f infra/pom.xml -q compile exec:java` → no exceptions.
+* `./mvnw -f infra/pom.xml -q compile exec:java` → no exceptions.
 * `npx cdk synth` → template appears.
 * `npx cdk deploy` → outputs show `BaseUrl` and Cognito values.
 * `node app/oidc/scripts/provision-user.mjs` → prints `created`.

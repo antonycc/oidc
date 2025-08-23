@@ -192,6 +192,61 @@ Artifacts uploaded: `playwright-report` (HTML), `test-results` (traces, screensh
 
 ---
 
+## Authentication load tests
+
+Below is a proposed approach for running the authentication load tests against `oidc.antonycc.com`, along with the complete source files you’ll need.
+
+### Mechanism overview
+
+* **Load generation** – A [k6](https://k6.io/) JavaScript script drives the OpenID Connect code‑exchange flow.  Each virtual user:
+
+    1. Generates a unique username and PKCE code verifier/challenge.
+    2. Sends a GET request to `/authorize` with the required query parameters (including `code_challenge`, username and password).
+    3. Parses the `code` value from the 302 redirect’s `Location` header.
+    4. Exchanges the code for tokens via a POST to `/token`.
+
+* **Scenarios** – The script defines four scenarios (small, medium, large, xlarge) matching the requested loads:
+
+    * 5 000 users over 1 minute (100/10 s → 1000/10 s → \~98 rps).
+    * 10 000 users over 2 minutes (same initial ramps → \~89 rps steady phase).
+    * 100 000 users over 5 minutes (100/10 s, 1000/10 s, 1000/1 s spike, then \~351 rps).
+    * 1 000 000 users over 10 minutes (same ramps as 100 k, then \~1 724 rps steady).
+
+  Each scenario uses k6’s `ramping-arrival-rate` executor to approximate the ramp patterns and achieve the total user counts.
+
+* **Local testing** – To run locally, install k6 (`brew install k6` or `apt-get install k6`) and execute:
+
+  ```sh
+  # run the 5k test against your deployment
+  k6 run load-tests.js --scenario small --env TARGET_URL=https://oidc.antonycc.com
+  ```
+
+  You can override `CLIENT_ID`, `REDIRECT_URI`, `PASSWORD` and `USERNAME_PREFIX` via `--env` parameters as needed.
+
+* **GitHub Actions** – A workflow (`.github/workflows/load-test.yml`) installs k6 in the CI environment, then runs the chosen scenario.  It exposes a `workflow_dispatch` input to run any scenario on demand and schedules the 10 k test weekly at 04:00 on Sundays (Europe/London timezone).  Test results (summary JSON) are saved as an artifact.
+
+### Files
+
+* **k6 load‑test script** – Defines the four scenarios and the test flow:
+
+`load-tests.js`
+
+* **GitHub Actions workflow** – Runs the tests and schedules the weekly 10 k test:
+
+`load-test.yml`
+
+To use these files, place `load-tests.js` in the root of your repository and `load-test.yml` under `.github/workflows/`.  Adjust the environment variables in the workflow to match your client ID and password. The 10 k scenario will then run automatically every Sunday at 4 a.m. UK time, while other scenarios can be triggered manually from the Actions tab.
+
+Let me know if you’d like help fine‑tuning the ramp patterns or integrating the test results into a dashboard.
+
+run the 5k test against your deployment:
+```bash
+
+k6 run load-tests.js --scenario small --env TARGET_URL=https://oidc.antonycc.com
+```
+
+---
+
 ## Verbose logging
 
 All handlers log structured JSON on every step (inputs redacted where needed). CloudWatch log groups are set to **ONE\_WEEK** retention.

@@ -377,8 +377,7 @@ public class OidcStack extends Stack {
                         "authorize_url", "https://" + domainName + "/authorize",
                         "token_url", "https://" + domainName + "/token",
                         "attributes_url", "https://" + domainName + "/userinfo",
-                        "jwks_uri", "https://" + domainName + "/jwks.json",
-                        "client_id", "cognito"))
+                        "client_id", client.getUserPoolClientId()))
                 .attributeMapping(Map.of(
                         "email", "email",
                         "given_name", "name"))

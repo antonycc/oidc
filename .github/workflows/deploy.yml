@@ -40,14 +40,18 @@ jobs:
 
       - name: Setup Node
         uses: actions/setup-node@v4
-        with: { node-version: ${{ env.NODE_VERSION }} }
+        with:
+          node-version: ${{ env.NODE_VERSION }} }
+          cache: 'npm'
 
       - name: Node test
         run: npm ci && npm test
 
-      - name: Setup Java
-        uses: actions/setup-java@v5
-        with: { distribution: 'temurin', java-version: ${{ env.JAVA_VERSION }} }
+      - uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }} }
+          cache: 'maven'
 
       - name: Configure AWS creds via OIDC
         uses: aws-actions/configure-aws-credentials@v4

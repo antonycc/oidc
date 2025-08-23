@@ -195,9 +195,10 @@ public class OidcStack extends Stack {
             "token_url", "https://" + dist.getDomainName() + "/token",
             "attributes_url", "https://" + dist.getDomainName() + "/userinfo",
             "jwks_uri", "https://" + dist.getDomainName() + "/jwks.json"))
-        .attributeMapping(Map.of(
-            "email", "email",
-            "given_name", "name"))
+        .attributeMapping(CfnUserPoolIdentityProvider.AttributeMappingProperty.builder()
+            .email("email")
+            .givenName("name")
+            .build())
         .build();
 
     // Outputs

@@ -1,8 +1,11 @@
 package com.antonycc.oidc;
 
+import software.amazon.awscdk.AssetHashType;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.Duration;
+import software.amazon.awscdk.Expiration;
+import software.amazon.awscdk.Fn;
 import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.services.certificatemanager.Certificate;
@@ -11,10 +14,12 @@ import software.amazon.awscdk.services.cloudfront.BehaviorOptions;
 import software.amazon.awscdk.services.cloudfront.CachePolicy;
 import software.amazon.awscdk.services.cloudfront.Distribution;
 import software.amazon.awscdk.services.cloudfront.OriginAccessIdentity;
+import software.amazon.awscdk.services.cloudfront.OriginProtocolPolicy;
 import software.amazon.awscdk.services.cloudfront.OriginRequestPolicy;
 import software.amazon.awscdk.services.cloudfront.ResponseHeadersPolicy;
+import software.amazon.awscdk.services.cloudfront.SSLMethod;
 import software.amazon.awscdk.services.cloudfront.ViewerProtocolPolicy;
-import software.amazon.awscdk.services.cloudfront.origins.FunctionUrlOrigin;
+import software.amazon.awscdk.services.cloudfront.origins.HttpOrigin;
 import software.amazon.awscdk.services.cloudfront.origins.S3BucketOrigin;
 import software.amazon.awscdk.services.cloudfront.origins.S3BucketOriginWithOAIProps;
 import software.amazon.awscdk.services.cognito.CfnUserPoolIdentityProvider;
@@ -33,12 +38,14 @@ import software.amazon.awscdk.services.dynamodb.Attribute;
 import software.amazon.awscdk.services.dynamodb.AttributeType;
 import software.amazon.awscdk.services.dynamodb.BillingMode;
 import software.amazon.awscdk.services.dynamodb.Table;
+import software.amazon.awscdk.services.iam.ServicePrincipal;
 import software.amazon.awscdk.services.lambda.Code;
 import software.amazon.awscdk.services.lambda.Function;
 import software.amazon.awscdk.services.lambda.FunctionUrl;
 import software.amazon.awscdk.services.lambda.FunctionUrlAuthType;
 import software.amazon.awscdk.services.lambda.FunctionUrlOptions;
 import software.amazon.awscdk.services.lambda.InvokeMode;
+import software.amazon.awscdk.services.lambda.Permission;
 import software.amazon.awscdk.services.lambda.Runtime;
 import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.logs.RetentionDays;
@@ -51,6 +58,9 @@ import software.amazon.awscdk.services.route53.RecordTarget;
 import software.amazon.awscdk.services.route53.targets.CloudFrontTarget;
 import software.amazon.awscdk.services.s3.BlockPublicAccess;
 import software.amazon.awscdk.services.s3.Bucket;
+import software.amazon.awscdk.services.s3.assets.AssetOptions;
+import software.amazon.awscdk.services.s3.deployment.BucketDeployment;
+import software.amazon.awscdk.services.s3.deployment.Source;
 import software.constructs.Construct;
 
 import java.util.HashMap;
@@ -149,9 +159,13 @@ public class OidcStack extends Stack {
                 .billingMode(BillingMode.PAY_PER_REQUEST)
                 .removalPolicy(RemovalPolicy.DESTROY).build();
 
-        // Lambda code: reuse one Node project for all handlers
-        // When running from infra/, use ../app/oidc
-        // When running from root, use app/oidc
+        // Determine Lambda URL authentication type
+        //FunctionUrlAuthType functionUrlAuthType =
+        //        "AWS_IAM".equalsIgnoreCase(builder.lambdaUrlAuthType)
+        //                ? FunctionUrlAuthType.AWS_IAM
+        //                : FunctionUrlAuthType.NONE;
+
+        // Lambda s
         String assetPath = System.getProperty("user.dir").endsWith("infra") ? "../app/oidc" : "app/oidc";
         Code nodeCode = Code.fromAsset(assetPath);
 
@@ -217,27 +231,42 @@ public class OidcStack extends Stack {
                 .build());
 
         // Add /authorize, /token, /userinfo behaviors pointing to FunctionUrl origins under same domain
+        var authorizeLambdaUrlOrigin = HttpOrigin.Builder
+                .create(this.getLambdaUrlHostToken(authUrl))
+                .protocolPolicy(OriginProtocolPolicy.HTTPS_ONLY)
+                .build();
         BehaviorOptions authorizeBehaviorOptions = BehaviorOptions.builder()
-                .origin(FunctionUrlOrigin.withOriginAccessControl(authUrl))
+                .origin(authorizeLambdaUrlOrigin)
                 .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
                 .cachePolicy(CachePolicy.CACHING_DISABLED)
                 .originRequestPolicy(OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER)
                 .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
+                .build();
+
+        var tokenLambdaUrlOrigin = HttpOrigin.Builder
+                .create(this.getLambdaUrlHostToken(tokenUrl))
+                .protocolPolicy(OriginProtocolPolicy.HTTPS_ONLY)
                 .build();
         BehaviorOptions tokenBehaviorOptions = BehaviorOptions.builder()
-                .origin(FunctionUrlOrigin.withOriginAccessControl(tokenUrl))
+                .origin(tokenLambdaUrlOrigin)
                 .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
                 .cachePolicy(CachePolicy.CACHING_DISABLED)
                 .originRequestPolicy(OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER)
                 .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
+                .build();
+
+        var userinfoLambdaUrlOrigin = HttpOrigin.Builder
+                .create(this.getLambdaUrlHostToken(userUrl))
+                .protocolPolicy(OriginProtocolPolicy.HTTPS_ONLY)
                 .build();
         BehaviorOptions userinfoBehaviorOptions = BehaviorOptions.builder()
-                .origin(FunctionUrlOrigin.withOriginAccessControl(userUrl))
+                .origin(userinfoLambdaUrlOrigin)
                 .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
                 .cachePolicy(CachePolicy.CACHING_DISABLED)
                 .originRequestPolicy(OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER)
                 .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
                 .build();
+
         additionalOriginsBehaviourMappings.put("/authorize", authorizeBehaviorOptions);
         additionalOriginsBehaviourMappings.put("/token", tokenBehaviorOptions);
         additionalOriginsBehaviourMappings.put("/userinfo", userinfoBehaviorOptions);
@@ -255,8 +284,62 @@ public class OidcStack extends Stack {
                 .domainNames(List.of(domainName))
                 .certificate(cert)
                 .defaultRootObject("index.html")
+                .enableLogging(true)
+                .enableIpv6(true)
+                .sslSupportMethod(SSLMethod.SNI)
                 .build();
 
+        // Grant CloudFront access to the origin lambdas
+        Permission invokeFunctionUrlPermission =
+                Permission.builder()
+                        .principal(new ServicePrincipal("cloudfront.amazonaws.com"))
+                        .action("lambda:InvokeFunctionUrl")
+                        .functionUrlAuthType(FunctionUrlAuthType.NONE)
+                        .sourceArn(dist.getDistributionArn())
+                        .build();
+        authorize.addPermission("AuthLambdaAllowCloudFrontInvoke", invokeFunctionUrlPermission);
+        token.addPermission("TokenLambdaAllowCloudFrontInvoke", invokeFunctionUrlPermission);
+        userinfo.addPermission("UserInfoLambdaAllowCloudFrontInvoke", invokeFunctionUrlPermission);
+
+        // Deploy the web website files to the web website bucket and invalidate distribution
+        var webDocRootSource = Source.asset("web", AssetOptions.builder()
+                .assetHashType(AssetHashType.SOURCE)
+                .build());
+        LogGroup webBucketDeploymentLogGroup = LogGroup.Builder.create(this, "WebBucketDeploymentLogGroup")
+                        .logGroupName("/deployment/web-bucket-deployment")
+                        .retention(RetentionDays.ONE_WEEK)
+                        .removalPolicy(RemovalPolicy.DESTROY)
+                        .build();
+        var webDeployment = BucketDeployment.Builder.create(this, "DocRootToWebOriginDeployment")
+                        .sources(List.of(webDocRootSource))
+                        .destinationBucket(webBucket)
+                        .distribution(dist)
+                        .distributionPaths(List.of("/*"))
+                        .retainOnDelete(false)
+                        .logGroup(webBucketDeploymentLogGroup)
+                        .expires(Expiration.after(Duration.minutes(5)))
+                        .prune(true)
+                        .build();
+
+        // Deploy the well known website files to the web website bucket and invalidate distribution
+        var wellKnownRootSource = Source.asset("well-known", AssetOptions.builder()
+                .assetHashType(AssetHashType.SOURCE)
+                .build());
+        LogGroup wellKnownBucketDeploymentLogGroup = LogGroup.Builder.create(this, "WellKnownBucketDeploymentLogGroup")
+                .logGroupName("/deployment/well-known-bucket-deployment")
+                .retention(RetentionDays.ONE_WEEK)
+                .removalPolicy(RemovalPolicy.DESTROY)
+                .build();
+        var wellKnownDeployment = BucketDeployment.Builder.create(this, "DocRootToWellKnownOriginDeployment")
+                .sources(List.of(wellKnownRootSource))
+                .destinationBucket(wellKnownBucket)
+                .distribution(dist)
+                .distributionPaths(List.of("/*"))
+                .retainOnDelete(false)
+                .logGroup(wellKnownBucketDeploymentLogGroup)
+                .expires(Expiration.after(Duration.minutes(5)))
+                .prune(true)
+                .build();
 
         // A record
         new ARecord(this, "AliasRecord",
@@ -316,5 +399,10 @@ public class OidcStack extends Stack {
         new CfnOutput(this, "WebBucketName", CfnOutputProps.builder().value(webBucket.getBucketName()).build());
         new CfnOutput(this, "WellKnownBucketName", CfnOutputProps.builder().value(wellKnownBucket.getBucketName()).build());
         new CfnOutput(this, "DistributionId", CfnOutputProps.builder().value(dist.getDistributionId()).build());
+    }
+
+    private String getLambdaUrlHostToken(FunctionUrl functionUrl) {
+        String urlHostToken = Fn.select(2, Fn.split("/", functionUrl.getUrl()));
+        return urlHostToken;
     }
 }

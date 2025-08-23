@@ -82,7 +82,7 @@ To grant the local use access to assume the role, the local user needs to have t
 * `HOSTED_ZONE_ID` e.g. `Z079976717QZCYMJ02NI2`
 * `DOMAIN_NAME` e.g. `oidc.antonycc.com` (must be within the hosted zone)
 * `CERTIFICATE_ARN` e.g. `arn:aws:acm:us-east-1:403027849202:certificate/62ef0526-06c0-4744-9cee-33300d716633` (ACM in us-east-1 for CloudFront)
-* `COGNITO_DOMAIN_PREFIX` e.g. `com-antonycc-oidc-dev`
+* `COGNITO_DOMAIN_PREFIX` e.g. `com-antonycc-oidc-prod`
 * `DEPLOY_ROLE_ARN` IAM role for GitHub OIDC e.g. `arn:aws:iam::403027849202:role/oidc-github-actions-deploy-role`
 * For testOnly runs against an existing deploy, optionally:
 
@@ -111,12 +111,12 @@ From repo root:
 ```bash
 
 export DEPLOY_ROLE_ARN=arn:aws:iam::403027849202:role/oidc-github-actions-deploy-role
-export ENV_NAME=dev
+export ENV_NAME=prod
 export HOSTED_ZONE_NAME=antonycc.com
 export HOSTED_ZONE_ID=Z079976717QZCYMJ02NI2
 export DOMAIN_NAME=oidc.antonycc.com
 export CERTIFICATE_ARN=arn:aws:acm:us-east-1:403027849202:certificate/62ef0526-06c0-4744-9cee-33300d716633
-export COGNITO_DOMAIN_PREFIX=com-antonycc-oidc-dev
+export COGNITO_DOMAIN_PREFIX=com-antonycc-oidc
 ```
 
 Assume role for local deploys (or use AWS_PROFILE):
@@ -140,7 +140,7 @@ npx cdk bootstrap
 Deploy:
 ```bash
 
-npx cdk deploy OidcProviderStack-$ENV_NAME --require-approval never --outputs-file cdk-outputs.json
+npx cdk deploy OidcProviderStack-$ENV_NAME --require-approval never --outputs-file cdk.out/cdk-outputs.json
 ```
 
 CDK CLI executes the Java app via `cdk.json`.

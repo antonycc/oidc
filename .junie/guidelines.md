@@ -38,11 +38,11 @@ Build and configuration
   export CERTIFICATE_ARN=arn:aws:acm:…
   export COGNITO_DOMAIN_PREFIX=oidc-dev-xyz
   npx cdk bootstrap
-  npx cdk deploy OidcProviderStack-${ENV_NAME} --require-approval never --outputs-file cdk-outputs.json
+  npx cdk deploy OidcProviderStack-${ENV_NAME} --require-approval never --outputs-file cdk.out/cdk-outputs.json
 - Credentials: use your preferred method or scripts/assume-deployment-role.sh to assume the deployment role (org-specific; inspect file for details).
 
 4) CDK outputs used by tests
-After deploy, cdk-outputs.json will contain keys like:
+After deploy, cdk.out/cdk-outputs.json will contain keys like:
 - BaseUrl
 - CognitoAuthDomain
 - UserPoolClientId
@@ -116,7 +116,7 @@ Additional development notes
   - Root package.json defines workspaces: ["app/oidc"]. Install from repo root.
 - Debugging:
   - Playwright: set DEBUG=pw:api for verbose logs; open traces with npx playwright show-trace test-results/**/trace.zip; run with --headed/--ui locally.
-  - CDK: inspect synthesized templates in cdk.out; check cdk-outputs.json for endpoints; run with --verbose for detailed logs.
+  - CDK: inspect synthesized templates in cdk.out; check cdk.out/cdk-outputs.json for endpoints; run with --verbose for detailed logs.
   - AWS: ensure correct region (us-east-1 in CI) and credentials; deploy role is provided in CI via OIDC.
 - CI interaction:
   - The workflow supports a "testOnly" dispatch that skips deploy and expects a provided baseUrl and configured repo variables for Cognito. Use it to validate against an already deployed env without redeploying.

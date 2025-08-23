@@ -12,7 +12,7 @@ on:
         required: false
         default: ''
   push:
-    branches: [ main ]
+    branches: [ maXin ]
 
 permissions:
   id-token: write
@@ -72,7 +72,7 @@ jobs:
           export CERTIFICATE_ARN=${{ env.CERTIFICATE_ARN }}
           export COGNITO_DOMAIN_PREFIX=${{ env.COGNITO_DOMAIN_PREFIX }}
           npx cdk bootstrap
-          npx cdk deploy OidcProviderStack-${ENV_NAME} --require-approval never --outputs-file cdk-outputs.json
+          npx cdk deploy OidcProviderStack-${ENV_NAME} --require-approval never --outputs-file cdk.out/cdk-outputs.json
         env:
           CDK_NEW_BOOTSTRAP: '1'
 
@@ -84,9 +84,9 @@ jobs:
             echo "COGNITO_DOMAIN=${{ vars.COGNITO_DOMAIN }}" >> $GITHUB_OUTPUT
             echo "COGNITO_CLIENT_ID=${{ vars.COGNITO_CLIENT_ID }}" >> $GITHUB_OUTPUT
           else
-            BASE=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].BaseUrl' cdk-outputs.json)
-            COGD=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].CognitoAuthDomain' cdk-outputs.json)
-            CLID=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].UserPoolClientId' cdk-outputs.json)
+            BASE=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].BaseUrl' cdk.out/cdk-outputs.json)
+            COGD=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].CognitoAuthDomain' cdk.out/cdk-outputs.json)
+            CLID=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].UserPoolClientId' cdk.out/cdk-outputs.json)
             echo "BASE_URL=$BASE" >> $GITHUB_OUTPUT
             echo "COGNITO_DOMAIN=$COGD" >> $GITHUB_OUTPUT
             echo "COGNITO_CLIENT_ID=$CLID" >> $GITHUB_OUTPUT

@@ -245,12 +245,13 @@ public class OidcStack extends Stack {
         .userPoolId(pool.getUserPoolId())
         .providerDetails(Map.of(
             "attributes_request_method", "GET",
-            "oidc_issuer", "https://" + dist.getDomainName(),
+            "oidc_issuer", "https://" + domainName,
             "authorize_scopes", "openid email profile",
-            "authorize_url", "https://" + dist.getDomainName() + "/authorize",
-            "token_url", "https://" + dist.getDomainName() + "/token",
-            "attributes_url", "https://" + dist.getDomainName() + "/userinfo",
-            "jwks_uri", "https://" + dist.getDomainName() + "/jwks.json"))
+            "authorize_url", "https://" + domainName + "/authorize",
+            "token_url", "https://" + domainName + "/token",
+            "attributes_url", "https://" + domainName + "/userinfo",
+            "jwks_uri", "https://" + domainName + "/jwks.json",
+            "client_id", "cognito"))
         .attributeMapping(Map.of(
             "email", "email",
             "given_name", "name"))

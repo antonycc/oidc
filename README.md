@@ -1,4 +1,4 @@
-# Antony Cartwright OIDC Provider (Serverless, Cognito-compatible)
+# OIDC Provider (Serverless, Cognito-compatible)
 
 **What this is:** An OAuth2/OIDC Provider running on Lambda Function URLs behind CloudFront, with discovery and JWKS on S3, and a Cognito User Pool federated to it for end-to-end login. Everything is pay-per-request, logs retained 7 days, all resources set to destroy on stack deletion.
 

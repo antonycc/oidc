@@ -19,5 +19,5 @@ test('Cognito Hosted UI -> OP login -> redirect back with code', async ({ page }
 
 test('Home renders', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Antony Cartwright — OIDC' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'OIDC Provider' })).toBeVisible();
 });

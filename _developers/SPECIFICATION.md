@@ -1,4 +1,4 @@
-Here is a complete repo you can copy-paste. It follows your repo layout and mirrors your site's simple header/menu style. Node 20 (ESM), CDK Java v2, CloudFront+S3, Lambda URLs behind CloudFront, Cognito federating to your OP, 7-day log retention, destroy-on-delete. Playwright runs hourly, records trace, video, and screenshots. Function URLs are routed via CloudFront so the OIDC issuer and endpoints share one domain. Node 20 on Lambda is supported; Function URL + CloudFront origin integration and OAC are current CDK features. ([Amazon Web Services, Inc.][1], [AWS Documentation][2])
+Here is a complete repo you can copy-paste. It follows your repo layout and mirrors your site's simple header/menu style. Node 22 (ESM), CDK Java v2, CloudFront+S3, Lambda URLs behind CloudFront, Cognito federating to your OP, 7-day log retention, destroy-on-delete. Playwright runs hourly, records trace, video, and screenshots. Function URLs are routed via CloudFront so the OIDC issuer and endpoints share one domain. Node 22 on Lambda is supported; Function URL + CloudFront origin integration and OAC are current CDK features. ([Amazon Web Services, Inc.][1], [AWS Documentation][2])
 
 ---
 
@@ -8,7 +8,7 @@ Here is a complete repo you can copy-paste. It follows your repo layout and mirr
 
 ```gitignore
 # Node
-node_modules
+../node_modules
 npm-debug.log*
 pnpm-lock.yaml
 .yarn/*

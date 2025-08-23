@@ -2,6 +2,6 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    include: ['app/oidc-provider/test/**/*.test.mjs']
+    include: ['app/oidc/test/**/*.test.mjs']
   }
 });

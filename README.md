@@ -1,26 +1,19 @@
 # OIDC Provider (Serverless, Cognito-compatible)
 
-**What this is:** An OAuth2/OIDC Provider running on Lambda Function URLs behind CloudFront, with discovery and JWKS on S3, and a Cognito User Pool federated to it for end-to-end login. Everything is pay-per-request, logs retained 7 days, all resources set to destroy on stack deletion.
+**What this is:** An OAuth2/OIDC Provider running on Lambda Function URLs behind CloudFront, with discovery and JWKS on 
+S3, and a Cognito User Pool federated to it for end-to-end login. Everything is pay-per-request, logs retained 7 days, 
+all resources set to destroy on stack deletion.
 
 **Why:** Cheap, inspectable auth for tests and small workloads. Verbose logs aid debugging.
 
-**Tech:** CDK Java v2, Node 20 ESM Lambdas, CloudFront+S3 (OAC), DynamoDB TTL, Cognito Hosted UI. Lambda Node 20 and Function URLs are supported; CloudFront can target Function URLs and S3 via OAC.
-
----
-
-## Repo Layout (matches your existing style)
-
-- `infra/` – CDK Java app and stack
-- `app/oidc-provider/` – Node ESM Lambdas (authorize, token, userinfo) + scripts
-- `web/` – Static pages (`index.html`, `post-auth.html`, `oidc.css`)
-- `behaviour-tests/` – Playwright config and tests
-- `.github/workflows/deploy.yml` – deploy and test workflow
+**Tech:** CDK Java v2, Node 22 ESM Lambdas, CloudFront+S3 (OAC), DynamoDB TTL, Cognito Hosted UI. Lambda Node 22 and 
+Function URLs are supported; CloudFront can target Function URLs and S3 via OAC.
 
 ---
 
 ## Prereqs
 
-- Node 20, Java 17, AWS CLI, CDK v2, Maven wrapper.  
+- Node 22, Java 21, AWS CLI, CDK v2, Maven wrapper.  
 - Existing Route53 hosted zone for your domain.
 
 ---
@@ -33,30 +26,63 @@
 Docs and examples: GitHub + AWS OIDC setup and action usage.
 
 **Trust policy (example)**
+(Including local user for manual testing)
 ```json
 {
   "Version": "2012-10-17",
-  "Statement": [{
-    "Effect": "Allow",
-    "Principal": { "Federated": "arn:aws:iam::<ACCOUNT_ID>:oidc-provider/token.actions.githubusercontent.com" },
-    "Action": "sts:AssumeRoleWithWebIdentity",
-    "Condition": {
-      "StringEquals": { "token.actions.githubusercontent.com:aud": "sts.amazonaws.com" },
-      "StringLike":   { "token.actions.githubusercontent.com:sub": "repo:<OWNER>/<REPO>:*" }
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::403027849202:oidc-provider/token.actions.githubusercontent.com"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+        },
+        "StringLike": {
+          "token.actions.githubusercontent.com:sub": "repo:antonycc/oidc:main"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": [
+          "arn:aws:iam::541134664601:user/antony-local-user"
+        ]
+      },
+      "Action": "sts:AssumeRole"
     }
-  }]
+  ]
 }
+```
+
+To grant the local use access to assume the role, the local user needs to have this statement in its policy:
+```json
+        {
+            "Sid": "Statement4",
+            "Effect": "Allow",
+            "Action": [
+                "sts:AssumeRole",
+                "sts:TagSession"
+            ],
+            "Resource": [
+                "arn:aws:iam::403027849202:role/oidc-github-actions-deploy-role"
+            ]
+        }
 ```
 
 ---
 
 ## Configure repo variables (Settings → Secrets and variables → Actions → *Variables*)
 
-* `HOSTED_ZONE_NAME` e.g. `example.com`
+* `HOSTED_ZONE_NAME` e.g. `antonycc.com`
 * `HOSTED_ZONE_ID` e.g. `Z123ABC...`
 * `SUB_DOMAIN_NAME` e.g. `oidc`
-* `COGNITO_DOMAIN_PREFIX` e.g. `oidc-dev-1234`
-* `DEPLOY_ROLE_ARN` IAM role for GitHub OIDC
+* `COGNITO_DOMAIN_PREFIX` e.g. `Z079976717QZCYMJ02NI2`
+* `DEPLOY_ROLE_ARN` IAM role for GitHub OIDC e.g. `arn:aws:iam::403027849202:role/oidc-github-actions-deploy-role`
 * For testOnly runs against an existing deploy, optionally:
 
   * `COGNITO_DOMAIN`, `COGNITO_CLIENT_ID`
@@ -67,17 +93,21 @@ Docs and examples: GitHub + AWS OIDC setup and action usage.
 
 ```bash
 # From repo root
-export ENV_NAME=dev
-export HOSTED_ZONE_NAME=example.com
-export HOSTED_ZONE_ID=Z123ABC...
+export DEPLOY_ROLE_ARN=arn:aws:iam::403027849202:role/oidc-github-actions-deploy-role
+export ENV=dev
+export HOSTED_ZONE_NAME=antonycc.com
+export HOSTED_ZONE_ID=Z079976717QZCYMJ02NI2
 export SUB_DOMAIN_NAME=oidc
-export COGNITO_DOMAIN_PREFIX=oidc-dev-1234
+export COGNITO_DOMAIN_PREFIX=com-antonycc-oidc-dev
+
+# Assume role for local deploys (or use AWS_PROFILE)
+source scripts/assume-deployment-role.sh
 
 # Synth
-mvn -e -q -f infra/pom.xml clean compile exec:java   # generates cdk.out via cdk.json
+./mvnw --errors --file infra/pom.xml clean compile exec:java   # generates cdk.out via cdk.json
 # Deploy
 npx cdk bootstrap
-npx cdk deploy OidcProviderStack-$ENV_NAME --require-approval never --outputs-file cdk-outputs.json
+npx cdk deploy OidcProviderStack-$ENV --require-approval never --outputs-file cdk-outputs.json
 ```
 
 CDK CLI executes the Java app via `cdk.json`.
@@ -93,7 +123,7 @@ Users are stored in DynamoDB (`Users` table). CI calls:
 
 ```bash
 # Create a test user (defaults shown)
-cd app/oidc-provider
+cd app/oidc
 npm ci
 USERS_TABLE=<UsersTableName> node scripts/provision-user.mjs test-user Passw0rd!
 
@@ -134,7 +164,7 @@ Artifacts uploaded: `playwright-report` (HTML), `test-results` (traces, screensh
 ## Verbose logging
 
 All handlers log structured JSON on every step (inputs redacted where needed). CloudWatch log groups are set to **ONE\_WEEK** retention.
-Lambda Node 20, Function URLs, and CloudFront origins are standard.
+Lambda Node 22, Function URLs, and CloudFront origins are standard.
 
 ---
 
@@ -165,11 +195,11 @@ Lambda Node 20, Function URLs, and CloudFront origins are standard.
 * `mvn -f infra/pom.xml -q compile exec:java` → no exceptions.
 * `npx cdk synth` → template appears.
 * `npx cdk deploy` → outputs show `BaseUrl` and Cognito values.
-* `node app/oidc-provider/scripts/provision-user.mjs` → prints `created`.
+* `node app/oidc/scripts/provision-user.mjs` → prints `created`.
 * `BASE_URL=... COGNITO_DOMAIN=... COGNITO_CLIENT_ID=... npx playwright test` → two tests pass.
 * Check **Actions artifacts** for `playwright-report`, `test-results` folders.
 
-If a first cold start slows `/authorize`, Playwright has 90s timeout in config. Lambda Node 20 cold starts are typical and within test budgets.
+If a first cold start slows `/authorize`, Playwright has 90s timeout in config. Lambda Node 22 cold starts are typical and within test budgets.
 
 ---
 

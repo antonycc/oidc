@@ -126,15 +126,15 @@ public class OidcStack extends Stack {
     FunctionUrl userUrl    = userinfo.addFunctionUrl(FunctionUrlOptions.builder().authType(FunctionUrlAuthType.AWS_IAM).build());
 
     // Add /authorize, /token, /userinfo behaviors pointing to FunctionUrl origins under same domain
-    dist.addBehavior("/authorize", FunctionUrlOrigin.withOriginAccessControl(authUrl),
+    dist.addBehavior("/authorize",
         BehaviorOptions.builder()
             .origin(FunctionUrlOrigin.withOriginAccessControl(authUrl))
             .cachePolicy(CachePolicy.CACHING_DISABLED).build());
-    dist.addBehavior("/token", FunctionUrlOrigin.withOriginAccessControl(tokenUrl),
+    dist.addBehavior("/token",
         BehaviorOptions.builder()
             .origin(FunctionUrlOrigin.withOriginAccessControl(tokenUrl))
             .cachePolicy(CachePolicy.CACHING_DISABLED).build());
-    dist.addBehavior("/userinfo", FunctionUrlOrigin.withOriginAccessControl(userUrl),
+    dist.addBehavior("/userinfo",
         BehaviorOptions.builder()
             .origin(FunctionUrlOrigin.withOriginAccessControl(userUrl))
             .cachePolicy(CachePolicy.CACHING_DISABLED).build());

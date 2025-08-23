@@ -256,6 +256,9 @@ public class OidcStack extends Stack {
             "given_name", "name"))
         .build();
 
+    // Ensure the UserPoolClient is created after the OIDC IdP exists
+    client.getNode().addDependency(oidcIdp);
+
     // Outputs
     new CfnOutput(this, "BaseUrl", CfnOutputProps.builder().value("https://" + props.subdomain + "." + props.hostedZoneName).build());
     new CfnOutput(this, "CognitoAuthDomain", CfnOutputProps.builder().value(domain.getDomainName()).build());

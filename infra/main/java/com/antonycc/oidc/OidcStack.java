@@ -359,17 +359,7 @@ public class OidcStack extends Stack {
                 .cognitoDomain(CognitoDomainOptions.builder().domainPrefix(props.cognitoDomainPrefix).build())
                 .build());
 
-        UserPoolClient client = pool.addClient("WebClient", UserPoolClientOptions.builder()
-                .oAuth(OAuthSettings.builder()
-                        .flows(OAuthFlows.builder().authorizationCodeGrant(true).build())
-                        .scopes(List.of(OAuthScope.OPENID, OAuthScope.EMAIL, OAuthScope.PROFILE))
-                        .callbackUrls(List.of("https://" + domainName + "/post-auth.html"))
-                        .logoutUrls(List.of("https://" + domainName + "/"))
-                        .build())
-                .supportedIdentityProviders(List.of(UserPoolClientIdentityProvider.custom("OIDC")))
-                .build());
-
-        // OIDC IdP pointing to our issuer endpoints
+        // OIDC IdP pointing to our issuer endpoints (created before the client to avoid dependency cycles)
         CfnUserPoolIdentityProvider oidcIdp = CfnUserPoolIdentityProvider.Builder.create(this, "OidcIdp")
                 .providerName("OIDC")
                 .providerType("OIDC")
@@ -388,8 +378,16 @@ public class OidcStack extends Stack {
                         "given_name", "name"))
                 .build();
 
-        // Ensure the UserPoolClient is created after the OIDC IdP exists
-        client.getNode().addDependency(oidcIdp);
+        // User Pool Client configured to use the custom OIDC IdP
+        UserPoolClient client = pool.addClient("WebClient", UserPoolClientOptions.builder()
+                .oAuth(OAuthSettings.builder()
+                        .flows(OAuthFlows.builder().authorizationCodeGrant(true).build())
+                        .scopes(List.of(OAuthScope.OPENID, OAuthScope.EMAIL, OAuthScope.PROFILE))
+                        .callbackUrls(List.of("https://" + domainName + "/post-auth.html"))
+                        .logoutUrls(List.of("https://" + domainName + "/"))
+                        .build())
+                .supportedIdentityProviders(List.of(UserPoolClientIdentityProvider.custom("OIDC")))
+                .build());
 
         // Outputs
         new CfnOutput(this, "BaseUrl", CfnOutputProps.builder().value("https://" + domainName).build());

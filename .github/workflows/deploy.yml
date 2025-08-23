@@ -1,0 +1,117 @@
+name: Deploy OIDC + Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      testOnly:
+        description: 'Run tests only (no deploy)'
+        required: false
+        default: 'false'
+      baseUrl:
+        description: 'Existing deployed BASE_URL for testOnly runs (e.g. https://oidc.antonycc.com)'
+        required: false
+        default: ''
+  push:
+    branches: [ main ]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  JAVA_VERSION: '21'
+  NODE_VERSION: '22'
+  ENV_NAME: dev
+  HOSTED_ZONE_NAME: ${{ vars.HOSTED_ZONE_NAME }}
+  HOSTED_ZONE_ID: ${{ vars.HOSTED_ZONE_ID }}
+  SUB_DOMAIN_NAME: ${{ vars.SUB_DOMAIN_NAME }}
+  COGNITO_DOMAIN_PREFIX: ${{ vars.COGNITO_DOMAIN_PREFIX }}
+
+jobs:
+  build-deploy-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with: { node-version: ${{ env.NODE_VERSION }} }
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with: { distribution: 'temurin', java-version: ${{ env.JAVA_VERSION }} }
+
+      - name: Install dependencies and Playwright browsers
+        run: |
+          npm -v
+          npm ci --ignore-scripts
+          npx playwright install --with-deps
+
+      - name: Configure AWS creds via OIDC
+        if: ${{ inputs.testOnly != 'true' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-oidc-deploy
+
+      - name: Build CDK and synth
+        if: ${{ inputs.testOnly != 'true' }}
+        run: mvn -e -q -f infra/pom.xml clean compile exec:java
+
+      - name: Deploy (CDK)
+        if: ${{ inputs.testOnly != 'true' }}
+        run: |
+          export ENV_NAME=${{ env.ENV_NAME }}
+          export HOSTED_ZONE_NAME=${{ env.HOSTED_ZONE_NAME }}
+          export HOSTED_ZONE_ID=${{ env.HOSTED_ZONE_ID }}
+          export SUB_DOMAIN_NAME=${{ env.SUB_DOMAIN_NAME }}
+          export COGNITO_DOMAIN_PREFIX=${{ env.COGNITO_DOMAIN_PREFIX }}
+          npx cdk bootstrap
+          npx cdk deploy OidcProviderStack-${ENV_NAME} --require-approval never --outputs-file cdk-outputs.json
+        env:
+          CDK_NEW_BOOTSTRAP: '1'
+
+      - name: Resolve BASE_URL and Cognito outputs
+        id: out
+        run: |
+          if [ "${{ inputs.testOnly }}" = "true" ]; then
+            echo "BASE_URL=${{ inputs.baseUrl }}" >> $GITHUB_OUTPUT
+            echo "COGNITO_DOMAIN=${{ vars.COGNITO_DOMAIN }}" >> $GITHUB_OUTPUT
+            echo "COGNITO_CLIENT_ID=${{ vars.COGNITO_CLIENT_ID }}" >> $GITHUB_OUTPUT
+          else
+            BASE=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].BaseUrl' cdk-outputs.json)
+            COGD=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].CognitoAuthDomain' cdk-outputs.json)
+            CLID=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].UserPoolClientId' cdk-outputs.json)
+            echo "BASE_URL=$BASE" >> $GITHUB_OUTPUT
+            echo "COGNITO_DOMAIN=$COGD" >> $GITHUB_OUTPUT
+            echo "COGNITO_CLIENT_ID=$CLID" >> $GITHUB_OUTPUT
+          fi
+        shell: bash
+
+      - name: Provision test user
+        if: ${{ inputs.testOnly != 'true' }}
+        run: npm run provision:user test-user Passw0rd!
+        env:
+          USERS_TABLE: ${{ env.USERS_TABLE }}
+
+      - name: Run Playwright behaviour tests
+        run: |
+          echo "BASE_URL=${{ steps.out.outputs.BASE_URL }}"
+          echo "COGNITO_DOMAIN=${{ steps.out.outputs.COGNITO_DOMAIN }}"
+          echo "COGNITO_CLIENT_ID=${{ steps.out.outputs.COGNITO_CLIENT_ID }}"
+          BASE_URL='${{ steps.out.outputs.BASE_URL }}' \
+          COGNITO_DOMAIN='${{ steps.out.outputs.COGNITO_DOMAIN }}' \
+          COGNITO_CLIENT_ID='${{ steps.out.outputs.COGNITO_CLIENT_ID }}' \
+          npx playwright test --project=chromium
+
+      - name: Upload artifacts (report, trace, screenshots, videos)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: |
+            playwright-report
+            test-results

@@ -1,0 +1,12 @@
+{
+  "keys": [
+    {
+      "kty": "RSA",
+      "use": "sig",
+      "alg": "RS256",
+      "kid": "kid-1",
+      "n": "placeholder-this-will-be-generated-dynamically",
+      "e": "AQAB"
+    }
+  ]
+}

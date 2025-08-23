@@ -1,0 +1,26 @@
+<!doctype html><html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OIDC Provider</title>
+  <link rel="stylesheet" href="/oidc.css">
+</head>
+<body>
+<header>
+  <div class="header-nav">
+    <div class="hamburger-menu">
+      <button class="hamburger-btn">☰</button>
+      <div class="menu-dropdown"><a href="/">Home</a><a href="/post-auth.html">Post Auth</a></div>
+    </div>
+    <div class="auth-section"><span class="login-status">Not logged in</span> <a class="nav" href="/login.html">Log in</a></div>
+  </div>
+</header>
+<main class="container">
+  <h1>OIDC Provider</h1>
+  <div class="card">
+    <p>Use Cognito Hosted UI to kick off the flow. This site only hosts simple pages and receives callbacks.</p>
+    <p>After deploy, your Cognito domain is output as <code>CognitoAuthDomain</code>. Visit:</p>
+    <pre><code>https://&lt;cognito-domain&gt;/oauth2/authorize?client_id=&lt;clientId&gt;&amp;response_type=code&amp;scope=openid+email+profile&amp;redirect_uri=https://&lt;your-subdomain&gt;.&lt;zone&gt;/post-auth.html</code></pre>
+  </div>
+</main>
+<footer><small>© 2025 OIDC Provider</small></footer>
+</body></html>

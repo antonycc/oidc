@@ -3,28 +3,28 @@
   "version": "0.1.0",
   "type": "module",
   "private": true,
-  "engines": { "node": ">=20" },
+  "engines": { "node": ">=22" },
   "workspaces": [
-    "app/oidc-provider"
+    "app/oidc"
   ],
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.614.0",
-    "@aws-sdk/lib-dynamodb": "^3.614.0",
+    "@aws-sdk/client-dynamodb": "^3.645.0",
+    "@aws-sdk/lib-dynamodb": "^3.645.0",
     "ulid": "^2.3.0",
-    "jose": "^5.9.4",
+    "jose": "^5.9.6",
     "bcryptjs": "^2.4.3"
   },
   "devDependencies": {
-    "vitest": "^2.0.5",
-    "@playwright/test": "^1.40.0"
+    "vitest": "^3.2.4",
+    "@playwright/test": "^1.47.2"
   },
   "scripts": {
-    "test": "npm run test:unit && npm run test:e2e",
+    "test": "npm run test:unit",
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
-    "provision:user": "node app/oidc-provider/scripts/provision-user.mjs",
-    "clear:users": "node app/oidc-provider/scripts/clear-users.mjs"
+    "provision:user": "node app/oidc/scripts/provision-user.mjs",
+    "clear:users": "node app/oidc/scripts/clear-users.mjs"
   }
 }

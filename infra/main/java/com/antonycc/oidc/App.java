@@ -8,9 +8,10 @@ public class App {
     var app = new software.amazon.awscdk.App();
 
     String envName = System.getenv().getOrDefault("ENV_NAME", "dev");
-    String hostedZoneName = System.getenv().getOrDefault("HOSTED_ZONE_NAME", "");
-    String hostedZoneId   = System.getenv().getOrDefault("HOSTED_ZONE_ID", "");
-    String subdomain      = System.getenv().getOrDefault("SUB_DOMAIN_NAME", "oidc");
+    String hostedZoneName = System.getenv().getOrDefault("HOSTED_ZONE_NAME", "example.com");
+    String hostedZoneId   = System.getenv().getOrDefault("HOSTED_ZONE_ID", "Z000EXAMPLE");
+    String domainName     = System.getenv().getOrDefault("DOMAIN_NAME", "oidc.example.com");
+    String certificateArn = System.getenv().getOrDefault("CERTIFICATE_ARN", "arn:aws:acm:us-east-1:123456789012:certificate/abc");
     String cognitoPrefix  = System.getenv().getOrDefault("COGNITO_DOMAIN_PREFIX", "oidc-"+envName);
 
     new OidcStack(app, "OidcProviderStack-" + envName, OidcStackProps.builder()
@@ -21,7 +22,8 @@ public class App {
         .envName(envName)
         .hostedZoneName(hostedZoneName)
         .hostedZoneId(hostedZoneId)
-        .subdomain(subdomain)
+        .domainName(domainName)
+        .certificateArn(certificateArn)
         .cognitoDomainPrefix(cognitoPrefix)
         .build());
 

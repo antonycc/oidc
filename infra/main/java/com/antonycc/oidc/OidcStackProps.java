@@ -8,7 +8,8 @@ public class OidcStackProps implements StackProps {
   public final String envName;
   public final String hostedZoneName;
   public final String hostedZoneId;
-  public final String subdomain;
+  public final String domainName;
+  public final String certificateArn;
   public final String cognitoDomainPrefix;
 
   private OidcStackProps(Builder builder) {
@@ -16,7 +17,8 @@ public class OidcStackProps implements StackProps {
     this.envName = builder.envName;
     this.hostedZoneName = builder.hostedZoneName;
     this.hostedZoneId = builder.hostedZoneId;
-    this.subdomain = builder.subdomain;
+    this.domainName = builder.domainName;
+    this.certificateArn = builder.certificateArn;
     this.cognitoDomainPrefix = builder.cognitoDomainPrefix;
   }
 
@@ -31,7 +33,8 @@ public class OidcStackProps implements StackProps {
     private String envName;
     private String hostedZoneName;
     private String hostedZoneId;
-    private String subdomain;
+    private String domainName;
+    private String certificateArn;
     private String cognitoDomainPrefix;
     
     public Builder env(Environment env) {
@@ -54,8 +57,13 @@ public class OidcStackProps implements StackProps {
       return this;
     }
     
-    public Builder subdomain(String subdomain) {
-      this.subdomain = subdomain;
+    public Builder domainName(String domainName) {
+      this.domainName = domainName;
+      return this;
+    }
+
+    public Builder certificateArn(String certificateArn) {
+      this.certificateArn = certificateArn;
       return this;
     }
     

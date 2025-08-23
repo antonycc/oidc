@@ -41,7 +41,6 @@ Before executing ANY code change, conduct this internal review:
 - Are tests comprehensive (unit, integration, e2e)?
 - Is logging verbose enough for debugging auth flows?
 - Does the change maintain backward compatibility?
-- Are TypeScript types comprehensive (if applicable)?
 - Is documentation updated appropriately?
 
 #### Operational Review

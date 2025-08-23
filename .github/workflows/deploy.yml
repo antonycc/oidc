@@ -12,7 +12,9 @@ on:
         required: false
         default: ''
   push:
-    branches: [ main ]
+    branches:
+      - '**'
+      - '!gh_pages'
 
 permissions:
   id-token: write
@@ -22,10 +24,12 @@ env:
   AWS_REGION: us-east-1
   JAVA_VERSION: '21'
   NODE_VERSION: '22'
-  ENV_NAME: dev
+  DEPLOY_ROLE_ARN: ${{ vars.DEPLOY_ROLE_ARN }}
+  ENV_NAME: prod
   HOSTED_ZONE_NAME: ${{ vars.HOSTED_ZONE_NAME }}
   HOSTED_ZONE_ID: ${{ vars.HOSTED_ZONE_ID }}
-  SUB_DOMAIN_NAME: ${{ vars.SUB_DOMAIN_NAME }}
+  DOMAIN_NAME: ${{ vars.DOMAIN_NAME }}
+  CERTIFICATE_ARN: ${{ vars.CERTIFICATE_ARN }}
   COGNITO_DOMAIN_PREFIX: ${{ vars.COGNITO_DOMAIN_PREFIX }}
 
 jobs:
@@ -33,71 +37,82 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node
         uses: actions/setup-node@v4
-        with: { node-version: ${{ env.NODE_VERSION }} }
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with: { distribution: 'temurin', java-version: ${{ env.JAVA_VERSION }} }
+      - name: Node test
+        run: npm ci && npm test
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'maven'
+
+      - name: Configure AWS creds via OIDC
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-oidc-deploy
+
+      - name: Build CDK and synth
+        run: ./mvnw --errors clean package
+
+      # Once only per account
+      #- name: Bootstrap CDK
+      #  if: ${{ inputs.testOnly != 'true' }}
+      #  run: npx cdk bootstrap
+      #  env:
+      #    CDK_NEW_BOOTSTRAP: '1'
+
+      # Only deploy from main
+      - name: Deploy (CDK)
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
+        run: |
+          export ENV_NAME=${{ env.ENV_NAME }}
+          export HOSTED_ZONE_NAME=${{ env.HOSTED_ZONE_NAME }}
+          export HOSTED_ZONE_ID=${{ env.HOSTED_ZONE_ID }}
+          export DOMAIN_NAME=${{ env.DOMAIN_NAME }}
+          export CERTIFICATE_ARN=${{ env.CERTIFICATE_ARN }}
+          export COGNITO_DOMAIN_PREFIX=${{ env.COGNITO_DOMAIN_PREFIX }}
+          npx cdk deploy OidcProviderStack-${ENV_NAME} --require-approval never --outputs-file cdk.out/cdk-outputs.json
+
+      - name: Resolve BASE_URL and Cognito outputs
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
+        id: out
+        run: |
+          ENV_NAME='${{ env.ENV_NAME }}'
+          BASE=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].BaseUrl' cdk.out/cdk-outputs.json)
+          COGD=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].CognitoAuthDomain' cdk.out/cdk-outputs.json)
+          CLID=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].UserPoolClientId' cdk.out/cdk-outputs.json)
+          echo "BASE_URL=$BASE" >> $GITHUB_OUTPUT
+          echo "COGNITO_DOMAIN=$COGD" >> $GITHUB_OUTPUT
+          echo "COGNITO_CLIENT_ID=$CLID" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Provision test user
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
+        run: npm run provision:user test-user Passw0rd!
+        env:
+          USERS_TABLE: ${{ env.USERS_TABLE }}
 
       - name: Install dependencies and Playwright browsers
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
         run: |
           npm -v
           npm ci --ignore-scripts
           npx playwright install --with-deps
 
-      - name: Configure AWS creds via OIDC
-        if: ${{ inputs.testOnly != 'true' }}
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ vars.DEPLOY_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-          role-session-name: gha-oidc-deploy
-
-      - name: Build CDK and synth
-        if: ${{ inputs.testOnly != 'true' }}
-        run: mvn -e -q -f infra/pom.xml clean compile exec:java
-
-      - name: Deploy (CDK)
-        if: ${{ inputs.testOnly != 'true' }}
-        run: |
-          export ENV_NAME=${{ env.ENV_NAME }}
-          export HOSTED_ZONE_NAME=${{ env.HOSTED_ZONE_NAME }}
-          export HOSTED_ZONE_ID=${{ env.HOSTED_ZONE_ID }}
-          export SUB_DOMAIN_NAME=${{ env.SUB_DOMAIN_NAME }}
-          export COGNITO_DOMAIN_PREFIX=${{ env.COGNITO_DOMAIN_PREFIX }}
-          npx cdk bootstrap
-          npx cdk deploy OidcProviderStack-${ENV_NAME} --require-approval never --outputs-file cdk-outputs.json
-        env:
-          CDK_NEW_BOOTSTRAP: '1'
-
-      - name: Resolve BASE_URL and Cognito outputs
-        id: out
-        run: |
-          if [ "${{ inputs.testOnly }}" = "true" ]; then
-            echo "BASE_URL=${{ inputs.baseUrl }}" >> $GITHUB_OUTPUT
-            echo "COGNITO_DOMAIN=${{ vars.COGNITO_DOMAIN }}" >> $GITHUB_OUTPUT
-            echo "COGNITO_CLIENT_ID=${{ vars.COGNITO_CLIENT_ID }}" >> $GITHUB_OUTPUT
-          else
-            BASE=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].BaseUrl' cdk-outputs.json)
-            COGD=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].CognitoAuthDomain' cdk-outputs.json)
-            CLID=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].UserPoolClientId' cdk-outputs.json)
-            echo "BASE_URL=$BASE" >> $GITHUB_OUTPUT
-            echo "COGNITO_DOMAIN=$COGD" >> $GITHUB_OUTPUT
-            echo "COGNITO_CLIENT_ID=$CLID" >> $GITHUB_OUTPUT
-          fi
-        shell: bash
-
-      - name: Provision test user
-        if: ${{ inputs.testOnly != 'true' }}
-        run: npm run provision:user test-user Passw0rd!
-        env:
-          USERS_TABLE: ${{ env.USERS_TABLE }}
-
+      # The behaviour tests are not run for testOnly=true because they would be running against a different deployment.
       - name: Run Playwright behaviour tests
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
         run: |
           echo "BASE_URL=${{ steps.out.outputs.BASE_URL }}"
           echo "COGNITO_DOMAIN=${{ steps.out.outputs.COGNITO_DOMAIN }}"
@@ -108,7 +123,7 @@ jobs:
           npx playwright test --project=chromium
 
       - name: Upload artifacts (report, trace, screenshots, videos)
-        if: always()
+        if: ${{ !cancelled() && inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
         uses: actions/upload-artifact@v4
         with:
           name: playwright-artifacts

@@ -19,3 +19,5 @@ infra/.vscode
 
 # CDK
 cdk.out
+/cdk.out/cdk-outputs.json
+target/

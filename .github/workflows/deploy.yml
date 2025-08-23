@@ -60,7 +60,7 @@ jobs:
 
       - name: Build CDK and synth
         if: ${{ inputs.testOnly != 'true' }}
-        run: ./mvnw --errors --file pom.xml clean compile exec:java
+        run: ./mvnw --errors clean compile exec:java
 
       - name: Deploy (CDK)
         if: ${{ inputs.testOnly != 'true' }}

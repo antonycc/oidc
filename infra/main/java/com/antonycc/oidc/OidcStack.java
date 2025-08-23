@@ -210,6 +210,7 @@ public class OidcStack extends Stack {
           .defaultRootObject("index.html")
           .build();
 
+
     // A record
     new ARecord(this, "AliasRecord",
         ARecordProps.builder()
@@ -265,5 +266,8 @@ public class OidcStack extends Stack {
     new CfnOutput(this, "CognitoAuthDomain", CfnOutputProps.builder().value(domain.getDomainName()).build());
     new CfnOutput(this, "UserPoolId", CfnOutputProps.builder().value(pool.getUserPoolId()).build());
     new CfnOutput(this, "UserPoolClientId", CfnOutputProps.builder().value(client.getUserPoolClientId()).build());
+    new CfnOutput(this, "WebBucketName", CfnOutputProps.builder().value(webBucket.getBucketName()).build());
+    new CfnOutput(this, "WellKnownBucketName", CfnOutputProps.builder().value(wellKnownBucket.getBucketName()).build());
+    new CfnOutput(this, "DistributionId", CfnOutputProps.builder().value(dist.getDistributionId()).build());
   }
 }

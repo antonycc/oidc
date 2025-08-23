@@ -24,7 +24,7 @@ Build and configuration
 
 2) Build/compile the CDK app (no deploy)
 - Compile and execute the CDK entrypoint (synth path) with Maven Exec Plugin:
-  ./mvnw --file infra/pom.xml clean compile exec:java
+  ./mvnw --errors clean compile exec:java
   (Main class: com.antonycc.oidc.App per infra/pom.xml; this should synth without deployment.)
 
 3) Deploy (for environments that need E2E)
@@ -72,7 +72,7 @@ B) Infra tests (JUnit 5)
 - Location: infra/src/test/java.
 - Example test present: SynthTest creates OidcStack with dummy props and calls app.synth().
 - Run all infra tests:
-  ./mvnw -f infra/pom.xml test
+  ./mvnw --errors test
 - Notes:
   - surefire 3.2.5 with JUnit Platform is configured.
   - Java 21 compilation is set via maven-compiler-plugin properties in pom.
@@ -104,7 +104,7 @@ Creating and validating a new test (demonstrated)
 - We validated unit testing by adding a smoke test under app/oidc/test and running:
   npm run test:unit
 - Infra tests were also executed locally via:
-  ./mvnw -f infra/pom.xml test
+  ./mvnw --errors test
 - E2E tests require a deployed environment and correct env vars; reference the Deploy section to stand one up or reuse an existing BASE_URL/COGNITO_*.
 
 

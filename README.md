@@ -128,7 +128,7 @@ source scripts/assume-deployment-role.sh
 Synth (generates cdk.out via cdk.json):
 ```bash
 
-./mvnw --errors --file pom.xml clean compile exec:java
+./mvnw --errors clean compile exec:java
 ```
 
 One time per account CDK set-up:
@@ -278,7 +278,7 @@ Lambda Node 22, Function URLs, and CloudFront origins are standard.
 
 ## Local dry-run checklist (tired-mode)
 
-* `./mvnw -f pom.xml -q compile exec:java` → no exceptions.
+* `./mvnw --errors compile exec:java` → no exceptions.
 * `npx cdk synth` → template appears.
 * `npx cdk deploy` → outputs show `BaseUrl` and Cognito values.
 * `npm run provision:user` → prints `created`.

@@ -160,10 +160,6 @@ public class OidcStack extends Stack {
                 .removalPolicy(RemovalPolicy.DESTROY).build();
 
         // Determine Lambda URL authentication type
-        //FunctionUrlAuthType functionUrlAuthType =
-        //        "AWS_IAM".equalsIgnoreCase(builder.lambdaUrlAuthType)
-        //                ? FunctionUrlAuthType.AWS_IAM
-        //                : FunctionUrlAuthType.NONE;
 
         // Lambda s
         String assetPath = System.getProperty("user.dir").endsWith("infra") ? "../app/oidc" : "app/oidc";

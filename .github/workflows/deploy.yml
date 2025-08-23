@@ -55,6 +55,7 @@ jobs:
           cache: 'maven'
 
       - name: Configure AWS creds via OIDC
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
@@ -84,20 +85,16 @@ jobs:
           npx cdk deploy OidcProviderStack-${ENV_NAME} --require-approval never --outputs-file cdk.out/cdk-outputs.json
 
       - name: Resolve BASE_URL and Cognito outputs
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
         id: out
         run: |
-          if [ "${{ inputs.testOnly && github.ref == 'refs/heads/main' }}" = "true" ]; then
-            echo "BASE_URL=${{ inputs.baseUrl }}" >> $GITHUB_OUTPUT
-            echo "COGNITO_DOMAIN=${{ vars.COGNITO_DOMAIN }}" >> $GITHUB_OUTPUT
-            echo "COGNITO_CLIENT_ID=${{ vars.COGNITO_CLIENT_ID }}" >> $GITHUB_OUTPUT
-          else
-            BASE=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].BaseUrl' cdk.out/cdk-outputs.json)
-            COGD=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].CognitoAuthDomain' cdk.out/cdk-outputs.json)
-            CLID=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].UserPoolClientId' cdk.out/cdk-outputs.json)
-            echo "BASE_URL=$BASE" >> $GITHUB_OUTPUT
-            echo "COGNITO_DOMAIN=$COGD" >> $GITHUB_OUTPUT
-            echo "COGNITO_CLIENT_ID=$CLID" >> $GITHUB_OUTPUT
-          fi
+          ENV_NAME='${{ env.ENV_NAME }}'
+          BASE=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].BaseUrl' cdk.out/cdk-outputs.json)
+          COGD=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].CognitoAuthDomain' cdk.out/cdk-outputs.json)
+          CLID=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].UserPoolClientId' cdk.out/cdk-outputs.json)
+          echo "BASE_URL=$BASE" >> $GITHUB_OUTPUT
+          echo "COGNITO_DOMAIN=$COGD" >> $GITHUB_OUTPUT
+          echo "COGNITO_CLIENT_ID=$CLID" >> $GITHUB_OUTPUT
         shell: bash
 
       - name: Provision test user

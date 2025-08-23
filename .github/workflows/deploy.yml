@@ -12,7 +12,8 @@ on:
         required: false
         default: ''
   push:
-    branches: [ maXin ]
+    branches:
+      - '!gh_pages'
 
 permissions:
   id-token: write
@@ -40,18 +41,14 @@ jobs:
         uses: actions/setup-node@v4
         with: { node-version: ${{ env.NODE_VERSION }} }
 
+      - name: Node test
+        run: npm ci && npm test
+
       - name: Setup Java
         uses: actions/setup-java@v5
         with: { distribution: 'temurin', java-version: ${{ env.JAVA_VERSION }} }
 
-      - name: Install dependencies and Playwright browsers
-        run: |
-          npm -v
-          npm ci --ignore-scripts
-          npx playwright install --with-deps
-
       - name: Configure AWS creds via OIDC
-        if: ${{ inputs.testOnly != 'true' }}
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.DEPLOY_ROLE_ARN }}
@@ -59,11 +56,18 @@ jobs:
           role-session-name: gha-oidc-deploy
 
       - name: Build CDK and synth
-        if: ${{ inputs.testOnly != 'true' }}
-        run: ./mvnw --errors clean compile exec:java
+        run: ./mvnw --errors clean package
 
+      # Once only per account
+      #- name: Bootstrap CDK
+      #  if: ${{ inputs.testOnly != 'true' }}
+      #  run: npx cdk bootstrap
+      #  env:
+      #    CDK_NEW_BOOTSTRAP: '1'
+
+      # Only deploy from main
       - name: Deploy (CDK)
-        if: ${{ inputs.testOnly != 'true' }}
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
         run: |
           export ENV_NAME=${{ env.ENV_NAME }}
           export HOSTED_ZONE_NAME=${{ env.HOSTED_ZONE_NAME }}
@@ -71,15 +75,12 @@ jobs:
           export DOMAIN_NAME=${{ env.DOMAIN_NAME }}
           export CERTIFICATE_ARN=${{ env.CERTIFICATE_ARN }}
           export COGNITO_DOMAIN_PREFIX=${{ env.COGNITO_DOMAIN_PREFIX }}
-          npx cdk bootstrap
           npx cdk deploy OidcProviderStack-${ENV_NAME} --require-approval never --outputs-file cdk.out/cdk-outputs.json
-        env:
-          CDK_NEW_BOOTSTRAP: '1'
 
       - name: Resolve BASE_URL and Cognito outputs
         id: out
         run: |
-          if [ "${{ inputs.testOnly }}" = "true" ]; then
+          if [ "${{ inputs.testOnly && github.ref == 'refs/heads/main' }}" = "true" ]; then
             echo "BASE_URL=${{ inputs.baseUrl }}" >> $GITHUB_OUTPUT
             echo "COGNITO_DOMAIN=${{ vars.COGNITO_DOMAIN }}" >> $GITHUB_OUTPUT
             echo "COGNITO_CLIENT_ID=${{ vars.COGNITO_CLIENT_ID }}" >> $GITHUB_OUTPUT
@@ -94,12 +95,21 @@ jobs:
         shell: bash
 
       - name: Provision test user
-        if: ${{ inputs.testOnly != 'true' }}
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
         run: npm run provision:user test-user Passw0rd!
         env:
           USERS_TABLE: ${{ env.USERS_TABLE }}
 
+      - name: Install dependencies and Playwright browsers
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
+        run: |
+          npm -v
+          npm ci --ignore-scripts
+          npx playwright install --with-deps
+
+      # The behaviour tests are not run for testOnly=true because they would be running against a different deployment.
       - name: Run Playwright behaviour tests
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
         run: |
           echo "BASE_URL=${{ steps.out.outputs.BASE_URL }}"
           echo "COGNITO_DOMAIN=${{ steps.out.outputs.COGNITO_DOMAIN }}"
@@ -110,7 +120,7 @@ jobs:
           npx playwright test --project=chromium
 
       - name: Upload artifacts (report, trace, screenshots, videos)
-        if: always()
+        if: ${{ !cancelled() && inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
         uses: actions/upload-artifact@v4
         with:
           name: playwright-artifacts

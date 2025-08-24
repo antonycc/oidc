@@ -137,10 +137,49 @@ One time per account CDK set-up:
 npx cdk bootstrap
 ```
 
-Deploy:
+Build Lambda container image:
 ```bash
 
-npx cdk deploy OidcProviderStack-$ENV_NAME --require-approval never --outputs-file cdk.out/cdk-outputs.json
+docker build -t oidc-base:latest -f Dockerfile .
+```
+
+CDK build:
+```bash
+
+npm run build
+```
+
+Deploy Oidc Provider:
+```bash
+
+npx dotenv -e .env.prod -- \
+  npx npx cdk deploy OidcProviderStack-$ENV_NAME \
+    --require-approval never \
+    --outputs-file cdk.out/cdk-outputs-oidc-provider.json \
+    ;
+```
+
+Smoke test the provider (replace with your domain):
+```bash
+
+curl --head 'https://oidc.antonycc.com/'
+curl --head 'https://oidc.antonycc.com/login.html'
+curl --include --request GET 'https://oidc.antonycc.com/.well-known/openid_configuration.json'
+curl --include --request GET 'https://oidc.antonycc.com/.well-known/jwks.json'
+curl --include --request GET 'https://oidc.antonycc.com/authorize'
+curl --include --request POST 'https://oidc.antonycc.com/token'
+curl --include --request GET 'https://oidc.antonycc.com/userinfo'
+```
+
+Deploy Cognito Client:
+```bash
+
+npx dotenv -e .env.prod -- \
+  npx npx cdk deploy CognitoStack-$ENV_NAME \
+    --exclusively \
+    --require-approval never \
+    --outputs-file cdk.out/cdk-outputs-cognito.json \
+    ;
 ```
 
 CDK CLI executes the Java app via `cdk.json`.

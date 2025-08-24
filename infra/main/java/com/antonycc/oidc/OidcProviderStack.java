@@ -1,8 +1,5 @@
 package com.antonycc.oidc;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import software.amazon.awscdk.AssetHashType;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
@@ -56,6 +53,10 @@ import software.amazon.awscdk.services.s3.deployment.BucketDeployment;
 import software.amazon.awscdk.services.s3.deployment.Source;
 import software.amazon.awscdk.services.xray.CfnGroup;
 import software.constructs.Construct;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class OidcProviderStack extends Stack {
   private final String baseUrl;
@@ -280,9 +281,10 @@ public class OidcProviderStack extends Stack {
     BehaviorOptions authorizeBehaviorOptions =
         BehaviorOptions.builder()
             .origin(authorizeLambdaUrlOrigin)
-            .allowedMethods(AllowedMethods.ALLOW_ALL)
+            .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
             .cachePolicy(CachePolicy.CACHING_DISABLED)
-            .originRequestPolicy(OriginRequestPolicy.ALL_VIEWER)
+            .responseHeadersPolicy(ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS_WITH_PREFLIGHT_AND_SECURITY_HEADERS)
+            .originRequestPolicy(OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER)
             .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
             .build();
     additionalOriginsBehaviourMappings.put("/authorize", authorizeBehaviorOptions);
@@ -339,7 +341,8 @@ public class OidcProviderStack extends Stack {
             .origin(tokenLambdaUrlOrigin)
             .allowedMethods(AllowedMethods.ALLOW_ALL)
             .cachePolicy(CachePolicy.CACHING_DISABLED)
-            .originRequestPolicy(OriginRequestPolicy.ALL_VIEWER)
+            .responseHeadersPolicy(ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS_WITH_PREFLIGHT_AND_SECURITY_HEADERS)
+            .originRequestPolicy(OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER)
             .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
             .build();
     additionalOriginsBehaviourMappings.put("/token", tokenBehaviorOptions);
@@ -388,7 +391,8 @@ public class OidcProviderStack extends Stack {
             .origin(userinfoLambdaUrlOrigin)
             .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
             .cachePolicy(CachePolicy.CACHING_DISABLED)
-            .originRequestPolicy(OriginRequestPolicy.ALL_VIEWER)
+            .responseHeadersPolicy(ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS_WITH_PREFLIGHT_AND_SECURITY_HEADERS)
+            .originRequestPolicy(OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER)
             .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
             .build();
     additionalOriginsBehaviourMappings.put("/userinfo", userinfoBehaviorOptions);

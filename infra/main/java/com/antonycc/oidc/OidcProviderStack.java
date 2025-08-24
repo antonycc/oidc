@@ -84,7 +84,10 @@ public class OidcProviderStack extends Stack {
 
         // TLS certificate from existing ACM (must be in us-east-1 for CloudFront)
         var cert = Certificate.fromCertificateArn(this, "WebCert", props.certificateArn);
-
+        var logsBucket = Bucket.Builder.create(this, "LogsBucket")
+                .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
+                .enforceSsl(true)
+                .autoDeleteObjects(true)
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .lifecycleRules(List.of(
                         software.amazon.awscdk.services.s3.LifecycleRule.builder()

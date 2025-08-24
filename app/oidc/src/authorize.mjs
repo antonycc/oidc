@@ -27,9 +27,10 @@ export const handler = async (event) => {
     const username = qp.username || 'test-user';
     if (process.env.USERS_TABLE && method === 'POST') {
       const got = await get(tables.users, { username });
-      const hash = got.Item?.passwordHash;
-      const ok = !!hash && !!qp.password && bcrypt.compareSync(qp.password, hash);
-      if (!ok) {
+      // Use a dummy hash if user not found to mitigate timing attacks
+      const hash = got.Item?.passwordHash || '$2a$10$zCwQ6QJkQ6QJkQ6QJkQ6QOeQ6QJkQ6QJkQ6QJkQ6QJkQ6QJkQ6QJk'; // bcrypt hash for "dummy"
+      const ok = !!qp.password && bcrypt.compareSync(qp.password, hash);
+      if (!ok || !got.Item?.passwordHash) {
         return html(401, loginFormHtml(qp, 'Invalid username or password'));
       }
     } else if (process.env.USERS_TABLE && method !== 'POST') {

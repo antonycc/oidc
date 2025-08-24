@@ -27,10 +27,10 @@
  * variables (see below).
  */
 
-import http from 'k6/http';
-import { check } from 'k6';
-import { sha256 } from 'k6/crypto';
-import encoding from 'k6/encoding';
+import http from "k6/http";
+import { check } from "k6";
+import { sha256 } from "k6/crypto";
+import encoding from "k6/encoding";
 
 /*
  * Environment configuration
@@ -46,11 +46,11 @@ import encoding from 'k6/encoding';
  * USERNAME_PREFIX – prefix for generated usernames (defaults to
  *                "user")
  */
-const TARGET_URL = __ENV.TARGET_URL || 'https://oidc.antonycc.com';
-const CLIENT_ID = __ENV.CLIENT_ID || 'demo-client';
-const REDIRECT_URI = __ENV.REDIRECT_URI || 'https://example.com/callback';
-const PASSWORD = __ENV.PASSWORD || 'password';
-const USERNAME_PREFIX = __ENV.USERNAME_PREFIX || 'user';
+const TARGET_URL = __ENV.TARGET_URL || "https://oidc.antonycc.com";
+const CLIENT_ID = __ENV.CLIENT_ID || "demo-client";
+const REDIRECT_URI = __ENV.REDIRECT_URI || "https://example.com/callback";
+const PASSWORD = __ENV.PASSWORD || "password";
+const USERNAME_PREFIX = __ENV.USERNAME_PREFIX || "user";
 
 /*
  * Helper to generate a PKCE code verifier and corresponding
@@ -63,13 +63,13 @@ function generatePkce() {
   // Generate a pseudo‑random verifier.  Math.random() is used here
   // because cryptographically secure randomness is unnecessary for load
   // testing.  Each verifier is unique per iteration.
-  let verifier = '';
+  let verifier = "";
   while (verifier.length < 64) {
     verifier += Math.random().toString(36).substring(2);
   }
   verifier = verifier.substring(0, 64);
-  const hash = sha256(verifier, 'binary');
-  const challenge = encoding.b64encode(hash, 'url');
+  const hash = sha256(verifier, "binary");
+  const challenge = encoding.b64encode(hash, "url");
   return { verifier, challenge };
 }
 
@@ -92,7 +92,8 @@ export function testFlow() {
   const { verifier: codeVerifier, challenge: codeChallenge } = generatePkce();
 
   // Build the /authorize URL
-  const authorizeURL = `${TARGET_URL}/authorize` +
+  const authorizeURL =
+    `${TARGET_URL}/authorize` +
     `?response_type=code` +
     `&client_id=${encodeURIComponent(CLIENT_ID)}` +
     `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
@@ -108,29 +109,30 @@ export function testFlow() {
   // Extract the code from the Location header.  If no Location
   // header is present, fall back to parsing the body (unlikely).
   const location = authRes.headers.Location || authRes.headers.location;
-  let code = '';
-  if (location && location.includes('code=')) {
-    const idx = location.indexOf('code=') + 5;
-    code = location.substring(idx).split('&')[0];
-  } else if (authRes.status === 200 && authRes.body.includes('code=')) {
+  let code = "";
+  if (location && location.includes("code=")) {
+    const idx = location.indexOf("code=") + 5;
+    code = location.substring(idx).split("&")[0];
+  } else if (authRes.status === 200 && authRes.body.includes("code=")) {
     // Rarely the server may return the code in the body for errors.
     const match = authRes.body.match(/code=([A-Za-z0-9_-]+)/);
     if (match) code = match[1];
   }
 
   // Exchange the code for tokens
-  const tokenPayload = `grant_type=authorization_code` +
+  const tokenPayload =
+    `grant_type=authorization_code` +
     `&code=${encodeURIComponent(code)}` +
     `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
     `&client_id=${encodeURIComponent(CLIENT_ID)}` +
     `&code_verifier=${encodeURIComponent(codeVerifier)}`;
   const tokenRes = http.post(`${TARGET_URL}/token`, tokenPayload, {
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
     redirects: 0,
   });
   // Validate token response status
   check(tokenRes, {
-    'token status is 200': (r) => r.status === 200,
+    "token status is 200": (r) => r.status === 200,
   });
 }
 
@@ -147,64 +149,64 @@ export const options = {
     // then 1,000 users in 10s (100 rps), then hold at ~97.5 rps for
     // the remaining 40 seconds to reach ~5 000 total.
     small: {
-      executor: 'ramping-arrival-rate',
+      executor: "ramping-arrival-rate",
       startRate: 0,
-      timeUnit: '1s',
+      timeUnit: "1s",
       preAllocatedVUs: 200,
       maxVUs: 1000,
-      exec: 'testFlow',
+      exec: "testFlow",
       stages: [
-        { target: 10, duration: '10s' },
-        { target: 100, duration: '10s' },
-        { target: 98, duration: '40s' },
+        { target: 10, duration: "10s" },
+        { target: 100, duration: "10s" },
+        { target: 98, duration: "40s" },
       ],
     },
     // 10,000 users over 2 minutes: same ramps as above but with a
     // longer steady phase at ~89 rps for 100 seconds.
     medium: {
-      executor: 'ramping-arrival-rate',
+      executor: "ramping-arrival-rate",
       startRate: 0,
-      timeUnit: '1s',
+      timeUnit: "1s",
       preAllocatedVUs: 400,
       maxVUs: 2000,
-      exec: 'testFlow',
+      exec: "testFlow",
       stages: [
-        { target: 10, duration: '10s' },
-        { target: 100, duration: '10s' },
-        { target: 89, duration: '100s' },
+        { target: 10, duration: "10s" },
+        { target: 100, duration: "10s" },
+        { target: 89, duration: "100s" },
       ],
     },
     // 100,000 users over 5 minutes: ramp 100 (10 rps) for 10s,
     // 1 000 (100 rps) for 10s, spike 1 000 (1 000 rps) for 1s,
     // then hold at ~351 rps for the remaining 279 seconds.
     large: {
-      executor: 'ramping-arrival-rate',
+      executor: "ramping-arrival-rate",
       startRate: 0,
-      timeUnit: '1s',
+      timeUnit: "1s",
       preAllocatedVUs: 2000,
       maxVUs: 6000,
-      exec: 'testFlow',
+      exec: "testFlow",
       stages: [
-        { target: 10, duration: '10s' },
-        { target: 100, duration: '10s' },
-        { target: 1000, duration: '1s' },
-        { target: 351, duration: '279s' },
+        { target: 10, duration: "10s" },
+        { target: 100, duration: "10s" },
+        { target: 1000, duration: "1s" },
+        { target: 351, duration: "279s" },
       ],
     },
     // 1,000,000 users over 10 minutes: identical ramps as the 100k
     // test but with a long steady phase of ~1 724 rps for 579 seconds.
     xlarge: {
-      executor: 'ramping-arrival-rate',
+      executor: "ramping-arrival-rate",
       startRate: 0,
-      timeUnit: '1s',
+      timeUnit: "1s",
       preAllocatedVUs: 5000,
       maxVUs: 10000,
-      exec: 'testFlow',
+      exec: "testFlow",
       stages: [
-        { target: 10, duration: '10s' },
-        { target: 100, duration: '10s' },
-        { target: 1000, duration: '1s' },
-        { target: 1724, duration: '579s' },
+        { target: 10, duration: "10s" },
+        { target: 100, duration: "10s" },
+        { target: 1000, duration: "1s" },
+        { target: 1724, duration: "579s" },
       ],
     },
   },

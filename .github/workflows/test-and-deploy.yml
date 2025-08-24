@@ -1,4 +1,4 @@
-name: Deploy OIDC + Test
+name: test-and-deploy
 
 on:
   workflow_dispatch:
@@ -33,6 +33,7 @@ env:
   COGNITO_DOMAIN_PREFIX: ${{ vars.COGNITO_DOMAIN_PREFIX }}
 
 jobs:
+
   build-deploy-test:
     runs-on: ubuntu-24.04
     steps:
@@ -65,6 +66,20 @@ jobs:
       - name: Build CDK and synth
         run: ./mvnw --errors clean package
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:latest
+
+      - name: Build base image
+        id: build
+        run: |
+          docker buildx build \
+            --load \
+            -t "oidc-base:latest" \
+            -f Dockerfile .
+
       # Once only per account
       #- name: Bootstrap CDK
       #  if: ${{ inputs.testOnly != 'true' }}
@@ -82,7 +97,7 @@ jobs:
           export DOMAIN_NAME=${{ env.DOMAIN_NAME }}
           export CERTIFICATE_ARN=${{ env.CERTIFICATE_ARN }}
           export COGNITO_DOMAIN_PREFIX=${{ env.COGNITO_DOMAIN_PREFIX }}
-          npx cdk deploy OidcProviderStack-${ENV_NAME} --require-approval never --outputs-file cdk.out/cdk-outputs-oidc-provider.json
+          npx cdk deploy OidcProviderStack-${ENV_NAME} --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-oidc-provider.json
 
       - name: Setup CloudFront distribution testing
         if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
@@ -220,7 +235,7 @@ jobs:
           export DOMAIN_NAME=${{ env.DOMAIN_NAME }}
           export CERTIFICATE_ARN=${{ env.CERTIFICATE_ARN }}
           export COGNITO_DOMAIN_PREFIX=${{ env.COGNITO_DOMAIN_PREFIX }}
-          npx cdk deploy CognitoStack-${ENV_NAME} --exclusively --require-approval never --outputs-file cdk.out/cdk-outputs-cognito.json
+          npx cdk deploy CognitoStack-${ENV_NAME} --exclusively --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-cognito.json
 
       - name: Resolve BASE_URL and Cognito outputs
         if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}

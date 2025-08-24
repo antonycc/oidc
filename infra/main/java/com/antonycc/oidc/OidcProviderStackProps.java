@@ -36,27 +36,27 @@ public class OidcProviderStackProps implements StackProps {
     private String hostedZoneId;
     private String domainName;
     private String certificateArn;
-    
+
     public Builder env(Environment env) {
       this.env = env;
       return this;
     }
-    
+
     public Builder envName(String envName) {
       this.envName = envName;
       return this;
     }
-    
+
     public Builder hostedZoneName(String hostedZoneName) {
       this.hostedZoneName = hostedZoneName;
       return this;
     }
-    
+
     public Builder hostedZoneId(String hostedZoneId) {
       this.hostedZoneId = hostedZoneId;
       return this;
     }
-    
+
     public Builder domainName(String domainName) {
       this.domainName = domainName;
       return this;
@@ -66,7 +66,7 @@ public class OidcProviderStackProps implements StackProps {
       this.certificateArn = certificateArn;
       return this;
     }
-    
+
     public OidcProviderStackProps build() {
       return new OidcProviderStackProps(this);
     }

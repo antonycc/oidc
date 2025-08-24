@@ -21,7 +21,7 @@ This repository implements a full OpenID Connect (OIDC) provider running entire
   Playwright tests exercise the full sign‑in flow against the deployed service.  The configuration installs browser dependencies, logs screenshots, videos and traces, and runs tests via `npm`.
 
 * **CI/CD workflows**
-  `.github/workflows/deploy.yml` (not shown) builds, tests and deploys the stack.  It assumes a GitHub OIDC‑enabled IAM role and reads parameters like hosted zone name, subdomain and Cognito domain from repository variables.  A separate load‑test workflow can be added, as demonstrated earlier.
+  `.github/workflows/test-and-deploy.yml` (not shown) builds, tests and deploys the stack.  It assumes a GitHub OIDC‑enabled IAM role and reads parameters like hosted zone name, subdomain and Cognito domain from repository variables.  A separate load‑test workflow can be added, as demonstrated earlier.
 
 ### Deployment click‑through
 

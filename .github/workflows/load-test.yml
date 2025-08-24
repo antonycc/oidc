@@ -1,4 +1,4 @@
-name: Run OIDC load tests
+name: load-test
 
 on:
   # Manual dispatch with optional scenario selection

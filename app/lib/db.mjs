@@ -1,11 +1,18 @@
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, GetCommand, PutCommand, DeleteCommand, QueryCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import {
+  DynamoDBDocumentClient,
+  GetCommand,
+  PutCommand,
+  DeleteCommand,
+  QueryCommand,
+  ScanCommand,
+} from "@aws-sdk/lib-dynamodb";
 
 export const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 export const tables = {
   users: process.env.USERS_TABLE,
   codes: process.env.CODES_TABLE,
-  refresh: process.env.REFRESH_TABLE
+  refresh: process.env.REFRESH_TABLE,
 };
 
 export const put = (TableName, Item) => ddb.send(new PutCommand({ TableName, Item }));

@@ -30,27 +30,27 @@ public class CognitoStackProps implements StackProps {
     private String envName;
     private String domainName;
     private String cognitoDomainPrefix;
-    
+
     public Builder env(Environment env) {
       this.env = env;
       return this;
     }
-    
+
     public Builder envName(String envName) {
       this.envName = envName;
       return this;
     }
-    
+
     public Builder domainName(String domainName) {
       this.domainName = domainName;
       return this;
     }
-    
+
     public Builder cognitoDomainPrefix(String cognitoDomainPrefix) {
       this.cognitoDomainPrefix = cognitoDomainPrefix;
       return this;
     }
-    
+
     public CognitoStackProps build() {
       return new CognitoStackProps(this);
     }

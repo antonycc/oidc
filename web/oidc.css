@@ -1,16 +1,104 @@
-:root { --bg:#fff; --fg:#111; --muted:#666; --brand:#0066cc; }
-* { box-sizing: border-box; }
-body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; color:var(--fg); background:var(--bg); }
-header { background: #f8f8f8; border-bottom: 1px solid #e5e5e5; }
-.header-nav { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; }
-.hamburger-btn { font-size:20px; background:transparent; border:1px solid #ddd; padding:4px 8px; border-radius:4px; cursor:pointer; }
-.menu-dropdown a { display:block; padding:6px 8px; text-decoration:none; color:var(--fg); }
-.auth-section { font-size:14px; color:var(--muted); }
-.container { max-width:960px; margin:24px auto; padding:0 12px; }
-h1,h2{ margin:12px 0; }
-.form-card { display:flex; flex-direction:column; gap:10px; max-width:420px; background:#fafafa; border:1px solid #eee; padding:16px; border-radius:8px; }
-.form-card input { width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; }
-.form-card button { padding:10px; border:none; background:var(--brand); color:#fff; border-radius:6px; cursor:pointer; }
-footer { margin:48px 0 24px; text-align:center; color:#999; }
-.nav a { margin-right:12px; color:var(--brand); text-decoration:none; }
-.card { border:1px solid #eee; border-radius:8px; padding:12px; margin:12px 0; }
+:root {
+  --bg: #fff;
+  --fg: #111;
+  --muted: #666;
+  --brand: #0066cc;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  font-family:
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    Ubuntu,
+    Cantarell,
+    "Helvetica Neue",
+    Arial,
+    "Noto Sans",
+    "Apple Color Emoji",
+    "Segoe UI Emoji",
+    "Segoe UI Symbol";
+  color: var(--fg);
+  background: var(--bg);
+}
+header {
+  background: #f8f8f8;
+  border-bottom: 1px solid #e5e5e5;
+}
+.header-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+}
+.hamburger-btn {
+  font-size: 20px;
+  background: transparent;
+  border: 1px solid #ddd;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.menu-dropdown a {
+  display: block;
+  padding: 6px 8px;
+  text-decoration: none;
+  color: var(--fg);
+}
+.auth-section {
+  font-size: 14px;
+  color: var(--muted);
+}
+.container {
+  max-width: 960px;
+  margin: 24px auto;
+  padding: 0 12px;
+}
+h1,
+h2 {
+  margin: 12px 0;
+}
+.form-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 420px;
+  background: #fafafa;
+  border: 1px solid #eee;
+  padding: 16px;
+  border-radius: 8px;
+}
+.form-card input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+.form-card button {
+  padding: 10px;
+  border: none;
+  background: var(--brand);
+  color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+}
+footer {
+  margin: 48px 0 24px;
+  text-align: center;
+  color: #999;
+}
+.nav a {
+  margin-right: 12px;
+  color: var(--brand);
+  text-decoration: none;
+}
+.card {
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 12px;
+  margin: 12px 0;
+}

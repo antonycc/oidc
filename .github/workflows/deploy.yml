@@ -93,7 +93,7 @@ jobs:
           export DOMAIN_NAME=${{ env.DOMAIN_NAME }}
           export CERTIFICATE_ARN=${{ env.CERTIFICATE_ARN }}
           export COGNITO_DOMAIN_PREFIX=${{ env.COGNITO_DOMAIN_PREFIX }}
-          npx cdk deploy CognitoStackStack-${ENV_NAME} --require-approval never --outputs-file cdk.out/cdk-outputs-cognito.json
+          npx cdk deploy CognitoStack-${ENV_NAME} --require-approval never --outputs-file cdk.out/cdk-outputs-cognito.json
 
       - name: Resolve BASE_URL and Cognito outputs
         if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}

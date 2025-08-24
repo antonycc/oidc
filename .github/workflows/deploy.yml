@@ -160,12 +160,12 @@ jobs:
         run: |
           BASE_URL="${{ steps.setup-cloudfront-tests.outputs.BASE_URL }}"
           echo "Test 4: Well-known bucket /jwks.json behavior"
-          echo "  URL: $BASE_URL/jwks.json"
+          echo "  URL: $BASE_URL/.well-known/jwks.json"
           
-          response=$(curl -s -w '%{http_code}' -o /tmp/test4.out --connect-timeout 10 --max-time 30 "$BASE_URL/jwks.json" 2>/dev/null || echo "000")
+          response=$(curl -s -w '%{http_code}' -o /tmp/test4.out --connect-timeout 10 --max-time 30 "$BASE_URL/.well-known/jwks.json" 2>/dev/null || echo "000")
           
           if [[ "$response" == "200" ]] && grep -q "keys" /tmp/test4.out 2>/dev/null; then
-            echo "✅ Test 4 PASSED: Well-known bucket /jwks.json behavior"
+            echo "✅ Test 4 PASSED: Well-known bucket /.well-known/jwks.json behavior"
           else
             echo "❌ Test 4 FAILED: Expected status 200 with 'keys' content, got status $response"
             echo "  Content preview: $(head -1 /tmp/test4.out 2>/dev/null || echo 'No content')"

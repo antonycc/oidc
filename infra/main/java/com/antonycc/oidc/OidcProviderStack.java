@@ -48,6 +48,8 @@ import software.amazon.awscdk.services.route53.targets.CloudFrontTarget;
 import software.amazon.awscdk.services.s3.BlockPublicAccess;
 import software.amazon.awscdk.services.s3.Bucket;
 import software.amazon.awscdk.services.s3.assets.AssetOptions;
+import software.amazon.awscdk.BundlingOptions;
+import software.amazon.awscdk.DockerImage;
 import software.amazon.awscdk.services.s3.deployment.BucketDeployment;
 import software.amazon.awscdk.services.s3.deployment.Source;
 import software.amazon.awscdk.services.cloudtrail.Trail;
@@ -170,8 +172,16 @@ public class OidcProviderStack extends Stack {
                 .removalPolicy(RemovalPolicy.DESTROY).build();
 
         // Lambda functions
-        String assetPath = System.getProperty("user.dir").endsWith("infra") ? "../app/oidc" : "app/oidc";
-        Code nodeCode = Code.fromAsset(assetPath);
+        String assetPath = System.getProperty("user.dir").endsWith("infra") ? ".." : ".";
+        Code nodeCode = Code.fromAsset(assetPath, AssetOptions.builder()
+                .bundling(BundlingOptions.builder()
+                        .image(DockerImage.fromRegistry("node:22-alpine"))
+                        .command(List.of("sh", "-c", 
+                                "cp -r /asset-input/app/oidc/* /asset-output/ && " +
+                                "cp /asset-input/package.json /asset-output/ && " +
+                                "cp /asset-input/package-lock.json /asset-output/"))
+                        .build())
+                .build());
 
         LogGroup authorizeLogGroup = LogGroup.Builder.create(this, "AuthorizeLogGroup")
                 .logGroupName("/aws/lambda/" + "AuthorizeFn")

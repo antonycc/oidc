@@ -3,31 +3,32 @@ package com.antonycc.oidc;
 import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.StackProps;
 
-public class OidcStackProps implements StackProps {
+public class OidcProviderStackProps implements StackProps {
   public final Environment env;
   public final String envName;
   public final String hostedZoneName;
   public final String hostedZoneId;
   public final String domainName;
   public final String certificateArn;
-  public final String cognitoDomainPrefix;
 
-  private OidcStackProps(Builder builder) {
+  private OidcProviderStackProps(Builder builder) {
     this.env = builder.env;
     this.envName = builder.envName;
     this.hostedZoneName = builder.hostedZoneName;
     this.hostedZoneId = builder.hostedZoneId;
     this.domainName = builder.domainName;
     this.certificateArn = builder.certificateArn;
-    this.cognitoDomainPrefix = builder.cognitoDomainPrefix;
   }
 
-  @Override public Environment getEnv() { return env; }
-  
+  @Override
+  public Environment getEnv() {
+    return this.env;
+  }
+
   public static Builder builder() {
     return new Builder();
   }
-  
+
   public static class Builder {
     private Environment env;
     private String envName;
@@ -35,7 +36,6 @@ public class OidcStackProps implements StackProps {
     private String hostedZoneId;
     private String domainName;
     private String certificateArn;
-    private String cognitoDomainPrefix;
     
     public Builder env(Environment env) {
       this.env = env;
@@ -67,13 +67,8 @@ public class OidcStackProps implements StackProps {
       return this;
     }
     
-    public Builder cognitoDomainPrefix(String cognitoDomainPrefix) {
-      this.cognitoDomainPrefix = cognitoDomainPrefix;
-      return this;
-    }
-    
-    public OidcStackProps build() {
-      return new OidcStackProps(this);
+    public OidcProviderStackProps build() {
+      return new OidcProviderStackProps(this);
     }
   }
 }

@@ -14,16 +14,26 @@ public class App {
     String certificateArn = System.getenv().getOrDefault("CERTIFICATE_ARN", "arn:aws:acm:us-east-1:123456789012:certificate/abc");
     String cognitoPrefix  = System.getenv().getOrDefault("COGNITO_DOMAIN_PREFIX", "oidc-"+envName);
 
-    new OidcStack(app, "OidcProviderStack-" + envName, OidcStackProps.builder()
-        .env(Environment.builder()
-            .account(System.getenv("CDK_DEFAULT_ACCOUNT"))
-            .region(System.getenv("CDK_DEFAULT_REGION"))
-            .build())
+    Environment env = Environment.builder()
+        .account(System.getenv("CDK_DEFAULT_ACCOUNT"))
+        .region(System.getenv("CDK_DEFAULT_REGION"))
+        .build();
+
+    // Create the OIDC Provider stack first (Lambdas, DynamoDB, S3, CloudFront, Route53)
+    OidcProviderStack providerStack = new OidcProviderStack(app, "OidcProviderStack-" + envName, OidcProviderStackProps.builder()
+        .env(env)
         .envName(envName)
         .hostedZoneName(hostedZoneName)
         .hostedZoneId(hostedZoneId)
         .domainName(domainName)
         .certificateArn(certificateArn)
+        .build());
+
+    // Create the Cognito stack (independent of provider stack)
+    CognitoStack cognitoStack = new CognitoStack(app, "CognitoStack-" + envName, CognitoStackProps.builder()
+        .env(env)
+        .envName(envName)
+        .domainName(domainName)
         .cognitoDomainPrefix(cognitoPrefix)
         .build());
 

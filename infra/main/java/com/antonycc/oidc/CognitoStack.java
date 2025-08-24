@@ -69,6 +69,9 @@ public class CognitoStack extends Stack {
                         "given_name", "name"))
                 .build();
 
+        // Ensure the OIDC identity provider is created before the client that references it
+        client.getNode().addDependency(oidcIdp);
+
         // Outputs
         new CfnOutput(this, "CognitoAuthDomain", CfnOutputProps.builder().value(domain.getDomainName()).build());
         new CfnOutput(this, "UserPoolId", CfnOutputProps.builder().value(pool.getUserPoolId()).build());

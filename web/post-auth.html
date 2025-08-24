@@ -18,13 +18,58 @@
   <h1>Post Auth</h1>
   <div class="card">
     <p id="status">Looking for authorization code in URL…</p>
+    <pre id="result" class="code"></pre>
+    <pre id="claims" class="code"></pre>
   </div>
 </main>
 <script>
+  function decodeJwtNoVerify(jwt){
+    try {
+      const [, payload] = jwt.split('.');
+      const json = atob(payload.replace(/-/g,'+').replace(/_/g,'/'));
+      return JSON.parse(decodeURIComponent(escape(json)));
+    } catch { return null; }
+  }
+  async function exchange(code, state){
+    const key = 'pkce:' + state;
+    const stash = sessionStorage.getItem(key);
+    if (!stash) throw new Error('Missing PKCE data for state');
+    const { code_verifier, client_id, redirect_uri } = JSON.parse(stash);
+    const body = new URLSearchParams({ grant_type:'authorization_code', code, code_verifier, client_id, redirect_uri });
+    const res = await fetch('/token', { method:'POST', headers:{ 'content-type':'application/x-www-form-urlencoded' }, body });
+    const txt = await res.text();
+    let obj;
+    try { obj = JSON.parse(txt); } catch { obj = { raw: txt }; }
+    document.getElementById('result').textContent = JSON.stringify(obj, null, 2);
+    if (res.ok && obj.id_token) {
+      const claims = decodeJwtNoVerify(obj.id_token);
+      document.getElementById('claims').textContent = JSON.stringify(claims, null, 2);
+      document.querySelector('.login-status').textContent = 'Logged in';
+      document.getElementById('status').textContent = 'Token exchange succeeded';
+    } else {
+      document.querySelector('.login-status').textContent = 'Login failed';
+      document.getElementById('status').textContent = 'Token exchange failed (' + res.status + ')';
+    }
+    sessionStorage.removeItem(key);
+  }
   const qs = new URL(location.href).searchParams;
   const code = qs.get('code'); const state = qs.get('state');
-  document.getElementById('status').textContent = code ? 'Received code=' + code : 'No code present';
-  document.querySelector('.login-status').textContent = code ? 'Logged in (via Cognito+OIDC)' : 'Not logged in';
+  if (code) {
+    document.getElementById('status').textContent = 'Received code=' + code;
+    const key = 'pkce:' + state;
+    if (sessionStorage.getItem(key)) {
+      exchange(code, state).catch(e => {
+        document.getElementById('status').textContent = 'Error: ' + e.message;
+        document.querySelector('.login-status').textContent = 'Login failed';
+      });
+    } else {
+      // Likely came from Cognito Hosted UI; show code only
+      document.querySelector('.login-status').textContent = 'Logged in (via Cognito+OIDC)';
+    }
+  } else {
+    document.getElementById('status').textContent = 'No code present';
+    document.querySelector('.login-status').textContent = 'Not logged in';
+  }
 </script>
 <footer><small>© 2025 OIDC Provider</small></footer>
 </body></html>

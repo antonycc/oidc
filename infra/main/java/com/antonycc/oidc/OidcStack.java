@@ -233,7 +233,7 @@ public class OidcStack extends Stack {
                 .build();
         BehaviorOptions authorizeBehaviorOptions = BehaviorOptions.builder()
                 .origin(authorizeLambdaUrlOrigin)
-                .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
+                .allowedMethods(AllowedMethods.ALLOW_ALL)
                 .cachePolicy(CachePolicy.CACHING_DISABLED)
                 .originRequestPolicy(OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER)
                 .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
@@ -245,7 +245,7 @@ public class OidcStack extends Stack {
                 .build();
         BehaviorOptions tokenBehaviorOptions = BehaviorOptions.builder()
                 .origin(tokenLambdaUrlOrigin)
-                .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
+                .allowedMethods(AllowedMethods.ALLOW_ALL)
                 .cachePolicy(CachePolicy.CACHING_DISABLED)
                 .originRequestPolicy(OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER)
                 .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)

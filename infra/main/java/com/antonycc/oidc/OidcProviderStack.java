@@ -332,22 +332,23 @@ public class OidcProviderStack extends Stack {
         token.addPermission("TokenLambdaAllowCloudFrontInvoke", invokeFunctionUrlPermission);
         userinfo.addPermission("UserInfoLambdaAllowCloudFrontInvoke", invokeFunctionUrlPermission);
 
+        LogGroup bucketDeploymentLogGroup = LogGroup.Builder.create(this, "BucketDeploymentLogGroup")
+                .logGroupName("/deployment/bucket-deployment")
+                .retention(RetentionDays.ONE_WEEK)
+                .removalPolicy(RemovalPolicy.DESTROY)
+                .build();
+
         // Deploy the web website files to the web website bucket and invalidate distribution
         var webDocRootSource = Source.asset("web", AssetOptions.builder()
                 .assetHashType(AssetHashType.SOURCE)
                 .build());
-        LogGroup webBucketDeploymentLogGroup = LogGroup.Builder.create(this, "WebBucketDeploymentLogGroup")
-                        .logGroupName("/deployment/web-bucket-deployment")
-                        .retention(RetentionDays.ONE_WEEK)
-                        .removalPolicy(RemovalPolicy.DESTROY)
-                        .build();
         var webDeployment = BucketDeployment.Builder.create(this, "DocRootToWebOriginDeployment")
                         .sources(List.of(webDocRootSource))
                         .destinationBucket(webBucket)
                         .distribution(dist)
                         .distributionPaths(List.of("/*"))
                         .retainOnDelete(false)
-                        .logGroup(webBucketDeploymentLogGroup)
+                        .logGroup(bucketDeploymentLogGroup)
                         .expires(Expiration.after(Duration.minutes(5)))
                         .prune(true)
                         .build();
@@ -356,11 +357,6 @@ public class OidcProviderStack extends Stack {
         var wellKnownRootSource = Source.asset("well-known", AssetOptions.builder()
                 .assetHashType(AssetHashType.SOURCE)
                 .build());
-        LogGroup wellKnownBucketDeploymentLogGroup = LogGroup.Builder.create(this, "WellKnownBucketDeploymentLogGroup")
-                .logGroupName("/deployment/well-known-bucket-deployment")
-                .retention(RetentionDays.ONE_WEEK)
-                .removalPolicy(RemovalPolicy.DESTROY)
-                .build();
         this.wellKnownDeployment = BucketDeployment.Builder.create(this, "DocRootToWellKnownOriginDeployment")
                 .sources(List.of(wellKnownRootSource))
                 .destinationBucket(wellKnownBucket)
@@ -368,7 +364,7 @@ public class OidcProviderStack extends Stack {
                 .distribution(dist)
                 .distributionPaths(List.of("/*"))
                 .retainOnDelete(false)
-                .logGroup(wellKnownBucketDeploymentLogGroup)
+                .logGroup(bucketDeploymentLogGroup)
                 .expires(Expiration.after(Duration.minutes(5)))
                 .prune(true)
                 .build();

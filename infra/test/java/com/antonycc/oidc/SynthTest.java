@@ -25,18 +25,14 @@ class SynthTest {
             .certificateArn("arn:aws:acm:us-east-1:123456789012:certificate/abc")
             .build());
 
-    // Create the Cognito stack that depends on the provider stack
+    // Create the Cognito stack (independent of provider stack)
     CognitoStack cognitoStack = new CognitoStack(app, "TestCognitoStack",
         CognitoStackProps.builder()
             .env(env)
             .envName("test")
             .domainName("oidc.example.com")
             .cognitoDomainPrefix("oidc-test-xyz")
-            .baseUrl(providerStack.getBaseUrl())
-            .build(), providerStack);
-
-    // Ensure Cognito stack depends on provider stack
-    cognitoStack.addDependency(providerStack);
+            .build());
 
     app.synth(); // should not throw
   }

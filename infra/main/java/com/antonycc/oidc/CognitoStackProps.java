@@ -8,14 +8,12 @@ public class CognitoStackProps implements StackProps {
   public final String envName;
   public final String domainName;
   public final String cognitoDomainPrefix;
-  public final String baseUrl;
 
   private CognitoStackProps(Builder builder) {
     this.env = builder.env;
     this.envName = builder.envName;
     this.domainName = builder.domainName;
     this.cognitoDomainPrefix = builder.cognitoDomainPrefix;
-    this.baseUrl = builder.baseUrl;
   }
 
   @Override
@@ -32,7 +30,6 @@ public class CognitoStackProps implements StackProps {
     private String envName;
     private String domainName;
     private String cognitoDomainPrefix;
-    private String baseUrl;
     
     public Builder env(Environment env) {
       this.env = env;
@@ -51,11 +48,6 @@ public class CognitoStackProps implements StackProps {
     
     public Builder cognitoDomainPrefix(String cognitoDomainPrefix) {
       this.cognitoDomainPrefix = cognitoDomainPrefix;
-      return this;
-    }
-
-    public Builder baseUrl(String baseUrl) {
-      this.baseUrl = baseUrl;
       return this;
     }
     

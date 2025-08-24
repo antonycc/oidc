@@ -23,12 +23,11 @@ import java.util.Map;
 
 public class CognitoStack extends Stack {
     
-    public CognitoStack(final Construct scope, final String id, final CognitoStackProps props,
-                       final OidcProviderStack providerStack) {
+    public CognitoStack(final Construct scope, final String id, final CognitoStackProps props) {
         super(scope, id, props);
 
         String domainName = props.domainName;
-        String baseUrl = props.baseUrl;
+        String baseUrl = "https://" + domainName;
 
         // Cognito User Pool that federates to our OP (discovery served from CloudFront)
         UserPool pool = UserPool.Builder.create(this, "UserPool")
@@ -69,12 +68,6 @@ public class CognitoStack extends Stack {
                         "email", "email",
                         "given_name", "name"))
                 .build();
-        
-        // Ensure the OIDC IdP is created only after both the well-known configuration is deployed
-        // AND the CloudFront distribution is ready to serve content
-        // This prevents the "Unable to contact well-known endpoint" error during deployment
-        oidcIdp.getNode().addDependency(providerStack.getWellKnownDeployment());
-        oidcIdp.getNode().addDependency(providerStack.getDistribution());
 
         // Outputs
         new CfnOutput(this, "CognitoAuthDomain", CfnOutputProps.builder().value(domain.getDomainName()).build());

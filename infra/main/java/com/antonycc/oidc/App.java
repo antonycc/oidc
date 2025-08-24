@@ -29,17 +29,13 @@ public class App {
         .certificateArn(certificateArn)
         .build());
 
-    // Create the Cognito stack that depends on the provider stack
+    // Create the Cognito stack (independent of provider stack)
     CognitoStack cognitoStack = new CognitoStack(app, "CognitoStack-" + envName, CognitoStackProps.builder()
         .env(env)
         .envName(envName)
         .domainName(domainName)
         .cognitoDomainPrefix(cognitoPrefix)
-        .baseUrl(providerStack.getBaseUrl())
-        .build(), providerStack);
-
-    // Ensure Cognito stack depends on provider stack
-    cognitoStack.addDependency(providerStack);
+        .build());
 
     app.synth();
   }

@@ -1,6 +1,5 @@
 package com.antonycc.oidc;
 
-import software.amazon.awscdk.AppProps;
 import software.amazon.awscdk.Environment;
 
 public class App {
@@ -36,6 +35,8 @@ public class App {
         .domainName(domainName)
         .cognitoDomainPrefix(cognitoPrefix)
         .build());
+
+    cognitoStack.addDependency(providerStack);
 
     app.synth();
   }

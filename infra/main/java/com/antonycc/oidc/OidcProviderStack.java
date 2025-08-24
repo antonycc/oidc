@@ -133,7 +133,6 @@ public class OidcProviderStack extends Stack {
                 .responseHeadersPolicy(ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS_WITH_PREFLIGHT_AND_SECURITY_HEADERS)
                 .build();
         additionalOriginsBehaviourMappings.put("/.well-known/*", wellKnownOriginBehaviorOptions);
-        additionalOriginsBehaviourMappings.put("/jwks.json", wellKnownOriginBehaviorOptions);
 
         // DDB tables
         Table users = Table.Builder.create(this, "Users")
@@ -311,7 +310,7 @@ public class OidcProviderStack extends Stack {
                         .prune(true)
                         .build();
 
-        // Deploy the well known website files to the web website bucket and invalidate distribution
+        // Deploy the well known website files to the well-known bucket under /.well-known/ path
         var wellKnownRootSource = Source.asset("well-known", AssetOptions.builder()
                 .assetHashType(AssetHashType.SOURCE)
                 .build());
@@ -323,6 +322,7 @@ public class OidcProviderStack extends Stack {
         var wellKnownDeployment = BucketDeployment.Builder.create(this, "DocRootToWellKnownOriginDeployment")
                 .sources(List.of(wellKnownRootSource))
                 .destinationBucket(wellKnownBucket)
+                .destinationKeyPrefix(".well-known/")
                 .distribution(dist)
                 .distributionPaths(List.of("/*"))
                 .retainOnDelete(false)

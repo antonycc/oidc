@@ -384,6 +384,10 @@ public class OidcStack extends Stack {
                         "email", "email",
                         "given_name", "name"))
                 .build();
+        
+        // Ensure the OIDC IdP is created only after the well-known configuration is deployed
+        // This prevents the "Unable to contact well-known endpoint" error during deployment
+        oidcIdp.getNode().addDependency(wellKnownDeployment);
 
         // Outputs
         new CfnOutput(this, "BaseUrl", CfnOutputProps.builder().value("https://" + domainName).build());

@@ -1,5 +1,109 @@
 # Copilot Instructions for OIDC Provider Development
 
+**ALWAYS follow these instructions first and only fallback to search or bash commands when you encounter unexpected information that does not match the info here.**
+
+## Practical Build and Development Instructions
+
+### Bootstrap the development environment:
+- Install Node 22 (required by package.json engines):
+  ```bash
+  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
+  export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+  nvm install 22 && nvm use 22
+  ```
+- Install Java 21 (required by CDK and Maven):
+  ```bash
+  sudo apt update && sudo apt install -y openjdk-21-jdk
+  sudo update-alternatives --config java  # Select Java 21
+  sudo update-alternatives --config javac # Select Java 21
+  export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+  ```
+- Install dependencies (takes ~2 seconds):
+  ```bash
+  npm ci
+  ```
+- Install Playwright browsers once per machine (takes ~60 seconds - **NEVER CANCEL**):
+  ```bash
+  npx playwright install --with-deps
+  ```
+
+### Build and compile the CDK app (no deploy):
+- **NEVER CANCEL**: CDK synth takes ~10 seconds. Always set timeout to 120+ seconds.
+- Preferred method via CDK CLI (takes ~8 seconds):
+  ```bash
+  export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+  npx cdk synth
+  ```
+- Alternative via Maven (takes ~9 seconds):
+  ```bash
+  export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+  ./mvnw --errors clean compile exec:java
+  ```
+
+### Run tests:
+- Unit tests (takes ~1 second):
+  ```bash
+  npm test
+  ```
+- Java infrastructure tests (takes ~8 seconds - **NEVER CANCEL**):
+  ```bash
+  export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+  ./mvnw --errors test
+  ```
+- List Playwright tests without running (takes ~1 second):
+  ```bash
+  npx playwright test --list
+  ```
+
+### Manual validation scenarios after changes:
+1. Verify Node and Java versions are correct:
+   ```bash
+   node --version  # Should be v22.x.x
+   java -version   # Should be openjdk version "21.x.x"
+   ```
+2. Bootstrap environment and run unit tests:
+   ```bash
+   npm ci && npm test
+   ```
+3. Build CDK infrastructure:
+   ```bash
+   export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+   npx cdk synth
+   ```
+4. Run infrastructure tests:
+   ```bash
+   export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+   ./mvnw --errors test
+   ```
+
+### Critical Timing and Timeout Requirements:
+- **NEVER CANCEL** any build operations - they are faster than they appear
+- CDK synth: ~8-10 seconds - **Set timeout to 120+ seconds**
+- Java tests: ~8 seconds - **Set timeout to 60+ seconds**
+- Playwright browser install: ~60 seconds - **Set timeout to 300+ seconds**
+- Unit tests: ~1 second - **Set timeout to 30+ seconds**
+- npm ci: ~2 seconds - **Set timeout to 60+ seconds**
+
+### Repository Structure:
+- `infra/` - Java 21 AWS CDK app and tests (JUnit 5)
+- `app/oidc/` - Node 22 ESM application workspace with unit tests (Vitest)
+- `tests/` - Playwright end-to-end tests (requires deployed environment)
+- `web/` - Static pages used by the OIDC provider flows
+- `well-known/` - OpenID Connect discovery documents
+
+### E2E Testing Requirements:
+**WARNING**: E2E tests require a deployed AWS environment with specific environment variables:
+- `BASE_URL` - e.g., https://oidc.example.com (from CDK BaseUrl output)
+- `COGNITO_DOMAIN` - Cognito Hosted UI domain, e.g., xyz.auth.us-east-1.amazoncognito.com
+- `COGNITO_CLIENT_ID` - user pool client id used for the flow
+
+Without deployment, you can only validate test discovery with `npx playwright test --list`.
+
+### Known Issues and Solutions:
+- **Build fails with Java version errors**: Ensure `JAVA_HOME` is set correctly and Java 21 is selected
+- **npm fails with engine version errors**: Use Node 22 via nvm: `nvm use 22`
+- **CDK synth hangs**: Usually Java version issues; verify Java 21 is active and JAVA_HOME is set
+
 ## Permission Context
 GitHub Copilot has **full permission** to run workflows, tests, builds, and deployments. No need to ask for permission to:
 - Execute GitHub Actions workflows

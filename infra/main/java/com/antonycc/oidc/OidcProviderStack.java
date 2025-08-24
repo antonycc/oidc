@@ -22,18 +22,6 @@ import software.amazon.awscdk.services.cloudfront.ViewerProtocolPolicy;
 import software.amazon.awscdk.services.cloudfront.origins.HttpOrigin;
 import software.amazon.awscdk.services.cloudfront.origins.S3BucketOrigin;
 import software.amazon.awscdk.services.cloudfront.origins.S3BucketOriginWithOAIProps;
-import software.amazon.awscdk.services.cognito.CfnUserPoolIdentityProvider;
-import software.amazon.awscdk.services.cognito.CognitoDomainOptions;
-import software.amazon.awscdk.services.cognito.OAuthFlows;
-import software.amazon.awscdk.services.cognito.OAuthScope;
-import software.amazon.awscdk.services.cognito.OAuthSettings;
-import software.amazon.awscdk.services.cognito.SignInAliases;
-import software.amazon.awscdk.services.cognito.UserPool;
-import software.amazon.awscdk.services.cognito.UserPoolClient;
-import software.amazon.awscdk.services.cognito.UserPoolClientIdentityProvider;
-import software.amazon.awscdk.services.cognito.UserPoolClientOptions;
-import software.amazon.awscdk.services.cognito.UserPoolDomain;
-import software.amazon.awscdk.services.cognito.UserPoolDomainOptions;
 import software.amazon.awscdk.services.dynamodb.Attribute;
 import software.amazon.awscdk.services.dynamodb.AttributeType;
 import software.amazon.awscdk.services.dynamodb.BillingMode;
@@ -67,8 +55,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class OidcStack extends Stack {
-    public OidcStack(final Construct scope, final String id, final OidcStackProps props) {
+public class OidcProviderStack extends Stack {
+    private final String baseUrl;
+    private final BucketDeployment wellKnownDeployment;
+    private final Distribution distribution;
+
+    public OidcProviderStack(final Construct scope, final String id, final OidcProviderStackProps props) {
         super(scope, id, props);
 
         var additionalOriginsBehaviourMappings = new HashMap<String, BehaviorOptions>();
@@ -84,6 +76,8 @@ public class OidcStack extends Stack {
                 (props.domainName.endsWith("." + props.hostedZoneName)
                         ? props.domainName.substring(0, props.domainName.length() - (props.hostedZoneName.length() + 1))
                         : props.domainName);
+
+        this.baseUrl = "https://" + domainName;
 
         // TLS certificate from existing ACM (must be in us-east-1 for CloudFront)
         var cert = Certificate.fromCertificateArn(this, "WebCert", props.certificateArn);
@@ -159,9 +153,7 @@ public class OidcStack extends Stack {
                 .billingMode(BillingMode.PAY_PER_REQUEST)
                 .removalPolicy(RemovalPolicy.DESTROY).build();
 
-        // Determine Lambda URL authentication type
-
-        // Lambda s
+        // Lambda functions
         String assetPath = System.getProperty("user.dir").endsWith("infra") ? "../app/oidc" : "app/oidc";
         Code nodeCode = Code.fromAsset(assetPath);
 
@@ -285,6 +277,8 @@ public class OidcStack extends Stack {
                 .sslSupportMethod(SSLMethod.SNI)
                 .build();
 
+        this.distribution = dist;
+
         // Grant CloudFront access to the origin lambdas
         Permission invokeFunctionUrlPermission =
                 Permission.builder()
@@ -337,6 +331,8 @@ public class OidcStack extends Stack {
                 .prune(true)
                 .build();
 
+        this.wellKnownDeployment = wellKnownDeployment;
+
         // A record
         new ARecord(this, "AliasRecord",
                 ARecordProps.builder()
@@ -345,58 +341,8 @@ public class OidcStack extends Stack {
                         .target(RecordTarget.fromAlias(new CloudFrontTarget(dist)))
                         .build());
 
-        // Cognito User Pool that federates to our OP (discovery served from CloudFront)
-        UserPool pool = UserPool.Builder.create(this, "UserPool")
-                .selfSignUpEnabled(false).signInAliases(SignInAliases.builder().username(true).build())
-                .removalPolicy(RemovalPolicy.DESTROY)
-                .build();
-
-        UserPoolDomain domain = pool.addDomain("CognitoDomain", UserPoolDomainOptions.builder()
-                .cognitoDomain(CognitoDomainOptions.builder().domainPrefix(props.cognitoDomainPrefix).build())
-                .build());
-
-        UserPoolClient client = pool.addClient("WebClient", UserPoolClientOptions.builder()
-                .oAuth(OAuthSettings.builder()
-                        .flows(OAuthFlows.builder().authorizationCodeGrant(true).build())
-                        .scopes(List.of(OAuthScope.OPENID, OAuthScope.EMAIL, OAuthScope.PROFILE))
-                        .callbackUrls(List.of("https://" + domainName + "/post-auth.html"))
-                        .logoutUrls(List.of("https://" + domainName + "/"))
-                        .build())
-                .supportedIdentityProviders(List.of(UserPoolClientIdentityProvider.custom("OIDC")))
-                .build());
-
-        // OIDC IdP pointing to our issuer endpoints
-        CfnUserPoolIdentityProvider oidcIdp = CfnUserPoolIdentityProvider.Builder.create(this, "OidcIdp")
-                .providerName("OIDC")
-                .providerType("OIDC")
-                .userPoolId(pool.getUserPoolId())
-                .providerDetails(Map.of(
-                        "attributes_request_method", "GET",
-                        "oidc_issuer", "https://" + domainName,
-                        "authorize_scopes", "openid email profile",
-                        "authorize_url", "https://" + domainName + "/authorize",
-                        "token_url", "https://" + domainName + "/token",
-                        "attributes_url", "https://" + domainName + "/userinfo",
-                        // This is the client_id Cognito will use with our OIDC provider. It must NOT reference the UserPoolClient.
-                        // Using a static value avoids a CloudFormation dependency cycle between the IdP and the UserPoolClient.
-                        "client_id", "cognito-web"))
-                .attributeMapping(Map.of(
-                        "email", "email",
-                        "given_name", "name"))
-                .build();
-        
-        // Ensure the OIDC IdP is created only after both the well-known configuration is deployed
-        // AND the CloudFront distribution is ready to serve content
-        // This prevents the "Unable to contact well-known endpoint" error during deployment
-        oidcIdp.getNode().addDependency(webDeployment);
-        oidcIdp.getNode().addDependency(wellKnownDeployment);
-        oidcIdp.getNode().addDependency(dist);
-
         // Outputs
         new CfnOutput(this, "BaseUrl", CfnOutputProps.builder().value("https://" + domainName).build());
-        new CfnOutput(this, "CognitoAuthDomain", CfnOutputProps.builder().value(domain.getDomainName()).build());
-        new CfnOutput(this, "UserPoolId", CfnOutputProps.builder().value(pool.getUserPoolId()).build());
-        new CfnOutput(this, "UserPoolClientId", CfnOutputProps.builder().value(client.getUserPoolClientId()).build());
         new CfnOutput(this, "WebBucketName", CfnOutputProps.builder().value(webBucket.getBucketName()).build());
         new CfnOutput(this, "WellKnownBucketName", CfnOutputProps.builder().value(wellKnownBucket.getBucketName()).build());
         new CfnOutput(this, "DistributionId", CfnOutputProps.builder().value(dist.getDistributionId()).build());
@@ -405,5 +351,17 @@ public class OidcStack extends Stack {
     private String getLambdaUrlHostToken(FunctionUrl functionUrl) {
         String urlHostToken = Fn.select(2, Fn.split("/", functionUrl.getUrl()));
         return urlHostToken;
+    }
+
+    public String getBaseUrl() {
+        return baseUrl;
+    }
+
+    public BucketDeployment getWellKnownDeployment() {
+        return wellKnownDeployment;
+    }
+
+    public Distribution getDistribution() {
+        return distribution;
     }
 }

@@ -3,6 +3,7 @@ node_modules
 npm-debug.log*
 pnpm-lock.yaml
 .yarn/*
+app/oidc/package-lock.json
 dist
 coverage
 test-results

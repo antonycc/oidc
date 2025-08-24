@@ -320,7 +320,7 @@ public class OidcProviderStack extends Stack {
                 .retention(RetentionDays.ONE_WEEK)
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
-        var wellKnownDeployment = BucketDeployment.Builder.create(this, "DocRootToWellKnownOriginDeployment")
+        this.wellKnownDeployment = BucketDeployment.Builder.create(this, "DocRootToWellKnownOriginDeployment")
                 .sources(List.of(wellKnownRootSource))
                 .destinationBucket(wellKnownBucket)
                 .distribution(dist)
@@ -330,8 +330,6 @@ public class OidcProviderStack extends Stack {
                 .expires(Expiration.after(Duration.minutes(5)))
                 .prune(true)
                 .build();
-
-        this.wellKnownDeployment = wellKnownDeployment;
 
         // A record
         new ARecord(this, "AliasRecord",
@@ -349,8 +347,7 @@ public class OidcProviderStack extends Stack {
     }
 
     private String getLambdaUrlHostToken(FunctionUrl functionUrl) {
-        String urlHostToken = Fn.select(2, Fn.split("/", functionUrl.getUrl()));
-        return urlHostToken;
+        return Fn.select(2, Fn.split("/", functionUrl.getUrl()));
     }
 
     public String getBaseUrl() {

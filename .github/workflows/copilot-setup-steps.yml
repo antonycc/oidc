@@ -11,6 +11,18 @@ on:
     paths:
       - .github/workflows/copilot-setup-steps.yml
 
+env:
+  AWS_REGION: us-east-1
+  JAVA_VERSION: '21'
+  NODE_VERSION: '22'
+  DEPLOY_ROLE_ARN: ${{ vars.DEPLOY_ROLE_ARN }}
+  ENV_NAME: prod
+  HOSTED_ZONE_NAME: ${{ vars.HOSTED_ZONE_NAME }}
+  HOSTED_ZONE_ID: ${{ vars.HOSTED_ZONE_ID }}
+  DOMAIN_NAME: ${{ vars.DOMAIN_NAME }}
+  CERTIFICATE_ARN: ${{ vars.CERTIFICATE_ARN }}
+  COGNITO_DOMAIN_PREFIX: ${{ vars.COGNITO_DOMAIN_PREFIX }}
+
 jobs:
   # The job MUST be called `copilot-setup-steps` or it will not be picked up by Copilot.
   copilot-setup-steps:
@@ -26,12 +38,12 @@ jobs:
     # If you do not check out your code, Copilot will do this for you.
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "${{ env.NODE_VERSION }}"
           cache: "npm"
 
       - name: Install JavaScript dependencies

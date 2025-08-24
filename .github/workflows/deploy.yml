@@ -82,16 +82,27 @@ jobs:
           export DOMAIN_NAME=${{ env.DOMAIN_NAME }}
           export CERTIFICATE_ARN=${{ env.CERTIFICATE_ARN }}
           export COGNITO_DOMAIN_PREFIX=${{ env.COGNITO_DOMAIN_PREFIX }}
-          npx cdk deploy OidcProviderStack-${ENV_NAME} --require-approval never --outputs-file cdk.out/cdk-outputs.json
+          npx cdk deploy OidcProviderStack-${ENV_NAME} --require-approval never --outputs-file cdk.out/cdk-outputs-oidc-provider.json
+
+      - name: Deploy (CDK)
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
+        run: |
+          export ENV_NAME=${{ env.ENV_NAME }}
+          export HOSTED_ZONE_NAME=${{ env.HOSTED_ZONE_NAME }}
+          export HOSTED_ZONE_ID=${{ env.HOSTED_ZONE_ID }}
+          export DOMAIN_NAME=${{ env.DOMAIN_NAME }}
+          export CERTIFICATE_ARN=${{ env.CERTIFICATE_ARN }}
+          export COGNITO_DOMAIN_PREFIX=${{ env.COGNITO_DOMAIN_PREFIX }}
+          npx cdk deploy CognitoStackStack-${ENV_NAME} --require-approval never --outputs-file cdk.out/cdk-outputs-cognito.json
 
       - name: Resolve BASE_URL and Cognito outputs
         if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
         id: out
         run: |
           ENV_NAME='${{ env.ENV_NAME }}'
-          BASE=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].BaseUrl' cdk.out/cdk-outputs.json)
-          COGD=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].CognitoAuthDomain' cdk.out/cdk-outputs.json)
-          CLID=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].UserPoolClientId' cdk.out/cdk-outputs.json)
+          BASE=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].BaseUrl' cdk.out/cdk-outputs-oidc-provider.json)
+          COGD=$(jq -r '.["CognitoStack-'${ENV_NAME}'"].CognitoAuthDomain' cdk.out/cdk-outputs-cognito.json)
+          CLID=$(jq -r '.["CognitoStack-'${ENV_NAME}'"].UserPoolClientId' cdk.out/cdk-outputs-cognito.json)
           echo "BASE_URL=$BASE" >> $GITHUB_OUTPUT
           echo "COGNITO_DOMAIN=$COGD" >> $GITHUB_OUTPUT
           echo "COGNITO_CLIENT_ID=$CLID" >> $GITHUB_OUTPUT

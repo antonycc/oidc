@@ -56,8 +56,28 @@
       const loc = res.headers.get('Location');
       location.href = loc;
     } else {
-      const text = await res.text();
-      const el = document.getElementById('error'); el.style.display='block'; el.textContent = text || ('Error: ' + res.status);
+      const el = document.getElementById('error');
+      el.style.display = 'block';
+      let message;
+      switch (res.status) {
+        case 400:
+          message = "Invalid request. Please check your input.";
+          break;
+        case 401:
+          message = "Authentication failed. Please check your username and password.";
+          break;
+        case 403:
+          message = "You do not have permission to access this resource.";
+          break;
+        case 500:
+          message = "Server error. Please try again later.";
+          break;
+        default:
+          message = "An error occurred (" + res.status + "). Please try again.";
+      }
+      el.textContent = message;
+      // Optionally log the raw error for debugging (not shown to user)
+      console.debug("Raw error response:", text);
     }
   });
 </script>

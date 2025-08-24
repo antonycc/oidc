@@ -1,7 +1,5 @@
 package com.antonycc.oidc;
 
-import java.util.List;
-import java.util.Map;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.RemovalPolicy;
@@ -19,6 +17,9 @@ import software.amazon.awscdk.services.cognito.UserPoolClientOptions;
 import software.amazon.awscdk.services.cognito.UserPoolDomain;
 import software.amazon.awscdk.services.cognito.UserPoolDomainOptions;
 import software.constructs.Construct;
+
+import java.util.List;
+import java.util.Map;
 
 public class CognitoStack extends Stack {
 
@@ -66,24 +67,17 @@ public class CognitoStack extends Stack {
             .userPoolId(pool.getUserPoolId())
             .providerDetails(
                 Map.of(
-                    "attributes_request_method",
-                    "GET",
-                    "oidc_issuer",
-                    baseUrl,
-                    "authorize_scopes",
-                    "openid email profile",
-                    "authorize_url",
-                    baseUrl + "/authorize",
-                    "token_url",
-                    baseUrl + "/token",
-                    "attributes_url",
-                    baseUrl + "/userinfo",
+                    "attributes_request_method", "GET",
+                    "oidc_issuer", baseUrl,
+                    "authorize_scopes", "openid email profile",
+                    "authorize_url", baseUrl + "/authorize",
+                    "token_url", baseUrl + "/token",
+                    "attributes_url", baseUrl + "/userinfo",
                     // This is the client_id Cognito will use with our OIDC provider. It must NOT
                     // reference the UserPoolClient.
                     // Using a static value avoids a CloudFormation dependency cycle between the IdP
                     // and the UserPoolClient.
-                    "client_id",
-                    "cognito-web"))
+                    "client_id", "cognito-web"))
             .attributeMapping(
                 Map.of(
                     "email", "email",

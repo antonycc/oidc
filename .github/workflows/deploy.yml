@@ -84,6 +84,133 @@ jobs:
           export COGNITO_DOMAIN_PREFIX=${{ env.COGNITO_DOMAIN_PREFIX }}
           npx cdk deploy OidcProviderStack-${ENV_NAME} --require-approval never --outputs-file cdk.out/cdk-outputs-oidc-provider.json
 
+      - name: Setup CloudFront distribution testing
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
+        id: setup-cloudfront-tests
+        run: |
+          ENV_NAME='${{ env.ENV_NAME }}'
+          BASE_URL=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].BaseUrl' cdk.out/cdk-outputs-oidc-provider.json)
+          echo "BASE_URL=$BASE_URL" >> $GITHUB_OUTPUT
+          echo "Testing CloudFront distribution behaviors via $BASE_URL"
+          echo "Waiting 30 seconds for CloudFront distribution to stabilize..."
+          sleep 30
+
+      - name: Test 1 - Web bucket default behavior
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
+        run: |
+          BASE_URL="${{ steps.setup-cloudfront-tests.outputs.BASE_URL }}"
+          echo "Test 1: Web bucket default behavior (/) -> index.html"
+          echo "  URL: $BASE_URL/"
+          
+          response=$(curl -s -w '%{http_code}' -o /tmp/test1.out --connect-timeout 10 --max-time 30 "$BASE_URL/" 2>/dev/null || echo "000")
+          
+          if [[ "$response" == "200" ]] && grep -q "OIDC Provider" /tmp/test1.out 2>/dev/null; then
+            echo "✅ Test 1 PASSED: Web bucket default behavior (/) -> index.html"
+          else
+            echo "❌ Test 1 FAILED: Expected status 200 with 'OIDC Provider' content, got status $response"
+            echo "  Content preview: $(head -1 /tmp/test1.out 2>/dev/null || echo 'No content')"
+            exit 1
+          fi
+
+      - name: Test 2 - Web bucket file behavior
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
+        run: |
+          BASE_URL="${{ steps.setup-cloudfront-tests.outputs.BASE_URL }}"
+          echo "Test 2: Web bucket file behavior (/login.html)"
+          echo "  URL: $BASE_URL/login.html"
+          
+          response=$(curl -s -w '%{http_code}' -o /tmp/test2.out --connect-timeout 10 --max-time 30 "$BASE_URL/login.html" 2>/dev/null || echo "000")
+          
+          if [[ "$response" == "200" ]] && grep -q "Direct OP Login" /tmp/test2.out 2>/dev/null; then
+            echo "✅ Test 2 PASSED: Web bucket file behavior (/login.html)"
+          else
+            echo "❌ Test 2 FAILED: Expected status 200 with 'Direct OP Login' content, got status $response"
+            echo "  Content preview: $(head -1 /tmp/test2.out 2>/dev/null || echo 'No content')"
+            exit 1
+          fi
+
+      - name: Test 3 - Well-known bucket discovery behavior
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
+        run: |
+          BASE_URL="${{ steps.setup-cloudfront-tests.outputs.BASE_URL }}"
+          echo "Test 3: Well-known bucket /.well-known/* behavior"
+          
+          # Try with .json extension first
+          echo "  URL: $BASE_URL/.well-known/openid_configuration.json"
+          response=$(curl -s -w '%{http_code}' -o /tmp/test3.out --connect-timeout 10 --max-time 30 "$BASE_URL/.well-known/openid_configuration.json" 2>/dev/null || echo "000")
+          
+          if [[ "$response" == "200" ]] && grep -q "issuer" /tmp/test3.out 2>/dev/null; then
+            echo "✅ Test 3 PASSED: Well-known bucket /.well-known/* behavior (.json)"
+          else
+            # Try without .json extension as fallback
+            echo "  Trying fallback URL: $BASE_URL/.well-known/openid_configuration"
+            response=$(curl -s -w '%{http_code}' -o /tmp/test3.out --connect-timeout 10 --max-time 30 "$BASE_URL/.well-known/openid_configuration" 2>/dev/null || echo "000")
+            
+            if [[ "$response" == "200" ]] && grep -q "issuer" /tmp/test3.out 2>/dev/null; then
+              echo "✅ Test 3 PASSED: Well-known bucket /.well-known/* behavior (no .json)"
+            else
+              echo "❌ Test 3 FAILED: Expected status 200 with 'issuer' content, got status $response"
+              echo "  Content preview: $(head -1 /tmp/test3.out 2>/dev/null || echo 'No content')"
+              exit 1
+            fi
+          fi
+
+      - name: Test 4 - Well-known bucket JWKS behavior
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
+        run: |
+          BASE_URL="${{ steps.setup-cloudfront-tests.outputs.BASE_URL }}"
+          echo "Test 4: Well-known bucket /jwks.json behavior"
+          echo "  URL: $BASE_URL/jwks.json"
+          
+          response=$(curl -s -w '%{http_code}' -o /tmp/test4.out --connect-timeout 10 --max-time 30 "$BASE_URL/jwks.json" 2>/dev/null || echo "000")
+          
+          if [[ "$response" == "200" ]] && grep -q "keys" /tmp/test4.out 2>/dev/null; then
+            echo "✅ Test 4 PASSED: Well-known bucket /jwks.json behavior"
+          else
+            echo "❌ Test 4 FAILED: Expected status 200 with 'keys' content, got status $response"
+            echo "  Content preview: $(head -1 /tmp/test4.out 2>/dev/null || echo 'No content')"
+            exit 1
+          fi
+
+      - name: Test 5 - Authorize Lambda behavior
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
+        run: |
+          BASE_URL="${{ steps.setup-cloudfront-tests.outputs.BASE_URL }}"
+          echo "Test 5: /authorize Lambda behavior"
+          echo "  URL: $BASE_URL/authorize?client_id=test&response_type=code&scope=openid&redirect_uri=https://example.com/cb"
+          
+          response=$(curl -s -w '%{http_code}' -o /tmp/test5.out --connect-timeout 10 --max-time 30 "$BASE_URL/authorize?client_id=test&response_type=code&scope=openid&redirect_uri=https://example.com/cb" 2>/dev/null || echo "000")
+          
+          if [[ "$response" == "200" ]] && grep -q "login" /tmp/test5.out 2>/dev/null; then
+            echo "✅ Test 5 PASSED: /authorize Lambda behavior"
+          else
+            echo "❌ Test 5 FAILED: Expected status 200 with 'login' content, got status $response"
+            echo "  Content preview: $(head -1 /tmp/test5.out 2>/dev/null || echo 'No content')"
+            exit 1
+          fi
+
+      - name: Test 6 - Token Lambda behavior
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
+        run: |
+          BASE_URL="${{ steps.setup-cloudfront-tests.outputs.BASE_URL }}"
+          echo "Test 6: /token Lambda behavior (missing params)"
+          echo "  URL: $BASE_URL/token"
+          
+          response=$(curl -s -w '%{http_code}' -o /tmp/test6.out --connect-timeout 10 --max-time 30 -X POST -H "Content-Type: application/x-www-form-urlencoded" "$BASE_URL/token" 2>/dev/null || echo "000")
+          
+          if [[ "$response" == "400" ]]; then
+            echo "✅ Test 6 PASSED: /token Lambda behavior (missing params)"
+          else
+            echo "❌ Test 6 FAILED: Expected status 400, got status $response"
+            echo "  Content preview: $(head -1 /tmp/test6.out 2>/dev/null || echo 'No content')"
+            exit 1
+          fi
+
+      - name: CloudFront distribution tests summary
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
+        run: |
+          echo "🎉 All 6 CloudFront distribution origin behavior tests passed!"
+
       - name: Deploy Cognito Stack (CDK)
         if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
         run: |

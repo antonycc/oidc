@@ -21,16 +21,11 @@ permissions:
   contents: read
 
 env:
-  AWS_REGION: us-east-1
   JAVA_VERSION: '21'
   NODE_VERSION: '22'
   DEPLOY_ROLE_ARN: ${{ vars.DEPLOY_ROLE_ARN }}
+  AWS_REGION: us-east-1
   ENV_NAME: prod
-  HOSTED_ZONE_NAME: ${{ vars.HOSTED_ZONE_NAME }}
-  HOSTED_ZONE_ID: ${{ vars.HOSTED_ZONE_ID }}
-  DOMAIN_NAME: ${{ vars.DOMAIN_NAME }}
-  CERTIFICATE_ARN: ${{ vars.CERTIFICATE_ARN }}
-  COGNITO_DOMAIN_PREFIX: ${{ vars.COGNITO_DOMAIN_PREFIX }}
 
 jobs:
 
@@ -91,13 +86,7 @@ jobs:
       - name: Deploy OIDC Provider Stack (CDK)
         if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
         run: |
-          export ENV_NAME=${{ env.ENV_NAME }}
-          export HOSTED_ZONE_NAME=${{ env.HOSTED_ZONE_NAME }}
-          export HOSTED_ZONE_ID=${{ env.HOSTED_ZONE_ID }}
-          export DOMAIN_NAME=${{ env.DOMAIN_NAME }}
-          export CERTIFICATE_ARN=${{ env.CERTIFICATE_ARN }}
-          export COGNITO_DOMAIN_PREFIX=${{ env.COGNITO_DOMAIN_PREFIX }}
-          npx cdk deploy OidcProviderStack-${ENV_NAME} --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-oidc-provider.json
+          npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk deploy OidcProviderStack-${ENV_NAME} --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-oidc-provider.json
 
       - name: Setup CloudFront distribution testing
         if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
@@ -157,17 +146,9 @@ jobs:
           if [[ "$response" == "200" ]] && grep -q "issuer" /tmp/test3.out 2>/dev/null; then
             echo "✅ Test 3 PASSED: Well-known bucket /.well-known/* behavior (.json)"
           else
-            # Try without .json extension as fallback
-            echo "  Trying fallback URL: $BASE_URL/.well-known/openid_configuration"
-            response=$(curl -s -w '%{http_code}' -o /tmp/test3.out --connect-timeout 10 --max-time 30 "$BASE_URL/.well-known/openid_configuration" 2>/dev/null || echo "000")
-            
-            if [[ "$response" == "200" ]] && grep -q "issuer" /tmp/test3.out 2>/dev/null; then
-              echo "✅ Test 3 PASSED: Well-known bucket /.well-known/* behavior (no .json)"
-            else
-              echo "❌ Test 3 FAILED: Expected status 200 with 'issuer' content, got status $response"
-              echo "  Content preview: $(head -1 /tmp/test3.out 2>/dev/null || echo 'No content')"
-              exit 1
-            fi
+            echo "❌ Test 3 FAILED: Expected status 200 with 'issuer' content, got status $response"
+            echo "  Content preview: $(head -1 /tmp/test3.out 2>/dev/null || echo 'No content')"
+            exit 1
           fi
 
       - name: Test 4 - Well-known bucket JWKS behavior
@@ -221,21 +202,27 @@ jobs:
             exit 1
           fi
 
-      - name: CloudFront distribution tests summary
+      - name: Test 7 - UserInfo Lambda behavior
         if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
         run: |
-          echo "🎉 All 6 CloudFront distribution origin behavior tests passed!"
+          BASE_URL="${{ steps.setup-cloudfront-tests.outputs.BASE_URL }}"
+          echo "Test 7: /userinfo Lambda behavior (missing params)"
+          echo "  URL: $BASE_URL/userinfo"
+          
+          response=$(curl -s -w '%{http_code}' -o /tmp/test7.out --connect-timeout 10 --max-time 30 "$BASE_URL/userinfo" 2>/dev/null || echo "000")
+          
+          if [[ "$response" == "401" ]]; then
+            echo "✅ Test 7 PASSED: /token Lambda behavior (missing params)"
+          else
+            echo "❌ Test 7 FAILED: Expected status 400, got status $response"
+            echo "  Content preview: $(head -1 /tmp/test7.out 2>/dev/null || echo 'No content')"
+            exit 1
+          fi
 
       - name: Deploy Cognito Stack (CDK)
         if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
         run: |
-          export ENV_NAME=${{ env.ENV_NAME }}
-          export HOSTED_ZONE_NAME=${{ env.HOSTED_ZONE_NAME }}
-          export HOSTED_ZONE_ID=${{ env.HOSTED_ZONE_ID }}
-          export DOMAIN_NAME=${{ env.DOMAIN_NAME }}
-          export CERTIFICATE_ARN=${{ env.CERTIFICATE_ARN }}
-          export COGNITO_DOMAIN_PREFIX=${{ env.COGNITO_DOMAIN_PREFIX }}
-          npx cdk deploy CognitoStack-${ENV_NAME} --exclusively --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-cognito.json
+          npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk deploy CognitoStack-${ENV_NAME} --exclusively --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-cognito.json
 
       - name: Resolve BASE_URL and Cognito outputs
         if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}

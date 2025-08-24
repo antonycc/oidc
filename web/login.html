@@ -17,9 +17,69 @@
 <main class="container">
   <h1>Direct OP Login</h1>
   <div class="card">
-    <p>This page is only useful for manual OP checks. Cognito will normally redirect to <code>/authorize</code> and show a similar form.</p>
-    <p>Go to a Cognito Hosted UI URL as shown on the home page.</p>
+    <p>Use this form to exercise the OP directly without Cognito. It will perform PKCE, post to <code>/authorize</code>, and redirect back to Post Auth.</p>
+    <form id="loginForm" class="form-card">
+      <label>Username <input type="text" name="username" required></label>
+      <label>Password <input type="password" name="password" required></label>
+      <button type="submit">Sign in</button>
+    </form>
+    <div id="error" class="error" style="display:none"></div>
   </div>
 </main>
+<script>
+  // Minimal PKCE helpers
+  const rand = (len=32)=>crypto.getRandomValues(new Uint8Array(len)).reduce((s,b)=>s+('0'+(b%36).toString(36)).slice(-1),'');
+  async function sha256base64url(input){
+    const data = new TextEncoder().encode(input);
+    const hash = await crypto.subtle.digest('SHA-256', data);
+    const b = btoa(String.fromCharCode(...new Uint8Array(hash))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+    return b;
+  }
+  const form = document.getElementById('loginForm');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(form);
+    const username = fd.get('username');
+    const password = fd.get('password');
+    const client_id = 'self-client';
+    const redirect_uri = new URL('/post-auth.html', location.origin).toString();
+    const scope = 'openid email profile';
+    const state = rand(16);
+    const nonce = rand(16);
+    const code_verifier = rand(64);
+    const code_challenge = await sha256base64url(code_verifier);
+    sessionStorage.setItem('pkce:' + state, JSON.stringify({ code_verifier, client_id, redirect_uri }));
+    const params = new URLSearchParams({ client_id, redirect_uri, response_type: 'code', scope, state, nonce, code_challenge, code_challenge_method: 'S256', username, password });
+    // Post as application/x-www-form-urlencoded
+    const res = await fetch('/authorize', { method:'POST', headers:{ 'content-type':'application/x-www-form-urlencoded' }, body: params.toString(), redirect:'manual' });
+    if (res.status === 302) {
+      const loc = res.headers.get('Location');
+      location.href = loc;
+    } else {
+      const el = document.getElementById('error');
+      el.style.display = 'block';
+      let message;
+      switch (res.status) {
+        case 400:
+          message = "Invalid request. Please check your input.";
+          break;
+        case 401:
+          message = "Authentication failed. Please check your username and password.";
+          break;
+        case 403:
+          message = "You do not have permission to access this resource.";
+          break;
+        case 500:
+          message = "Server error. Please try again later.";
+          break;
+        default:
+          message = "An error occurred (" + res.status + "). Please try again.";
+      }
+      el.textContent = message;
+      // Optionally log the raw error for debugging (not shown to user)
+      console.debug("Raw error response:", text);
+    }
+  });
+</script>
 <footer><small>© 2025 OIDC Provider</small></footer>
 </body></html>

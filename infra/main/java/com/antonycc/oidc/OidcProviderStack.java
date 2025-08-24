@@ -35,6 +35,7 @@ import software.amazon.awscdk.services.lambda.FunctionUrlOptions;
 import software.amazon.awscdk.services.lambda.InvokeMode;
 import software.amazon.awscdk.services.lambda.Permission;
 import software.amazon.awscdk.services.lambda.Runtime;
+import software.amazon.awscdk.services.lambda.Tracing;
 import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.logs.RetentionDays;
 import software.amazon.awscdk.services.route53.ARecord;
@@ -49,6 +50,8 @@ import software.amazon.awscdk.services.s3.Bucket;
 import software.amazon.awscdk.services.s3.assets.AssetOptions;
 import software.amazon.awscdk.services.s3.deployment.BucketDeployment;
 import software.amazon.awscdk.services.s3.deployment.Source;
+import software.amazon.awscdk.services.cloudtrail.Trail;
+import software.amazon.awscdk.services.xray.CfnGroup;
 import software.constructs.Construct;
 
 import java.util.HashMap;
@@ -82,10 +85,19 @@ public class OidcProviderStack extends Stack {
         // TLS certificate from existing ACM (must be in us-east-1 for CloudFront)
         var cert = Certificate.fromCertificateArn(this, "WebCert", props.certificateArn);
 
+        // Central logs bucket for access logs and CloudFront logs (7-day retention via lifecycle)
+        Bucket logsBucket = Bucket.Builder.create(this, "LogsBucket")
+                .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
+                .enforceSsl(true)
+                .autoDeleteObjects(true)
+                .removalPolicy(RemovalPolicy.DESTROY)
+                .build();
+
         // Buckets
         Bucket webBucket = Bucket.Builder.create(this, "WebBucket")
                 .blockPublicAccess(BlockPublicAccess.BLOCK_ALL).enforceSsl(true)
                 .autoDeleteObjects(true).removalPolicy(RemovalPolicy.DESTROY)
+                .serverAccessLogsBucket(logsBucket).serverAccessLogsPrefix("s3/web/")
                 .build();
         var webOriginIdentity =
                 OriginAccessIdentity.Builder.create(this, "WebOriginAccessIdentity")
@@ -110,6 +122,7 @@ public class OidcProviderStack extends Stack {
         Bucket wellKnownBucket = Bucket.Builder.create(this, "WellKnownBucket")
                 .blockPublicAccess(BlockPublicAccess.BLOCK_ALL).enforceSsl(true)
                 .autoDeleteObjects(true).removalPolicy(RemovalPolicy.DESTROY)
+                .serverAccessLogsBucket(logsBucket).serverAccessLogsPrefix("s3/well-known/")
                 .build();
         var wellKnownOriginIdentity =
                 OriginAccessIdentity.Builder.create(this, "WellKnownOriginAccessIdentity")
@@ -166,6 +179,7 @@ public class OidcProviderStack extends Stack {
                 .runtime(Runtime.NODEJS_22_X)
                 .handler("src/authorize.handler")
                 .code(nodeCode).timeout(Duration.seconds(15)).memorySize(256)
+                .tracing(Tracing.ACTIVE)
                 .environment(Map.of(
                         "ISSUER", "https://" + domainName,
                         "USERS_TABLE", users.getTableName(),
@@ -183,6 +197,7 @@ public class OidcProviderStack extends Stack {
                 .runtime(Runtime.NODEJS_22_X)
                 .handler("src/token.handler")
                 .code(nodeCode).timeout(Duration.seconds(15)).memorySize(256)
+                .tracing(Tracing.ACTIVE)
                 .environment(Map.of(
                         "ISSUER", "https://" + domainName,
                         "CODES_TABLE", codes.getTableName(),
@@ -200,6 +215,7 @@ public class OidcProviderStack extends Stack {
                 .runtime(Runtime.NODEJS_22_X)
                 .handler("src/userinfo.handler")
                 .code(nodeCode).timeout(Duration.seconds(10)).memorySize(192)
+                .tracing(Tracing.ACTIVE)
                 .environment(Map.of("ISSUER", "https://" + domainName))
                 .logGroup(userinfoLogGroup)
                 .build();
@@ -227,7 +243,7 @@ public class OidcProviderStack extends Stack {
                 .origin(authorizeLambdaUrlOrigin)
                 .allowedMethods(AllowedMethods.ALLOW_ALL)
                 .cachePolicy(CachePolicy.CACHING_DISABLED)
-                .originRequestPolicy(OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER)
+                .originRequestPolicy(OriginRequestPolicy.ALL_VIEWER)
                 .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
                 .build();
 
@@ -239,7 +255,7 @@ public class OidcProviderStack extends Stack {
                 .origin(tokenLambdaUrlOrigin)
                 .allowedMethods(AllowedMethods.ALLOW_ALL)
                 .cachePolicy(CachePolicy.CACHING_DISABLED)
-                .originRequestPolicy(OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER)
+                .originRequestPolicy(OriginRequestPolicy.ALL_VIEWER)
                 .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
                 .build();
 
@@ -251,7 +267,7 @@ public class OidcProviderStack extends Stack {
                 .origin(userinfoLambdaUrlOrigin)
                 .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
                 .cachePolicy(CachePolicy.CACHING_DISABLED)
-                .originRequestPolicy(OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER)
+                .originRequestPolicy(OriginRequestPolicy.ALL_VIEWER)
                 .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
                 .build();
 
@@ -273,11 +289,33 @@ public class OidcProviderStack extends Stack {
                 .certificate(cert)
                 .defaultRootObject("index.html")
                 .enableLogging(true)
+                .logBucket(logsBucket)
+                .logFilePrefix("cloudfront/")
                 .enableIpv6(true)
                 .sslSupportMethod(SSLMethod.SNI)
                 .build();
 
         this.distribution = dist;
+
+        // CloudTrail - capture management events and deliver to S3 and CloudWatch Logs
+        LogGroup trailLogGroup = LogGroup.Builder.create(this, "CloudTrailLogGroup")
+                .logGroupName("/aws/cloudtrail/oidc-trail")
+                .retention(RetentionDays.ONE_WEEK)
+                .removalPolicy(RemovalPolicy.DESTROY)
+                .build();
+        Trail trail = Trail.Builder.create(this, "AuditTrail")
+                .bucket(logsBucket)
+                .cloudWatchLogGroup(trailLogGroup)
+                .build();
+
+        // X-Ray Group for Lambda traces (manual linkage/insights)
+        CfnGroup xrayGroup = CfnGroup.Builder.create(this, "XRayGroup")
+                .groupName("oidc-provider")
+                .filterExpression("service(\"lambda\")")
+                .insightsConfiguration(CfnGroup.InsightsConfigurationProperty.builder()
+                        .insightsEnabled(true)
+                        .build())
+                .build();
 
         // Grant CloudFront access to the origin lambdas
         Permission invokeFunctionUrlPermission =

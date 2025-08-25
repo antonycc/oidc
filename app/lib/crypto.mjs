@@ -12,11 +12,9 @@ let jwkPrivate,
   return false;
 }
 
-async function saveToStore() {
-  if (!tables.codes) return;
-  try {
-    await put(tables.codes, { code: "__JWKS__", priv: jwkPrivate, pub: jwkPublic });
-  } catch {}
+  } catch (err) {
+    console.error("Failed to save JWKS to store:", err);
+  }
 }
 
 export async function ensureKeys() {

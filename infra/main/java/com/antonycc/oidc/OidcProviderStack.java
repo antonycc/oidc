@@ -294,10 +294,13 @@ public class OidcProviderStack extends Stack {
             .cmd(List.of("app/functions/userinfo.handler"))
             .pathPattern("/userinfo")
             .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
-            .extraEnv(Map.of())
+            .extraEnv(Map.of(
+                "USERS_TABLE", this.usersTable.getTableName()
+            ))
             .build());
     this.userinfoEndpoint.function.addEnvironment("ISSUER", "https://" + domainName);
     additionalOriginsBehaviourMappings.put("/userinfo", this.userinfoEndpoint.behaviorOptions);
+    this.usersTable.grantReadData(this.userinfoEndpoint.function);
 
     // CloudFront with two S3 origins and FunctionUrl origins for OIDC endpoints
     this.distribution =

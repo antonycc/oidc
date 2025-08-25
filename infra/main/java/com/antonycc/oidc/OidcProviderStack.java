@@ -314,6 +314,8 @@ public class OidcProviderStack extends Stack {
             users.getTableName(),
             "REFRESH_TABLE",
             refresh.getTableName(),
+            "CODES_TABLE",
+            codes.getTableName(),
             "AWS_XRAY_TRACING_NAME",
             tokenFunctionName);
     var tokenFunction =

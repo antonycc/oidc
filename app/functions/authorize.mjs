@@ -2,6 +2,7 @@ import { ulid } from "ulid";
 import { put, get, tables } from "../lib/db.mjs";
 import { getClient, validateRedirectUri, validateScopes, isPkceRequired } from "../lib/clients.mjs";
 import bcrypt from "bcryptjs";
+import { getClient, isScopeSubset, isValidRedirectUri } from "./clients.mjs";
 
 // Very verbose logging by design
 const log = (...a) => console.log(JSON.stringify({ level: "info", ts: new Date().toISOString(), msg: a.join(" ") }));
@@ -32,7 +33,15 @@ export const handler = async (event) => {
       "code_challenge_method",
     ];
     for (const k of req) if (!qp[k]) return bad(400, "missing " + k);
-    if (qp.response_type !== "code" || qp.code_challenge_method !== "S256") return bad(400, "unsupported");
+    if (qp.response_type !== "code") return bad(400, "unsupported_response_type");
+    if (qp.code_challenge_method !== "S256") return bad(400, "invalid_request");
+
+    // Client registry validation
+    const client = getClient(qp.client_id);
+    if (!client) return bad(400, "invalid_client");
+    if (client.pkceRequired && !qp.code_challenge) return bad(400, "invalid_request");
+    if (!isValidRedirectUri(client, qp.redirect_uri)) return bad(400, "invalid_request");
+    if (!isScopeSubset(client, qp.scope)) return bad(400, "invalid_scope");
 
     // Validate client exists and is authorized
     const client = getClient(qp.client_id);
@@ -77,6 +86,8 @@ export const handler = async (event) => {
       scope: qp.scope,
       nonce: qp.nonce,
       ch: qp.code_challenge,
+      ccm: qp.code_challenge_method,
+      used: false,
       sub: username,
     });
     const location = `${qp.redirect_uri}?code=${code}&state=${encodeURIComponent(qp.state)}`;

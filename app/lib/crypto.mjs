@@ -1,22 +1,37 @@
 import * as jose from "jose";
+import { get, put, tables } from "./db.mjs";
 
-// Ephemeral keypair per cold start. In production, store in S3/KMS and rotate.
+// Persistent keypair stored in DynamoDB (codes table) to share across Lambdas
 let jwkPrivate,
   jwkPublic,
   kid = "kid-1";
 
-export async function ensureKeys() {
-  if (!jwkPrivate) {
-    const { privateKey, publicKey } = await jose.generateKeyPair("RS256", { modulusLength: 2048 });
-    jwkPrivate = await jose.exportJWK(privateKey);
-    jwkPrivate.kid = kid;
-    jwkPrivate.use = "sig";
-    jwkPrivate.alg = "RS256";
-    jwkPublic = await jose.exportJWK(publicKey);
-    jwkPublic.kid = kid;
-    jwkPublic.use = "sig";
-    jwkPublic.alg = "RS256";
+  } catch (err) {
+    console.error("Error loading JWKS from store:", err);
   }
+  return false;
+}
+
+  } catch (err) {
+    console.error("Failed to save JWKS to store:", err);
+  }
+}
+
+export async function ensureKeys() {
+  if (jwkPrivate && jwkPublic) return;
+  // Try load
+  if (await loadFromStore()) return;
+  // Generate new
+  const { privateKey, publicKey } = await jose.generateKeyPair("RS256", { modulusLength: 2048 });
+  jwkPrivate = await jose.exportJWK(privateKey);
+  jwkPrivate.kid = kid;
+  jwkPrivate.use = "sig";
+  jwkPrivate.alg = "RS256";
+  jwkPublic = await jose.exportJWK(publicKey);
+  jwkPublic.kid = kid;
+  jwkPublic.use = "sig";
+  jwkPublic.alg = "RS256";
+  await saveToStore();
 }
 
 export async function signJwt(payload) {

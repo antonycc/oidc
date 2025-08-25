@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { get, conditionalDelete, put, tables } from "../lib/db.mjs";
+import { get, conditionalDelete, put, update, tables } from "../lib/db.mjs";
 import { signJwt } from "../lib/crypto.mjs";
 import { validateClientAuth } from "../lib/clients.mjs";
 const log = (...a) => console.log(JSON.stringify({ level: "info", ts: new Date().toISOString(), msg: a.join(" ") }));
@@ -14,6 +14,7 @@ export const handler = async (event) => {
 
     const code = body.get("code");
     const verifier = body.get("code_verifier") || "";
+
     const clientId = body.get("client_id");
     const redirectUri = body.get("redirect_uri");
     
@@ -28,6 +29,14 @@ export const handler = async (event) => {
     const row = await get(tables.codes, { code });
     if (!row.Item) return json(400, { error: "invalid_grant" });
 
+    const now = Math.floor(Date.now() / 1000);
+    if (row.Item.used === true || (row.Item.ttl && row.Item.ttl <= now)) {
+      return json(400, { error: "invalid_grant" });
+    }
+
+    if (row.Item.ccm && row.Item.ccm !== "S256") {
+      return json(400, { error: "invalid_grant" });
+    }
     // Validate that client_id and redirect_uri match what was stored in the auth code
     if (row.Item.client !== clientId) {
       log("token_validation_failed", "client_mismatch", `stored: ${row.Item.client}, provided: ${clientId}`);
@@ -53,7 +62,6 @@ export const handler = async (event) => {
       throw error;
     }
 
-    const now = Math.floor(Date.now() / 1000);
     const iss = process.env.ISSUER;
     const aud = row.Item.client;
     const sub = row.Item.sub;
@@ -61,11 +69,8 @@ export const handler = async (event) => {
     const id_token = await signJwt({ iss, sub, aud, iat: now, exp: now + 300, nonce: row.Item.nonce });
     const access_token = await signJwt({ iss, sub, aud, iat: now, exp: now + 300, scope: row.Item.scope });
 
-    const rt = crypto.randomBytes(32).toString("base64url");
-    await put(tables.refresh, { rt, sub, ttl: now + 86400 });
-
     log("token_issued", sub);
-    return json(200, { id_token, access_token, token_type: "Bearer", expires_in: 300, refresh_token: rt });
+    return json(200, { id_token, access_token, token_type: "Bearer", expires_in: 300 });
   } catch (e) {
     console.error("token_error", e);
     return json(500, { error: "server_error" });

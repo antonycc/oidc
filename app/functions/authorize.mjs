@@ -1,8 +1,7 @@
 import { ulid } from "ulid";
 import { put, get, tables } from "../lib/db.mjs";
-import { getClient, validateRedirectUri, validateScopes, isPkceRequired } from "../lib/clients.mjs";
 import bcrypt from "bcryptjs";
-import { getClient, isScopeSubset, isValidRedirectUri } from "./clients.mjs";
+import { getClient, isScopeSubset, isValidRedirectUri, validateRedirectUri, validateScopes, isPkceRequired } from "../lib/clients.mjs";
 
 // Very verbose logging by design
 const log = (...a) => console.log(JSON.stringify({ level: "info", ts: new Date().toISOString(), msg: a.join(" ") }));
@@ -42,10 +41,6 @@ export const handler = async (event) => {
     if (client.pkceRequired && !qp.code_challenge) return bad(400, "invalid_request");
     if (!isValidRedirectUri(client, qp.redirect_uri)) return bad(400, "invalid_request");
     if (!isScopeSubset(client, qp.scope)) return bad(400, "invalid_scope");
-
-    // Validate client exists and is authorized
-    const client = getClient(qp.client_id);
-    if (!client) return bad(400, "invalid_client");
 
     // Validate redirect URI is allowed for this client
     if (!validateRedirectUri(qp.client_id, qp.redirect_uri)) {

@@ -32,6 +32,16 @@ export function getClient(clientId) {
   return client;
 }
 
+export function isValidRedirectUri(client, redirectUri) {
+    if (!client || !redirectUri) return false;
+    try {
+        const u = new URL(redirectUri);
+        return client.redirectPattern?.test(u.toString()) === true;
+    } catch {
+        return false;
+    }
+}
+
 /**
  * Validate if a redirect URI is allowed for a client
  * @param {string} clientId - The client identifier
@@ -69,6 +79,13 @@ export function validateScopes(clientId, scopes) {
   
   log("scope_validation", clientId, scopes, allValid ? "valid" : "invalid");
   return allValid;
+}
+
+export function isScopeSubset(client, requestedScopeStr) {
+    if (!client) return false;
+    const requested = new Set((requestedScopeStr || "").split(/\s+/).filter(Boolean));
+    for (const s of requested) if (!client.scopes.includes(s)) return false;
+    return requested.size > 0 && requested.has("openid");
 }
 
 /**

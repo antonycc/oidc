@@ -32,6 +32,7 @@ public class CognitoStack extends Stack {
 
     String domainName = props.domainName;
     String baseUrl = "https://" + domainName;
+    String dashedDomainName = domainName.replace('.', '-');
 
     // Cognito User Pool that federates to our OP (discovery served from CloudFront)
     this.pool =
@@ -46,7 +47,9 @@ public class CognitoStack extends Stack {
             "CognitoDomain",
             UserPoolDomainOptions.builder()
                 .cognitoDomain(
-                    CognitoDomainOptions.builder().domainPrefix(props.cognitoDomainPrefix).build())
+                    CognitoDomainOptions.builder()
+                            .domainPrefix(props.cognitoDomainPrefix + "-" + dashedDomainName)
+                            .build())
                 .build());
 
     this.client =

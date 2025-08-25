@@ -10,7 +10,9 @@
         "ssm:*",
         "route53:*",
         "ec2:*",
-        "acm:*"
+        "acm:*",
+        "ecs:*",
+        "ecr:*"
       ],
       "Resource": "*"
     }

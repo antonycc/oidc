@@ -28,3 +28,23 @@ export async function signJwt(payload) {
 export function publicJwks() {
   return { keys: [jwkPublic] };
 }
+
+/**
+ * Verify and decode a JWT token
+ * @param {string} token - The JWT token to verify
+ * @returns {object|null} Decoded payload or null if invalid
+ */
+export async function verifyJwt(token) {
+  try {
+    await ensureKeys();
+    const key = await jose.importJWK(jwkPublic, "RS256");
+    const { payload } = await jose.jwtVerify(token, key, {
+      issuer: process.env.ISSUER,
+      algorithms: ["RS256"]
+    });
+    return payload;
+  } catch (error) {
+    console.error("jwt_verification_failed", error.message);
+    return null;
+  }
+}

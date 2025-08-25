@@ -9,6 +9,8 @@
         "s3:*",
         "ssm:*",
         "route53:*",
+        "cloudformation:*",
+        "secretsmanager:*",
         "ec2:*",
         "acm:*",
         "ecs:*",

@@ -74,7 +74,7 @@ include:
    expiry[\[20\]](https://raw.githubusercontent.com/antonycc/oidc/main/app/oidc/src/userinfo.mjs#:~:text=%2F%2F%20Simple%20in,).
 7. _JWKS and discovery:_ static files under well‑known define the OpenID configuration and a placeholder JWKS with a
    fixed
-   kid[\[21\]](https://raw.githubusercontent.com/antonycc/oidc/main/well-known/openid_configuration.json#:~:text=%7B%20,S256).
+   kid[\[21\]](https://raw.githubusercontent.com/antonycc/oidc/main/well-known/openid-configuration#:~:text=%7B%20,S256).
    The key values are not updated when the Lambda generates new keys.
 8. **Deployment pipeline:** GitHub Actions uses OIDC to assume an AWS role, synthesises and deploys the CDK stack,
    provisions a test user and runs Playwright behaviour tests. Logs are retained for seven days and resources are
@@ -108,7 +108,7 @@ observations, potential risks and how the design fares relative to typical open�
   which is insecure and unsuitable for multi‑instance deployments.
 - **Key management** – JWTs are signed with an RSA key pair generated on each cold start; keys are not persisted and a
   static placeholder JWKS is
-  served[\[19\]](https://raw.githubusercontent.com/antonycc/oidc/main/app/oidc/src/crypto.mjs#:~:text=%2F%2F%20Ephemeral%20keypair%20per%20cold,1)[\[21\]](https://raw.githubusercontent.com/antonycc/oidc/main/well-known/openid_configuration.json#:~:text=%7B%20,S256).
+  served[\[19\]](https://raw.githubusercontent.com/antonycc/oidc/main/app/oidc/src/crypto.mjs#:~:text=%2F%2F%20Ephemeral%20keypair%20per%20cold,1)[\[21\]](https://raw.githubusercontent.com/antonycc/oidc/main/well-known/openid-configuration#:~:text=%7B%20,S256).
   Clients cannot verify tokens across cold starts, and there is no rotation schedule. A production‑ready design would
   generate a key pair once, store it encrypted (e.g., in S3 or Secrets Manager), rotate it periodically and publish the
   live public key in the JWKS. Using AWS‑owned keys (e.g., SSE‑S3 and DynamoDB default encryption) is
@@ -219,7 +219,7 @@ configuration updates (for example, adding ~20 lines of CDK or Node code).
 | Recommendation                                  | Rationale                                                                                                                                                                                                                                                                                                                                                                            | Impact vs. cost                                                                                                           |
 |-------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------|
 | **Enable server‑side encryption on S3 buckets** | Explicitly set encryption: s3.ServerSideEncryption.AES_256 or BucketEncryption.S3_MANAGED on the WebBucket and WellKnownBucket to ensure encryption at rest. AWS‑managed keys (SSE‑S3) incur no additional cost[\[6\]](https://k21academy.com/amazon-web-services/amazon-aws-key-management-service-kms/#:~:text=KMS%20keys%20that%20an%20AWS,to%20secure%20resources%20that%20are). | **High impact / Zero cost:** One line of CDK ensures compliance with encryption requirements without affecting cost.      |
-| **Use HTTPS for JWKS and discovery**            | Ensure the jwks.json and openid_configuration.json files are served via HTTPS with proper Cache-Control headers. Consider moving jwks.json to S3 and updating it when keys rotate.                                                                                                                                                                                                   | **Medium impact / Low cost:** Improves trust and caching.                                                                 |
+| **Use HTTPS for JWKS and discovery**            | Ensure the jwks.json and openid-configuration files are served via HTTPS with proper Cache-Control headers. Consider moving jwks.json to S3 and updating it when keys rotate.                                                                                                                                                                                                   | **Medium impact / Low cost:** Improves trust and caching.                                                                 |
 | **Sanitize user‑supplied values**               | Escape HTML in the login form and query parameters to prevent XSS injection[\[25\]](https://raw.githubusercontent.com/antonycc/oidc/main/app/oidc/src/authorize.mjs#:~:text=const%20hidden%20%3D%20Object.entries%28qp%29.map%28%28%5Bk%2Cv%5D%29%20%3D,label). Use libraries like he or escape user input manually.                                                                 | **Medium impact / Low cost:** A few lines of code prevent cross‑site scripting.                                           |
 | **Reduce secret exposure in logs**              | Avoid logging sensitive query parameters such as password, code, code_verifier or tokens. Use structured logging and mask values.                                                                                                                                                                                                                                                    | **Medium impact / Low cost:** Removing or masking logs reduces the risk of secret leakage and lowers log ingestion costs. |
 
@@ -307,7 +307,7 @@ raw.githubusercontent.com
 
 <https://raw.githubusercontent.com/antonycc/oidc/main/app/oidc/src/userinfo.mjs>
 
-[\[21\]](https://raw.githubusercontent.com/antonycc/oidc/main/well-known/openid_configuration.json#:~:text=%7B%20,S256)
+[\[21\]](https://raw.githubusercontent.com/antonycc/oidc/main/well-known/openid-configuration#:~:text=%7B%20,S256)
 raw.githubusercontent.com
 
-<https://raw.githubusercontent.com/antonycc/oidc/main/well-known/openid_configuration.json>
+<https://raw.githubusercontent.com/antonycc/oidc/main/well-known/openid-configuration>

@@ -14,12 +14,10 @@ import software.amazon.awscdk.services.cloudfront.BehaviorOptions;
 import software.amazon.awscdk.services.cloudfront.CachePolicy;
 import software.amazon.awscdk.services.cloudfront.Distribution;
 import software.amazon.awscdk.services.cloudfront.OriginAccessIdentity;
-import software.amazon.awscdk.services.cloudfront.OriginProtocolPolicy;
 import software.amazon.awscdk.services.cloudfront.OriginRequestPolicy;
 import software.amazon.awscdk.services.cloudfront.ResponseHeadersPolicy;
 import software.amazon.awscdk.services.cloudfront.SSLMethod;
 import software.amazon.awscdk.services.cloudfront.ViewerProtocolPolicy;
-import software.amazon.awscdk.services.cloudfront.origins.HttpOrigin;
 import software.amazon.awscdk.services.cloudfront.origins.S3BucketOrigin;
 import software.amazon.awscdk.services.cloudfront.origins.S3BucketOriginWithOAIProps;
 import software.amazon.awscdk.services.cloudtrail.Trail;
@@ -28,15 +26,9 @@ import software.amazon.awscdk.services.dynamodb.AttributeType;
 import software.amazon.awscdk.services.dynamodb.BillingMode;
 import software.amazon.awscdk.services.dynamodb.Table;
 import software.amazon.awscdk.services.iam.ServicePrincipal;
-import software.amazon.awscdk.services.lambda.AssetImageCodeProps;
-import software.amazon.awscdk.services.lambda.DockerImageCode;
-import software.amazon.awscdk.services.lambda.DockerImageFunction;
 import software.amazon.awscdk.services.lambda.FunctionUrl;
 import software.amazon.awscdk.services.lambda.FunctionUrlAuthType;
-import software.amazon.awscdk.services.lambda.FunctionUrlOptions;
-import software.amazon.awscdk.services.lambda.InvokeMode;
 import software.amazon.awscdk.services.lambda.Permission;
-import software.amazon.awscdk.services.lambda.Tracing;
 import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.logs.RetentionDays;
 import software.amazon.awscdk.services.route53.ARecord;
@@ -59,9 +51,27 @@ import java.util.List;
 import java.util.Map;
 
 public class OidcProviderStack extends Stack {
-  private final String baseUrl;
-  private final BucketDeployment wellKnownDeployment;
-  private final Distribution distribution;
+  public final String baseUrl;
+  public final Bucket logsBucket;
+  public final LogGroup trailLogGroup;
+  public final Trail auditTrail;
+  public final CfnGroup xrayGroup;
+  public final Bucket webBucket;
+  public final OriginAccessIdentity webOriginAccessIdentity;
+  public final Bucket wellKnownBucket;
+  public final OriginAccessIdentity wellKnownOriginAccessIdentity;
+  public final CachePolicy shortTtl;
+  public final Table usersTable;
+  public final Table authCodesTable;
+  public final Table refreshTokensTable;
+  public final OidcEndpointFunction authorizeEndpoint;
+  public final OidcEndpointFunction tokenEndpoint;
+  public final OidcEndpointFunction userinfoEndpoint;
+  public final Distribution distribution;
+  public final LogGroup bucketDeploymentLogGroup;
+  public final BucketDeployment webDeployment;
+  public final BucketDeployment wellKnownDeployment;
+  public final ARecord aliasRecord;
 
   public OidcProviderStack(
       final Construct scope, final String id, final OidcProviderStackProps props) {
@@ -94,7 +104,7 @@ public class OidcProviderStack extends Stack {
 
     // Log bucket for CloudFront and S3 access logs
     // TODO: Ship logs to cloudwatch logs
-    var logsBucket =
+    this.logsBucket =
         Bucket.Builder.create(this, "LogsBucket")
             .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
             .enforceSsl(true)
@@ -109,20 +119,20 @@ public class OidcProviderStack extends Stack {
             .build();
 
     // CloudTrail - capture management events and deliver to S3 and CloudWatch Logs
-    LogGroup trailLogGroup =
+    this.trailLogGroup =
         LogGroup.Builder.create(this, "CloudTrailLogGroup")
             .logGroupName("/aws/cloudtrail/oidc-trail")
             .retention(RetentionDays.ONE_WEEK)
             .removalPolicy(RemovalPolicy.DESTROY)
             .build();
-    Trail trail =
+    this.auditTrail =
         Trail.Builder.create(this, "AuditTrail")
-            .bucket(logsBucket)
-            .cloudWatchLogGroup(trailLogGroup)
+            .bucket(this.logsBucket)
+            .cloudWatchLogGroup(this.trailLogGroup)
             .build();
 
     // X-Ray Group for Lambda traces
-    CfnGroup xrayGroup =
+    this.xrayGroup =
         CfnGroup.Builder.create(this, "XRayGroup")
             .groupName("oidc-provider")
             .filterExpression("service(\"lambda\")")
@@ -133,26 +143,26 @@ public class OidcProviderStack extends Stack {
     // Buckets
 
     // Web origin bucket
-    Bucket webBucket =
+    this.webBucket =
         Bucket.Builder.create(this, "WebBucket")
             .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
             .enforceSsl(true)
             .autoDeleteObjects(true)
             .removalPolicy(RemovalPolicy.DESTROY)
-            .serverAccessLogsBucket(logsBucket)
+            .serverAccessLogsBucket(this.logsBucket)
             .serverAccessLogsPrefix("s3/web/")
             .build();
-    var webOriginIdentity =
+    this.webOriginAccessIdentity =
         OriginAccessIdentity.Builder.create(this, "WebOriginAccessIdentity")
             .comment(
                 "Identity created for access to the website origin bucket via the CloudFront"
                     + " distribution")
             .build();
-    webBucket.grantRead(webOriginIdentity);
+    this.webBucket.grantRead(this.webOriginAccessIdentity);
     var webOrigin =
         S3BucketOrigin.withOriginAccessIdentity(
-            webBucket,
-            S3BucketOriginWithOAIProps.builder().originAccessIdentity(webOriginIdentity).build());
+            this.webBucket,
+            S3BucketOriginWithOAIProps.builder().originAccessIdentity(this.webOriginAccessIdentity).build());
     BehaviorOptions webOriginBehaviorOptions =
         BehaviorOptions.builder()
             .origin(webOrigin)
@@ -165,29 +175,29 @@ public class OidcProviderStack extends Stack {
             .build();
 
     // Well-known origin bucket
-    Bucket wellKnownBucket =
+    this.wellKnownBucket =
         Bucket.Builder.create(this, "WellKnownBucket")
             .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
             .enforceSsl(true)
             .autoDeleteObjects(true)
             .removalPolicy(RemovalPolicy.DESTROY)
-            .serverAccessLogsBucket(logsBucket)
+            .serverAccessLogsBucket(this.logsBucket)
             .serverAccessLogsPrefix("s3/well-known/")
             .build();
-    var wellKnownOriginIdentity =
+    this.wellKnownOriginAccessIdentity =
         OriginAccessIdentity.Builder.create(this, "WellKnownOriginAccessIdentity")
             .comment(
                 "Identity created for access to the Well Known origin bucket via the CloudFront"
                     + " distribution")
             .build();
-    wellKnownBucket.grantRead(wellKnownOriginIdentity);
+    this.wellKnownBucket.grantRead(this.wellKnownOriginAccessIdentity);
     var wellKnownOrigin =
         S3BucketOrigin.withOriginAccessIdentity(
-            wellKnownBucket,
+            this.wellKnownBucket,
             S3BucketOriginWithOAIProps.builder()
-                .originAccessIdentity(wellKnownOriginIdentity)
+                .originAccessIdentity(this.wellKnownOriginAccessIdentity)
                 .build());
-    CachePolicy shortTtl =
+    this.shortTtl =
         CachePolicy.Builder.create(this, "ShortTTL")
             .defaultTtl(Duration.seconds(60))
             .minTtl(Duration.seconds(0))
@@ -198,7 +208,7 @@ public class OidcProviderStack extends Stack {
     BehaviorOptions wellKnownOriginBehaviorOptions =
         BehaviorOptions.builder()
             .origin(wellKnownOrigin)
-            .cachePolicy(shortTtl)
+            .cachePolicy(this.shortTtl)
             .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
             .originRequestPolicy(OriginRequestPolicy.CORS_S3_ORIGIN)
             .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
@@ -208,14 +218,14 @@ public class OidcProviderStack extends Stack {
     additionalOriginsBehaviourMappings.put("/.well-known/*", wellKnownOriginBehaviorOptions);
 
     // DDB tables
-    Table users =
+    this.usersTable =
         Table.Builder.create(this, "Users")
             .partitionKey(Attribute.builder().name("username").type(AttributeType.STRING).build())
             .billingMode(BillingMode.PAY_PER_REQUEST)
             .removalPolicy(RemovalPolicy.DESTROY)
             .build();
 
-    Table codes =
+    this.authCodesTable =
         Table.Builder.create(this, "AuthCodes")
             .partitionKey(Attribute.builder().name("code").type(AttributeType.STRING).build())
             .timeToLiveAttribute("ttl")
@@ -223,7 +233,7 @@ public class OidcProviderStack extends Stack {
             .removalPolicy(RemovalPolicy.DESTROY)
             .build();
 
-    Table refresh =
+    this.refreshTokensTable =
         Table.Builder.create(this, "RefreshTokens")
             .partitionKey(Attribute.builder().name("rt").type(AttributeType.STRING).build())
             .timeToLiveAttribute("ttl")
@@ -233,171 +243,61 @@ public class OidcProviderStack extends Stack {
 
     // Lambda functions
 
-    // Authorize function
-    var authorizeFunctionName = "AuthorizeFn";
-    LogGroup authorizeLogGroup =
-        LogGroup.Builder.create(this, "AuthorizeLogGroup")
-            .logGroupName("/aws/lambda/" + "AuthorizeFn")
-            .removalPolicy(RemovalPolicy.DESTROY)
-            .retention(RetentionDays.ONE_WEEK)
-            .build();
-    var authorizeBuildArgs = Map.of("BUILDKIT_INLINE_CACHE", "1");
-    var authorizeImageCodeProps =
-        AssetImageCodeProps.builder()
-            .file("infra/runtimes/authorize.Dockerfile")
+    // Authorize endpoint via construct
+    this.authorizeEndpoint = new OidcEndpointFunction(
+        this,
+        "AuthorizeEndpoint",
+        OidcEndpointFunctionProps.builder()
+            .functionName("AuthorizeFn")
+            .dockerfilePath("infra/runtimes/authorize.Dockerfile")
             .cmd(List.of("app/functions/authorize.handler"))
-            .buildArgs(authorizeBuildArgs)
-            .build();
-    var authorizeEnvironment =
-        Map.of(
-            "ISSUER",
-            "https://" + domainName,
-            "USERS_TABLE",
-            users.getTableName(),
-            "CODES_TABLE",
-            codes.getTableName(),
-            "AWS_XRAY_TRACING_NAME",
-            authorizeFunctionName);
-    var authorizeFunction =
-        DockerImageFunction.Builder.create(this, authorizeFunctionName + "Lambda")
-            .code(DockerImageCode.fromImageAsset(".", authorizeImageCodeProps))
-            .memorySize(256)
-            .environment(authorizeEnvironment)
-            .functionName(authorizeFunctionName)
-            .timeout(Duration.seconds(15))
-            .tracing(Tracing.ACTIVE)
-            .logGroup(authorizeLogGroup)
-            .build();
-    FunctionUrl authUrl =
-        authorizeFunction.addFunctionUrl(
-            FunctionUrlOptions.builder()
-                .authType(FunctionUrlAuthType.NONE)
-                .invokeMode(InvokeMode.BUFFERED)
-                .build());
-    var authorizeLambdaUrlOrigin =
-        HttpOrigin.Builder.create(this.getLambdaUrlHostToken(authUrl))
-            .protocolPolicy(OriginProtocolPolicy.HTTPS_ONLY)
-            .build();
-    BehaviorOptions authorizeBehaviorOptions =
-        BehaviorOptions.builder()
-            .origin(authorizeLambdaUrlOrigin)
+            .pathPattern("/authorize")
             .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
-            .cachePolicy(CachePolicy.CACHING_DISABLED)
-            .responseHeadersPolicy(ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS_WITH_PREFLIGHT_AND_SECURITY_HEADERS)
-            .originRequestPolicy(OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER)
-            .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
-            .build();
-    additionalOriginsBehaviourMappings.put("/authorize", authorizeBehaviorOptions);
-    users.grantReadData(authorizeFunction);
-    codes.grantReadWriteData(authorizeFunction);
+            .extraEnv(Map.of(
+                "USERS_TABLE", this.usersTable.getTableName(),
+                "CODES_TABLE", this.authCodesTable.getTableName()
+            ))
+            .build());
+    this.authorizeEndpoint.function.addEnvironment("ISSUER", "https://" + domainName);
+    additionalOriginsBehaviourMappings.put("/authorize", this.authorizeEndpoint.behaviorOptions);
+    this.usersTable.grantReadData(this.authorizeEndpoint.function);
+    this.authCodesTable.grantReadWriteData(this.authorizeEndpoint.function);
 
-    // Token function
-    var tokenFunctionName = "TokenFn";
-    LogGroup tokenLogGroup =
-        LogGroup.Builder.create(this, "TokenLogGroup")
-            .logGroupName("/aws/lambda/" + "TokenFn")
-            .removalPolicy(RemovalPolicy.DESTROY)
-            .retention(RetentionDays.ONE_WEEK)
-            .build();
-    var tokenBuildArgs = Map.of("BUILDKIT_INLINE_CACHE", "1");
-    var tokenImageCodeProps =
-        AssetImageCodeProps.builder()
-            .file("infra/runtimes/token.Dockerfile")
+    // Token endpoint via construct
+    this.tokenEndpoint = new OidcEndpointFunction(
+        this,
+        "TokenEndpoint",
+        OidcEndpointFunctionProps.builder()
+            .functionName("TokenFn")
+            .dockerfilePath("infra/runtimes/token.Dockerfile")
             .cmd(List.of("app/functions/token.handler"))
-            .buildArgs(tokenBuildArgs)
-            .build();
-    var tokenEnvironment =
-        Map.of(
-            "ISSUER",
-            "https://" + domainName,
-            "USERS_TABLE",
-            users.getTableName(),
-            "REFRESH_TABLE",
-            refresh.getTableName(),
-            "CODES_TABLE",
-            codes.getTableName(),
-            "AWS_XRAY_TRACING_NAME",
-            tokenFunctionName);
-    var tokenFunction =
-        DockerImageFunction.Builder.create(this, tokenFunctionName + "Lambda")
-            .code(DockerImageCode.fromImageAsset(".", tokenImageCodeProps))
-            .memorySize(256)
-            .environment(tokenEnvironment)
-            .functionName(tokenFunctionName)
-            .timeout(Duration.seconds(15))
-            .tracing(Tracing.ACTIVE)
-            .logGroup(tokenLogGroup)
-            .build();
-    FunctionUrl tokenUrl =
-        tokenFunction.addFunctionUrl(
-            FunctionUrlOptions.builder()
-                .authType(FunctionUrlAuthType.NONE)
-                .invokeMode(InvokeMode.BUFFERED)
-                .build());
-    var tokenLambdaUrlOrigin =
-        HttpOrigin.Builder.create(this.getLambdaUrlHostToken(tokenUrl))
-            .protocolPolicy(OriginProtocolPolicy.HTTPS_ONLY)
-            .build();
-    BehaviorOptions tokenBehaviorOptions =
-        BehaviorOptions.builder()
-            .origin(tokenLambdaUrlOrigin)
+            .pathPattern("/token")
             .allowedMethods(AllowedMethods.ALLOW_ALL)
-            .cachePolicy(CachePolicy.CACHING_DISABLED)
-            .responseHeadersPolicy(ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS_WITH_PREFLIGHT_AND_SECURITY_HEADERS)
-            .originRequestPolicy(OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER)
-            .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
-            .build();
-    additionalOriginsBehaviourMappings.put("/token", tokenBehaviorOptions);
-    codes.grantReadWriteData(tokenFunction);
-    refresh.grantReadWriteData(tokenFunction);
+            .extraEnv(Map.of(
+                "USERS_TABLE", this.usersTable.getTableName(),
+                "REFRESH_TABLE", this.refreshTokensTable.getTableName(),
+                "CODES_TABLE", this.authCodesTable.getTableName()
+            ))
+            .build());
+    this.tokenEndpoint.function.addEnvironment("ISSUER", "https://" + domainName);
+    additionalOriginsBehaviourMappings.put("/token", this.tokenEndpoint.behaviorOptions);
+    this.authCodesTable.grantReadWriteData(this.tokenEndpoint.function);
+    this.refreshTokensTable.grantReadWriteData(this.tokenEndpoint.function);
 
-    // UserInfo function
-    var userinfoFunctionName = "UserInfoFn";
-    LogGroup userinfoLogGroup =
-        LogGroup.Builder.create(this, "UserInfoLogGroup")
-            .logGroupName("/aws/lambda/" + "UserInfoFn")
-            .removalPolicy(RemovalPolicy.DESTROY)
-            .retention(RetentionDays.ONE_WEEK)
-            .build();
-    var userinfoBuildArgs = Map.of("BUILDKIT_INLINE_CACHE", "1");
-    var userinfoImageCodeProps =
-        AssetImageCodeProps.builder()
-            .file("infra/runtimes/userinfo.Dockerfile")
+    // UserInfo endpoint via construct
+    this.userinfoEndpoint = new OidcEndpointFunction(
+        this,
+        "UserInfoEndpoint",
+        OidcEndpointFunctionProps.builder()
+            .functionName("UserInfoFn")
+            .dockerfilePath("infra/runtimes/userinfo.Dockerfile")
             .cmd(List.of("app/functions/userinfo.handler"))
-            .buildArgs(userinfoBuildArgs)
-            .build();
-    var userinfoEnvironment =
-        Map.of("ISSUER", "https://" + domainName, "AWS_XRAY_TRACING_NAME", userinfoFunctionName);
-    var userinfoFunction =
-        DockerImageFunction.Builder.create(this, userinfoFunctionName + "Lambda")
-            .code(DockerImageCode.fromImageAsset(".", userinfoImageCodeProps))
-            .memorySize(256)
-            .environment(userinfoEnvironment)
-            .functionName(userinfoFunctionName)
-            .timeout(Duration.seconds(15))
-            .tracing(Tracing.ACTIVE)
-            .logGroup(userinfoLogGroup)
-            .build();
-    FunctionUrl userUrl =
-        userinfoFunction.addFunctionUrl(
-            FunctionUrlOptions.builder()
-                .authType(FunctionUrlAuthType.NONE)
-                .invokeMode(InvokeMode.BUFFERED)
-                .build());
-    var userinfoLambdaUrlOrigin =
-        HttpOrigin.Builder.create(this.getLambdaUrlHostToken(userUrl))
-            .protocolPolicy(OriginProtocolPolicy.HTTPS_ONLY)
-            .build();
-    BehaviorOptions userinfoBehaviorOptions =
-        BehaviorOptions.builder()
-            .origin(userinfoLambdaUrlOrigin)
+            .pathPattern("/userinfo")
             .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
-            .cachePolicy(CachePolicy.CACHING_DISABLED)
-            .responseHeadersPolicy(ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS_WITH_PREFLIGHT_AND_SECURITY_HEADERS)
-            .originRequestPolicy(OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER)
-            .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
-            .build();
-    additionalOriginsBehaviourMappings.put("/userinfo", userinfoBehaviorOptions);
+            .extraEnv(Map.of())
+            .build());
+    this.userinfoEndpoint.function.addEnvironment("ISSUER", "https://" + domainName);
+    additionalOriginsBehaviourMappings.put("/userinfo", this.userinfoEndpoint.behaviorOptions);
 
     // CloudFront with two S3 origins and FunctionUrl origins for OIDC endpoints
     this.distribution =
@@ -408,7 +308,7 @@ public class OidcProviderStack extends Stack {
             .certificate(cert)
             .defaultRootObject("index.html")
             .enableLogging(true)
-            .logBucket(logsBucket)
+            .logBucket(this.logsBucket)
             .logFilePrefix("cloudfront/")
             .enableIpv6(true)
             .sslSupportMethod(SSLMethod.SNI)
@@ -422,12 +322,12 @@ public class OidcProviderStack extends Stack {
             .functionUrlAuthType(FunctionUrlAuthType.NONE)
             .sourceArn(this.distribution.getDistributionArn())
             .build();
-    authorizeFunction.addPermission("AuthLambdaAllowCloudFrontInvoke", invokeFunctionUrlPermission);
-    tokenFunction.addPermission("TokenLambdaAllowCloudFrontInvoke", invokeFunctionUrlPermission);
-    userinfoFunction.addPermission(
+    this.authorizeEndpoint.function.addPermission("AuthLambdaAllowCloudFrontInvoke", invokeFunctionUrlPermission);
+    this.tokenEndpoint.function.addPermission("TokenLambdaAllowCloudFrontInvoke", invokeFunctionUrlPermission);
+    this.userinfoEndpoint.function.addPermission(
         "UserInfoLambdaAllowCloudFrontInvoke", invokeFunctionUrlPermission);
 
-    LogGroup bucketDeploymentLogGroup =
+    this.bucketDeploymentLogGroup =
         LogGroup.Builder.create(this, "BucketDeploymentLogGroup")
             .logGroupName("/deployment/bucket-deployment")
             .retention(RetentionDays.ONE_WEEK)
@@ -437,14 +337,14 @@ public class OidcProviderStack extends Stack {
     // Deploy the web website files to the web website bucket and invalidate distribution
     var webDocRootSource =
         Source.asset("web", AssetOptions.builder().assetHashType(AssetHashType.SOURCE).build());
-    var webDeployment =
+    this.webDeployment =
         BucketDeployment.Builder.create(this, "DocRootToWebOriginDeployment")
             .sources(List.of(webDocRootSource))
-            .destinationBucket(webBucket)
+            .destinationBucket(this.webBucket)
             .distribution(this.distribution)
             .distributionPaths(List.of("/*"))
             .retainOnDelete(false)
-            .logGroup(bucketDeploymentLogGroup)
+            .logGroup(this.bucketDeploymentLogGroup)
             .expires(Expiration.after(Duration.minutes(5)))
             .prune(true)
             .build();
@@ -456,18 +356,18 @@ public class OidcProviderStack extends Stack {
     this.wellKnownDeployment =
         BucketDeployment.Builder.create(this, "DocRootToWellKnownOriginDeployment")
             .sources(List.of(wellKnownRootSource))
-            .destinationBucket(wellKnownBucket)
+            .destinationBucket(this.wellKnownBucket)
             .destinationKeyPrefix(".well-known/")
             .distribution(this.distribution)
             .distributionPaths(List.of("/*"))
             .retainOnDelete(false)
-            .logGroup(bucketDeploymentLogGroup)
+            .logGroup(this.bucketDeploymentLogGroup)
             .expires(Expiration.after(Duration.minutes(5)))
             .prune(true)
             .build();
 
     // A record
-    new ARecord(
+    this.aliasRecord = new ARecord(
         this,
         "AliasRecord",
         ARecordProps.builder()
@@ -479,11 +379,11 @@ public class OidcProviderStack extends Stack {
     // Outputs
     new CfnOutput(this, "BaseUrl", CfnOutputProps.builder().value("https://" + domainName).build());
     new CfnOutput(
-        this, "WebBucketName", CfnOutputProps.builder().value(webBucket.getBucketName()).build());
+        this, "WebBucketName", CfnOutputProps.builder().value(this.webBucket.getBucketName()).build());
     new CfnOutput(
         this,
         "WellKnownBucketName",
-        CfnOutputProps.builder().value(wellKnownBucket.getBucketName()).build());
+        CfnOutputProps.builder().value(this.wellKnownBucket.getBucketName()).build());
     new CfnOutput(
         this,
         "DistributionId",

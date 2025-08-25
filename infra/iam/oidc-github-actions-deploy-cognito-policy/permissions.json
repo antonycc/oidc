@@ -5,11 +5,8 @@
       "Sid": "VisualEditor0",
       "Effect": "Allow",
       "Action": [
-        "sns:*",
-        "cognito-identity:*",
-        "ses:*",
         "cognito-idp:*",
-        "kinesis:*",
+        "cognito-identity:*",
         "cognito-sync:*"
       ],
       "Resource": "*"

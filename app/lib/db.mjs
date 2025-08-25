@@ -4,7 +4,7 @@ import {
   GetCommand,
   PutCommand,
   DeleteCommand,
-  QueryCommand,
+  UpdateCommand,
   ScanCommand,
 } from "@aws-sdk/lib-dynamodb";
 
@@ -18,4 +18,5 @@ export const tables = {
 export const put = (TableName, Item) => ddb.send(new PutCommand({ TableName, Item }));
 export const get = (TableName, Key) => ddb.send(new GetCommand({ TableName, Key }));
 export const del = (TableName, Key) => ddb.send(new DeleteCommand({ TableName, Key }));
+export const update = (TableName, params) => ddb.send(new UpdateCommand({ TableName, ...params }));
 export const scan = (TableName) => ddb.send(new ScanCommand({ TableName }));

@@ -6,7 +6,7 @@
       "Effect": "Allow",
       "Action": [
         "lambda:*",
-        "cloudformation:*",
+        "cloudfront:*",
         "dynamodb:*"
       ],
       "Resource": "*"

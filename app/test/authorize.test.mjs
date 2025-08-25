@@ -18,4 +18,37 @@ describe("authorize", () => {
     expect(r.statusCode).toBe(200);
     expect(r.headers["content-type"]).toContain("text/html");
   });
+
+  it("returns invalid_client for unknown client_id", async () => {
+    const e = {
+      ...baseEvent(),
+      rawQueryString:
+        "client_id=unknown&redirect_uri=https://example.com/cb&response_type=code&scope=openid&state=st&nonce=n&code_challenge=abc&code_challenge_method=S256&username=test",
+    };
+    const r = await authorize(e);
+    expect(r.statusCode).toBe(400);
+    expect(r.body).toBe("invalid_client");
+  });
+
+  it("returns invalid_redirect_uri for unauthorized redirect_uri", async () => {
+    const e = {
+      ...baseEvent(),
+      rawQueryString:
+        "client_id=cognito-web&redirect_uri=https://evil.com/cb&response_type=code&scope=openid&state=st&nonce=n&code_challenge=abc&code_challenge_method=S256&username=test",
+    };
+    const r = await authorize(e);
+    expect(r.statusCode).toBe(400);
+    expect(r.body).toBe("invalid_redirect_uri");
+  });
+
+  it("returns invalid_scope for unauthorized scopes", async () => {
+    const e = {
+      ...baseEvent(),
+      rawQueryString:
+        "client_id=cognito-web&redirect_uri=https://YOUR_COGNITO_DOMAIN.auth.us-east-1.amazoncognito.com/oauth2/idpresponse&response_type=code&scope=openid+admin&state=st&nonce=n&code_challenge=abc&code_challenge_method=S256&username=test",
+    };
+    const r = await authorize(e);
+    expect(r.statusCode).toBe(400);
+    expect(r.body).toBe("invalid_scope");
+  });
 });

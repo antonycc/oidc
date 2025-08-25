@@ -1,5 +1,6 @@
 import { ulid } from "ulid";
 import { put, get, tables } from "../lib/db.mjs";
+import { getClient, validateRedirectUri, validateScopes, isPkceRequired } from "../lib/clients.mjs";
 import bcrypt from "bcryptjs";
 
 // Very verbose logging by design
@@ -32,6 +33,25 @@ export const handler = async (event) => {
     ];
     for (const k of req) if (!qp[k]) return bad(400, "missing " + k);
     if (qp.response_type !== "code" || qp.code_challenge_method !== "S256") return bad(400, "unsupported");
+
+    // Validate client exists and is authorized
+    const client = getClient(qp.client_id);
+    if (!client) return bad(400, "invalid_client");
+
+    // Validate redirect URI is allowed for this client
+    if (!validateRedirectUri(qp.client_id, qp.redirect_uri)) {
+      return bad(400, "invalid_redirect_uri");
+    }
+
+    // Validate scopes are allowed for this client
+    if (!validateScopes(qp.client_id, qp.scope)) {
+      return bad(400, "invalid_scope");
+    }
+
+    // Validate PKCE if required
+    if (isPkceRequired(qp.client_id) && (!qp.code_challenge || !qp.code_challenge_method)) {
+      return bad(400, "pkce_required");
+    }
 
     const username = qp.username || "test-user";
     if (process.env.USERS_TABLE && method === "POST") {

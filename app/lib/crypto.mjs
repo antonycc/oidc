@@ -6,16 +6,9 @@ let jwkPrivate,
   jwkPublic,
   kid = "kid-1";
 
-async function loadFromStore() {
-  if (!tables.codes) return false;
-  try {
-    const res = await get(tables.codes, { code: "__JWKS__" });
-    if (res.Item?.priv && res.Item?.pub) {
-      jwkPrivate = res.Item.priv;
-      jwkPublic = res.Item.pub;
-      return true;
-    }
-  } catch {}
+  } catch (err) {
+    console.error("Error loading JWKS from store:", err);
+  }
   return false;
 }
 

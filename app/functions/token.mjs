@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
-import { get, update, tables } from "../lib/db.mjs";
+import { get, conditionalDelete, put, update, tables } from "../lib/db.mjs";
 import { signJwt } from "../lib/crypto.mjs";
+import { validateClientAuth } from "../lib/clients.mjs";
 const log = (...a) => console.log(JSON.stringify({ level: "info", ts: new Date().toISOString(), msg: a.join(" ") }));
 
 export const handler = async (event) => {
@@ -13,33 +14,52 @@ export const handler = async (event) => {
 
     const code = body.get("code");
     const verifier = body.get("code_verifier") || "";
-    const client_id = body.get("client_id");
-    const redirect_uri = body.get("redirect_uri");
-    if (!code || !verifier || !client_id || !redirect_uri) return json(400, { error: "invalid_request" });
+
+    const clientId = body.get("client_id");
+    const redirectUri = body.get("redirect_uri");
+    
+    if (!code || !verifier || !clientId || !redirectUri) return json(400, { error: "invalid_request" });
+
+    // Validate client authentication (for public clients, no secret needed)
+    const clientSecret = body.get("client_secret");
+    if (!validateClientAuth(clientId, clientSecret)) {
+      return json(401, { error: "invalid_client" });
+    }
 
     const row = await get(tables.codes, { code });
     if (!row.Item) return json(400, { error: "invalid_grant" });
 
     const now = Math.floor(Date.now() / 1000);
-    if (row.Item.used === true || (row.Item.ttl && row.Item.ttl <= now)) return json(400, { error: "invalid_grant" });
-    if (row.Item.client !== client_id || row.Item.redirect !== redirect_uri) return json(400, { error: "invalid_grant" });
-    if (row.Item.ccm && row.Item.ccm !== "S256") return json(400, { error: "invalid_grant" });
+    if (row.Item.used === true || (row.Item.ttl && row.Item.ttl <= now)) {
+      return json(400, { error: "invalid_grant" });
+    }
+
+    if (row.Item.ccm && row.Item.ccm !== "S256") {
+      return json(400, { error: "invalid_grant" });
+    }
+    // Validate that client_id and redirect_uri match what was stored in the auth code
+    if (row.Item.client !== clientId) {
+      log("token_validation_failed", "client_mismatch", `stored: ${row.Item.client}, provided: ${clientId}`);
+      return json(400, { error: "invalid_grant" });
+    }
+    
+    if (row.Item.redirect !== redirectUri) {
+      log("token_validation_failed", "redirect_mismatch", `stored: ${row.Item.redirect}, provided: ${redirectUri}`);
+      return json(400, { error: "invalid_grant" });
+    }
 
     const expect = crypto.createHash("sha256").update(verifier).digest("base64url");
     if (expect !== row.Item.ch) return json(400, { error: "invalid_grant" });
 
-    // Atomic one-time use: set used=true if not already used and not expired, and client/redirect match
+    // Use conditional delete to ensure one-time use
     try {
-      await update(tables.codes, {
-        Key: { code },
-        UpdateExpression: "SET used = :t",
-        ConditionExpression:
-          "attribute_exists(code) AND (attribute_not_exists(used) OR used = :f) AND ttl > :now AND client = :c AND redirect = :r",
-        ExpressionAttributeValues: { ":t": true, ":f": false, ":now": now, ":c": client_id, ":r": redirect_uri },
-      });
-    } catch (err) {
-      log("code_update_conflict", String(err?.name || err));
-      return json(400, { error: "invalid_grant" });
+      await conditionalDelete(tables.codes, { code }, "attribute_exists(code)");
+    } catch (error) {
+      if (error.name === "ConditionalCheckFailedException") {
+        log("authorization_code_already_used", code);
+        return json(400, { error: "invalid_grant" });
+      }
+      throw error;
     }
 
     const iss = process.env.ISSUER;

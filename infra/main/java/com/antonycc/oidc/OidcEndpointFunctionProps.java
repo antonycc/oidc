@@ -44,9 +44,14 @@ public class OidcEndpointFunctionProps {
     public Builder extraEnv(Map<String, String> v) { this.extraEnv = v; return this; }
 
     public OidcEndpointFunctionProps build() {
-      if (functionName == null || dockerfilePath == null || cmd == null ||
-          pathPattern == null || allowedMethods == null) {
-        throw new IllegalArgumentException("All required fields must be provided");
+      java.util.List<String> missingFields = new java.util.ArrayList<>();
+      if (functionName == null) missingFields.add("functionName");
+      if (dockerfilePath == null) missingFields.add("dockerfilePath");
+      if (cmd == null) missingFields.add("cmd");
+      if (pathPattern == null) missingFields.add("pathPattern");
+      if (allowedMethods == null) missingFields.add("allowedMethods");
+      if (!missingFields.isEmpty()) {
+        throw new IllegalArgumentException("Required fields missing: " + String.join(", ", missingFields));
       }
       return new OidcEndpointFunctionProps(this);
     }

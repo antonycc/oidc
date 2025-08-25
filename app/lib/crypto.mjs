@@ -1,19 +1,22 @@
 import * as jose from "jose";
 import { get, put, tables } from "./db.mjs";
 
-// Persistent keypair stored in DynamoDB (codes table) to share across Lambdas
+// Ephemeral keypair per cold start. In production, store in S3/KMS and rotate.
 let jwkPrivate,
   jwkPublic,
   kid = "kid-1";
 
-  } catch (err) {
-    console.error("Error loading JWKS from store:", err);
-  }
-  return false;
-}
-
-  } catch (err) {
-    console.error("Failed to save JWKS to store:", err);
+export async function ensureKeys() {
+  if (!jwkPrivate) {
+    const { privateKey, publicKey } = await jose.generateKeyPair("RS256", { modulusLength: 2048 });
+    jwkPrivate = await jose.exportJWK(privateKey);
+    jwkPrivate.kid = kid;
+    jwkPrivate.use = "sig";
+    jwkPrivate.alg = "RS256";
+    jwkPublic = await jose.exportJWK(publicKey);
+    jwkPublic.kid = kid;
+    jwkPublic.use = "sig";
+    jwkPublic.alg = "RS256";
   }
 }
 

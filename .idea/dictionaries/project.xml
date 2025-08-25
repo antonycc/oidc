@@ -2,7 +2,11 @@
   <dictionary name="project">
     <words>
       <w>buildkit</w>
+      <w>instrumentations</w>
       <w>jwks</w>
+      <w>otel</w>
+      <w>parentbased</w>
+      <w>traceidratio</w>
     </words>
   </dictionary>
 </component>

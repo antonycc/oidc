@@ -111,12 +111,6 @@ From repo root:
 ```bash
 
 export DEPLOY_ROLE_ARN=arn:aws:iam::403027849202:role/oidc-github-actions-deploy-role
-export ENV_NAME=prod
-export HOSTED_ZONE_NAME=antonycc.com
-export HOSTED_ZONE_ID=Z079976717QZCYMJ02NI2
-export DOMAIN_NAME=oidc.antonycc.com
-export CERTIFICATE_ARN=arn:aws:acm:us-east-1:403027849202:certificate/62ef0526-06c0-4744-9cee-33300d716633
-export COGNITO_DOMAIN_PREFIX=com-antonycc-oidc
 ```
 
 Assume role for local deploys (or use AWS_PROFILE):
@@ -164,7 +158,7 @@ Smoke test the provider (replace with your domain):
 
 curl --head 'https://oidc.antonycc.com/'
 curl --head 'https://oidc.antonycc.com/login.html'
-curl --include --request GET 'https://oidc.antonycc.com/.well-known/openid_configuration.json'
+curl --include --request GET 'https://oidc.antonycc.com/.well-known/openid-configuration'
 curl --include --request GET 'https://oidc.antonycc.com/.well-known/jwks.json'
 curl --include --request GET 'https://oidc.antonycc.com/authorize'
 curl --include --request POST 'https://oidc.antonycc.com/token'

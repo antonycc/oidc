@@ -22,6 +22,10 @@ import java.util.List;
 import java.util.Map;
 
 public class CognitoStack extends Stack {
+  public final UserPool pool;
+  public final UserPoolDomain domain;
+  public final UserPoolClient client;
+  public final CfnUserPoolIdentityProvider oidcIdp;
 
   public CognitoStack(final Construct scope, final String id, final CognitoStackProps props) {
     super(scope, id, props);
@@ -30,23 +34,23 @@ public class CognitoStack extends Stack {
     String baseUrl = "https://" + domainName;
 
     // Cognito User Pool that federates to our OP (discovery served from CloudFront)
-    UserPool pool =
+    this.pool =
         UserPool.Builder.create(this, "UserPool")
             .selfSignUpEnabled(false)
             .signInAliases(SignInAliases.builder().username(true).build())
             .removalPolicy(RemovalPolicy.DESTROY)
             .build();
 
-    UserPoolDomain domain =
-        pool.addDomain(
+    this.domain =
+        this.pool.addDomain(
             "CognitoDomain",
             UserPoolDomainOptions.builder()
                 .cognitoDomain(
                     CognitoDomainOptions.builder().domainPrefix(props.cognitoDomainPrefix).build())
                 .build());
 
-    UserPoolClient client =
-        pool.addClient(
+    this.client =
+        this.pool.addClient(
             "WebClient",
             UserPoolClientOptions.builder()
                 .oAuth(
@@ -60,11 +64,11 @@ public class CognitoStack extends Stack {
                 .build());
 
     // OIDC IdP pointing to our issuer endpoints
-    CfnUserPoolIdentityProvider oidcIdp =
+    this.oidcIdp =
         CfnUserPoolIdentityProvider.Builder.create(this, "OidcIdp")
             .providerName("OIDC")
             .providerType("OIDC")
-            .userPoolId(pool.getUserPoolId())
+            .userPoolId(this.pool.getUserPoolId())
             .providerDetails(
                 Map.of(
                     "attributes_request_method", "GET",
@@ -85,15 +89,15 @@ public class CognitoStack extends Stack {
             .build();
 
     // Ensure the OIDC identity provider is created before the client that references it
-    client.getNode().addDependency(oidcIdp);
+    this.client.getNode().addDependency(this.oidcIdp);
 
     // Outputs
     new CfnOutput(
-        this, "CognitoAuthDomain", CfnOutputProps.builder().value(domain.getDomainName()).build());
-    new CfnOutput(this, "UserPoolId", CfnOutputProps.builder().value(pool.getUserPoolId()).build());
+        this, "CognitoAuthDomain", CfnOutputProps.builder().value(this.domain.getDomainName()).build());
+    new CfnOutput(this, "UserPoolId", CfnOutputProps.builder().value(this.pool.getUserPoolId()).build());
     new CfnOutput(
         this,
         "UserPoolClientId",
-        CfnOutputProps.builder().value(client.getUserPoolClientId()).build());
+        CfnOutputProps.builder().value(this.client.getUserPoolClientId()).build());
   }
 }

@@ -13,7 +13,6 @@ import software.amazon.awscdk.services.cloudfront.origins.HttpOrigin;
 import software.amazon.awscdk.services.iam.ManagedPolicy;
 import software.amazon.awscdk.services.iam.Role;
 import software.amazon.awscdk.services.iam.ServicePrincipal;
-import software.amazon.awscdk.services.iam.Policy;
 import software.amazon.awscdk.services.lambda.AssetImageCodeProps;
 import software.amazon.awscdk.services.lambda.DockerImageCode;
 import software.amazon.awscdk.services.lambda.DockerImageFunction;

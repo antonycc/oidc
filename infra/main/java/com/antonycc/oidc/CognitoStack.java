@@ -84,7 +84,6 @@ public class CognitoStack extends Stack {
                               this, "UserPoolDomainARecord-%s".formatted(dashedCognitoDomainName))
                       .zone(hostedZone)
                       .recordName(cognitoDomainName)
-                      .deleteExisting(true)
                       .target(RecordTarget.fromAlias(new UserPoolDomainTarget(this.domain)))
                       .build();
       this.userPoolDomainAaaaRecord =
@@ -92,7 +91,6 @@ public class CognitoStack extends Stack {
                               this, "UserPoolDomainAaaaRecord-%s".formatted(dashedCognitoDomainName))
                       .zone(hostedZone)
                       .recordName(cognitoDomainName)
-                      .deleteExisting(true)
                       .target(RecordTarget.fromAlias(new UserPoolDomainTarget(this.domain)))
                       .build();
 

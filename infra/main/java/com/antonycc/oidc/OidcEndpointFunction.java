@@ -111,14 +111,6 @@ public class OidcEndpointFunction extends Construct {
         .authType(FunctionUrlAuthType.NONE)
         .invokeMode(InvokeMode.BUFFERED)
         .build();
-      
-      // Add explicit permission for function URL invocation with deterministic name
-      this.function.addPermission(props.functionName + "-invoke-function-url",
-        Permission.builder()
-          .principal(new ArnPrincipal("*"))
-          .action("lambda:InvokeFunctionUrl")
-          .functionUrlAuthType(FunctionUrlAuthType.NONE)
-          .build());
 
     this.httpOrigin = HttpOrigin.Builder.create(getLambdaUrlHostToken(this.functionUrl))
         .protocolPolicy(software.amazon.awscdk.services.cloudfront.OriginProtocolPolicy.HTTPS_ONLY)

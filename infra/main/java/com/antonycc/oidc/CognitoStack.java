@@ -102,7 +102,6 @@ public class CognitoStack extends Stack {
         this.pool.addClient(
             resourceNamePrefix + "-WebClient",
             UserPoolClientOptions.builder()
-                .generateSecret(false)
                 .oAuth(
                     OAuthSettings.builder()
                         .flows(OAuthFlows.builder().authorizationCodeGrant(true).build())

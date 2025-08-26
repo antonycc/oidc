@@ -2,28 +2,20 @@ package com.antonycc.oidc;
 
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
-import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
-import software.amazon.awscdk.services.certificatemanager.Certificate;
+import software.amazon.awscdk.services.cognito.CfnUserPool;
+import software.amazon.awscdk.services.cognito.CfnUserPoolClient;
+import software.amazon.awscdk.services.cognito.CfnUserPoolDomain;
 import software.amazon.awscdk.services.cognito.CfnUserPoolIdentityProvider;
-import software.amazon.awscdk.services.cognito.OAuthFlows;
-import software.amazon.awscdk.services.cognito.OAuthScope;
-import software.amazon.awscdk.services.cognito.OAuthSettings;
-import software.amazon.awscdk.services.cognito.SignInAliases;
-import software.amazon.awscdk.services.cognito.UserPool;
-import software.amazon.awscdk.services.cognito.UserPoolClient;
-import software.amazon.awscdk.services.cognito.UserPoolClientIdentityProvider;
-import software.amazon.awscdk.services.cognito.UserPoolClientOptions;
-import software.amazon.awscdk.services.cognito.UserPoolDomain;
 import software.constructs.Construct;
 
 import java.util.List;
 import java.util.Map;
 
 public class CognitoStack extends Stack {
-  public final UserPool pool;
-  public final UserPoolDomain domain;
-  public final UserPoolClient client;
+  public final CfnUserPool pool;
+  public final CfnUserPoolDomain domain;
+  public final CfnUserPoolClient client;
   public final CfnUserPoolIdentityProvider oidcIdp;
 
   public CognitoStack(final Construct scope, final String id, final CognitoStackProps props) {
@@ -40,24 +32,45 @@ public class CognitoStack extends Stack {
 
     // Cognito User Pool that federates to our OP (discovery served from CloudFront)
     this.pool =
-        UserPool.Builder.create(this, resourceNamePrefix + "-UserPool")
+        CfnUserPool.Builder.create(this, resourceNamePrefix + "-UserPool")
             .userPoolName(resourceNamePrefix + "-user-pool")
-            .selfSignUpEnabled(false)
-            .signInAliases(SignInAliases.builder().username(true).build())
-            .removalPolicy(RemovalPolicy.DESTROY)
+            .accountRecoverySetting(
+                CfnUserPool.AccountRecoverySettingProperty.builder()
+                    .recoveryMechanisms(List.of(
+                        CfnUserPool.RecoveryOptionProperty.builder()
+                            .name("verified_phone_number")
+                            .priority(1)
+                            .build(),
+                        CfnUserPool.RecoveryOptionProperty.builder()
+                            .name("verified_email")
+                            .priority(2)
+                            .build()))
+                    .build())
+            .adminCreateUserConfig(
+                CfnUserPool.AdminCreateUserConfigProperty.builder()
+                    .allowAdminCreateUserOnly(true)
+                    .build())
+            .emailVerificationMessage("The verification code to your new account is {####}")
+            .emailVerificationSubject("Verify your new account")
+            .smsVerificationMessage("The verification code to your new account is {####}")
+            .verificationMessageTemplate(
+                CfnUserPool.VerificationMessageTemplateProperty.builder()
+                    .defaultEmailOption("CONFIRM_WITH_CODE")
+                    .emailMessage("The verification code to your new account is {####}")
+                    .emailSubject("Verify your new account")
+                    .smsMessage("The verification code to your new account is {####}")
+                    .build())
             .build();
 
-    var authCertificate = Certificate.fromCertificateArn(this, resourceNamePrefix + "-AuthCertificate", props.authCertificateArn);
-
     this.domain =
-            UserPoolDomain.Builder.create(this, resourceNamePrefix + "-CognitoDomain")
-                    .userPool(this.pool)
-                    .customDomain(
-                            software.amazon.awscdk.services.cognito.CustomDomainOptions.builder()
-                                    .domainName(cognitoDomainName)
-                                    .certificate(authCertificate)
-                                    .build())
-                    .build();
+        CfnUserPoolDomain.Builder.create(this, resourceNamePrefix + "-CognitoDomain")
+            .userPoolId(this.pool.getRef())
+            .domain(cognitoDomainName)
+            .customDomainConfig(
+                CfnUserPoolDomain.CustomDomainConfigTypeProperty.builder()
+                    .certificateArn(props.authCertificateArn)
+                    .build())
+            .build();
         // this.pool.addDomain(
         //    "CognitoDomain",
         //    UserPoolDomainOptions.builder()
@@ -70,25 +83,22 @@ public class CognitoStack extends Stack {
     // by AWS Cognito automatically, so we don't need to create them manually
 
     this.client =
-        this.pool.addClient(
-            resourceNamePrefix + "-WebClient",
-            UserPoolClientOptions.builder()
-                .oAuth(
-                    OAuthSettings.builder()
-                        .flows(OAuthFlows.builder().authorizationCodeGrant(true).build())
-                        .scopes(List.of(OAuthScope.OPENID, OAuthScope.EMAIL, OAuthScope.PROFILE))
-                        .callbackUrls(List.of(baseUrl + "/post-auth.html"))
-                        .logoutUrls(List.of(baseUrl + "/"))
-                        .build())
-                .supportedIdentityProviders(List.of(UserPoolClientIdentityProvider.custom("OIDC")))
-                .build());
+        CfnUserPoolClient.Builder.create(this, resourceNamePrefix + "-WebClient")
+            .userPoolId(this.pool.getRef())
+            .allowedOAuthFlows(List.of("code"))
+            .allowedOAuthFlowsUserPoolClient(true)
+            .allowedOAuthScopes(List.of("openid", "email", "profile"))
+            .callbackUrLs(List.of(baseUrl + "/post-auth.html"))
+            .logoutUrLs(List.of(baseUrl + "/"))
+            .supportedIdentityProviders(List.of("OIDC"))
+            .build();
 
     // OIDC IdP pointing to our issuer endpoints
     this.oidcIdp =
         CfnUserPoolIdentityProvider.Builder.create(this, resourceNamePrefix + "-OidcIdp")
             .providerName("OIDC")
             .providerType("OIDC")
-            .userPoolId(this.pool.getUserPoolId())
+            .userPoolId(this.pool.getRef())
             .providerDetails(
                 Map.of(
                     "attributes_request_method", "GET",
@@ -113,12 +123,12 @@ public class CognitoStack extends Stack {
 
     // Outputs
     new CfnOutput(
-        this, "CognitoAuthDomain", CfnOutputProps.builder().value(this.domain.getDomainName()).build());
-    new CfnOutput(this, "UserPoolId", CfnOutputProps.builder().value(this.pool.getUserPoolId()).build());
+        this, "CognitoAuthDomain", CfnOutputProps.builder().value(this.domain.getRef()).build());
+    new CfnOutput(this, "UserPoolId", CfnOutputProps.builder().value(this.pool.getRef()).build());
     new CfnOutput(
         this,
         "UserPoolClientId",
-        CfnOutputProps.builder().value(this.client.getUserPoolClientId()).build());
+        CfnOutputProps.builder().value(this.client.getRef()).build());
   }
 
   /**

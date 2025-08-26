@@ -56,6 +56,8 @@ public class OidcProviderStack extends Stack {
   public final LogGroup trailLogGroup;
   public final Trail auditTrail;
   public final CfnGroup xrayGroup;
+  public final S3OriginBucket webOriginBucket;
+  public final S3OriginBucket wellKnownOriginBucket;
   public final Bucket webBucket;
   public final OriginAccessIdentity webOriginAccessIdentity;
   public final Bucket wellKnownBucket;
@@ -152,23 +154,18 @@ public class OidcProviderStack extends Stack {
     // Buckets
 
     // Web origin bucket
-    this.webBucket =
-        Bucket.Builder.create(this, resourceNamePrefix + "-WebBucket")
-            .bucketName(resourceNamePrefix + "-web")
-            .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
-            .enforceSsl(true)
-            .autoDeleteObjects(true)
-            .removalPolicy(RemovalPolicy.DESTROY)
-            .serverAccessLogsBucket(this.logsBucket)
-            .serverAccessLogsPrefix("s3/web/")
-            .build();
-    this.webOriginAccessIdentity =
-        OriginAccessIdentity.Builder.create(this, resourceNamePrefix + "-WebOriginAccessIdentity")
-            .comment(
-                "Identity created for access to the website origin bucket via the CloudFront"
-                    + " distribution")
-            .build();
-    this.webBucket.grantRead(this.webOriginAccessIdentity);
+    this.webOriginBucket = new S3OriginBucket(
+        this,
+        resourceNamePrefix + "-WebBucket",
+        S3OriginBucketProps.builder()
+            .bucketNameSuffix("web")
+            .logsPrefix("s3/web/")
+            .oaiComment("Identity created for access to the website origin bucket via the CloudFront"
+                + " distribution")
+            .logsBucket(this.logsBucket)
+            .build());
+    this.webBucket = this.webOriginBucket.bucket;
+    this.webOriginAccessIdentity = this.webOriginBucket.originAccessIdentity;
     var webOrigin =
         S3BucketOrigin.withOriginAccessIdentity(
             this.webBucket,
@@ -185,23 +182,18 @@ public class OidcProviderStack extends Stack {
             .build();
 
     // Well-known origin bucket
-    this.wellKnownBucket =
-        Bucket.Builder.create(this, resourceNamePrefix + "-WellKnownBucket")
-            .bucketName(resourceNamePrefix + "-well-known")
-            .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
-            .enforceSsl(true)
-            .autoDeleteObjects(true)
-            .removalPolicy(RemovalPolicy.DESTROY)
-            .serverAccessLogsBucket(this.logsBucket)
-            .serverAccessLogsPrefix("s3/well-known/")
-            .build();
-    this.wellKnownOriginAccessIdentity =
-        OriginAccessIdentity.Builder.create(this, resourceNamePrefix + "-WellKnownOriginAccessIdentity")
-            .comment(
-                "Identity created for access to the Well Known origin bucket via the CloudFront"
-                    + " distribution")
-            .build();
-    this.wellKnownBucket.grantRead(this.wellKnownOriginAccessIdentity);
+    this.wellKnownOriginBucket = new S3OriginBucket(
+        this,
+        resourceNamePrefix + "-WellKnownBucket",
+        S3OriginBucketProps.builder()
+            .bucketNameSuffix("well-known")
+            .logsPrefix("s3/well-known/")
+            .oaiComment("Identity created for access to the Well Known origin bucket via the CloudFront"
+                + " distribution")
+            .logsBucket(this.logsBucket)
+            .build());
+    this.wellKnownBucket = this.wellKnownOriginBucket.bucket;
+    this.wellKnownOriginAccessIdentity = this.wellKnownOriginBucket.originAccessIdentity;
     var wellKnownOrigin =
         S3BucketOrigin.withOriginAccessIdentity(
             this.wellKnownBucket,

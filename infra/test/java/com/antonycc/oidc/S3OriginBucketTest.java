@@ -44,11 +44,15 @@ class S3OriginBucketTest {
             .logsPrefix("s3/web/")
             .oaiComment("Test OAI comment for web bucket")
             .logsBucket(logsBucket)
+            .bucketType(S3OriginBucketType.WEB)
             .build());
 
     // Verify the construct exposes the expected resources
     assertNotNull(s3OriginBucket.bucket, "Bucket should be created and exposed");
     assertNotNull(s3OriginBucket.originAccessIdentity, "OAI should be created and exposed");
+    assertNotNull(s3OriginBucket.origin, "Origin should be created and exposed");
+    assertNotNull(s3OriginBucket.behaviorOptions, "BehaviorOptions should be created and exposed");
+    assertNull(s3OriginBucket.cachePolicy, "CachePolicy should be null for WEB bucket type");
 
     // Generate CloudFormation template for verification
     Template template = Template.fromStack(testStack);
@@ -106,10 +110,14 @@ class S3OriginBucketTest {
             .logsPrefix("s3/well-known/")
             .oaiComment("Test OAI comment for well-known bucket")
             .logsBucket(logsBucket)
+            .bucketType(S3OriginBucketType.WELL_KNOWN)
             .build());
 
     assertNotNull(wellKnownBucket.bucket);
     assertNotNull(wellKnownBucket.originAccessIdentity);
+    assertNotNull(wellKnownBucket.origin);
+    assertNotNull(wellKnownBucket.behaviorOptions);
+    assertNotNull(wellKnownBucket.cachePolicy, "CachePolicy should be created for WELL_KNOWN bucket type");
 
     Template template = Template.fromStack(testStack);
 
@@ -124,6 +132,16 @@ class S3OriginBucketTest {
     template.hasResourceProperties("AWS::CloudFront::CloudFrontOriginAccessIdentity", Map.of(
         "CloudFrontOriginAccessIdentityConfig", Map.of(
             "Comment", "Test OAI comment for well-known bucket"
+        )
+    ));
+
+    // Verify that CachePolicy is created for WELL_KNOWN bucket type
+    template.hasResourceProperties("AWS::CloudFront::CachePolicy", Map.of(
+        "CachePolicyConfig", Map.of(
+            "Name", "test-prefix-short-ttl",
+            "DefaultTTL", 60,
+            "MinTTL", 0,
+            "MaxTTL", 300
         )
     ));
   }

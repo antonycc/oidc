@@ -163,23 +163,11 @@ public class OidcProviderStack extends Stack {
             .oaiComment("Identity created for access to the website origin bucket via the CloudFront"
                 + " distribution")
             .logsBucket(this.logsBucket)
+            .bucketType(S3OriginBucketType.WEB)
             .build());
     this.webBucket = this.webOriginBucket.bucket;
     this.webOriginAccessIdentity = this.webOriginBucket.originAccessIdentity;
-    var webOrigin =
-        S3BucketOrigin.withOriginAccessIdentity(
-            this.webBucket,
-            S3BucketOriginWithOAIProps.builder().originAccessIdentity(this.webOriginAccessIdentity).build());
-    BehaviorOptions webOriginBehaviorOptions =
-        BehaviorOptions.builder()
-            .origin(webOrigin)
-            .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
-            .originRequestPolicy(OriginRequestPolicy.CORS_S3_ORIGIN)
-            .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
-            .responseHeadersPolicy(
-                ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS_WITH_PREFLIGHT_AND_SECURITY_HEADERS)
-            .compress(true)
-            .build();
+    BehaviorOptions webOriginBehaviorOptions = this.webOriginBucket.behaviorOptions;
 
     // Well-known origin bucket
     this.wellKnownOriginBucket = new S3OriginBucket(
@@ -191,34 +179,12 @@ public class OidcProviderStack extends Stack {
             .oaiComment("Identity created for access to the Well Known origin bucket via the CloudFront"
                 + " distribution")
             .logsBucket(this.logsBucket)
+            .bucketType(S3OriginBucketType.WELL_KNOWN)
             .build());
     this.wellKnownBucket = this.wellKnownOriginBucket.bucket;
     this.wellKnownOriginAccessIdentity = this.wellKnownOriginBucket.originAccessIdentity;
-    var wellKnownOrigin =
-        S3BucketOrigin.withOriginAccessIdentity(
-            this.wellKnownBucket,
-            S3BucketOriginWithOAIProps.builder()
-                .originAccessIdentity(this.wellKnownOriginAccessIdentity)
-                .build());
-    this.shortTtl =
-        CachePolicy.Builder.create(this, resourceNamePrefix + "-ShortTTL")
-            .cachePolicyName(resourceNamePrefix + "-short-ttl")
-            .defaultTtl(Duration.seconds(60))
-            .minTtl(Duration.seconds(0))
-            .maxTtl(Duration.minutes(5))
-            .enableAcceptEncodingBrotli(true)
-            .enableAcceptEncodingGzip(true)
-            .build();
-    BehaviorOptions wellKnownOriginBehaviorOptions =
-        BehaviorOptions.builder()
-            .origin(wellKnownOrigin)
-            .cachePolicy(this.shortTtl)
-            .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
-            .originRequestPolicy(OriginRequestPolicy.CORS_S3_ORIGIN)
-            .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
-            .responseHeadersPolicy(
-                ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS_WITH_PREFLIGHT_AND_SECURITY_HEADERS)
-            .build();
+    this.shortTtl = this.wellKnownOriginBucket.cachePolicy;
+    BehaviorOptions wellKnownOriginBehaviorOptions = this.wellKnownOriginBucket.behaviorOptions;
     additionalOriginsBehaviourMappings.put("/.well-known/*", wellKnownOriginBehaviorOptions);
 
     // DDB tables

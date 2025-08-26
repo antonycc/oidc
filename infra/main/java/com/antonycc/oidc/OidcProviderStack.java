@@ -329,7 +329,7 @@ public class OidcProviderStack extends Stack {
             .sslSupportMethod(SSLMethod.SNI)
             .build();
 
-    // Grant CloudFront access to the origin lambdas
+    // Grant CloudFront access to the origin lambdas with compressed names
     Permission invokeFunctionUrlPermission =
         Permission.builder()
             .principal(new ServicePrincipal("cloudfront.amazonaws.com"))
@@ -337,10 +337,9 @@ public class OidcProviderStack extends Stack {
             .functionUrlAuthType(FunctionUrlAuthType.NONE)
             .sourceArn(this.distribution.getDistributionArn())
             .build();
-    this.authorizeEndpoint.function.addPermission("AuthLambdaAllowCloudFrontInvoke", invokeFunctionUrlPermission);
-    this.tokenEndpoint.function.addPermission("TokenLambdaAllowCloudFrontInvoke", invokeFunctionUrlPermission);
-    this.userinfoEndpoint.function.addPermission(
-        "UserInfoLambdaAllowCloudFrontInvoke", invokeFunctionUrlPermission);
+    this.authorizeEndpoint.function.addPermission(compressedResourceNamePrefix + "-cf-auth", invokeFunctionUrlPermission);
+    this.tokenEndpoint.function.addPermission(compressedResourceNamePrefix + "-cf-token", invokeFunctionUrlPermission);
+    this.userinfoEndpoint.function.addPermission(compressedResourceNamePrefix + "-cf-userinfo", invokeFunctionUrlPermission);
 
     this.bucketDeploymentLogGroup =
         LogGroup.Builder.create(this, resourceNamePrefix + "-BucketDeploymentLogGroup")

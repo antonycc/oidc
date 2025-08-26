@@ -11,6 +11,11 @@ import software.amazon.awscdk.services.cloudfront.ResponseHeadersPolicy;
 import software.amazon.awscdk.services.cloudfront.ViewerProtocolPolicy;
 import software.amazon.awscdk.services.cloudfront.origins.HttpOrigin;
 import software.amazon.awscdk.services.iam.ManagedPolicy;
+import software.amazon.awscdk.services.iam.Role;
+import software.amazon.awscdk.services.iam.ServicePrincipal;
+import software.amazon.awscdk.services.iam.Policy;
+import software.amazon.awscdk.services.iam.PolicyStatement;
+import software.amazon.awscdk.services.iam.Effect;
 import software.amazon.awscdk.services.lambda.AssetImageCodeProps;
 import software.amazon.awscdk.services.lambda.DockerImageCode;
 import software.amazon.awscdk.services.lambda.DockerImageFunction;
@@ -24,6 +29,7 @@ import software.amazon.awscdk.services.logs.RetentionDays;
 import software.constructs.Construct;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -34,6 +40,7 @@ import java.util.Objects;
 public class OidcEndpointFunction extends Construct {
   // Exposed created resources/objects
   public final LogGroup logGroup;
+  public final Role functionRole;
   public final DockerImageFunction function;
   public final FunctionUrl functionUrl;
   public final HttpOrigin httpOrigin;
@@ -50,6 +57,17 @@ public class OidcEndpointFunction extends Construct {
         .logGroupName("/aws/lambda/" + props.functionName)
         .removalPolicy(RemovalPolicy.DESTROY)
         .retention(RetentionDays.ONE_WEEK)
+        .build();
+
+    // IAM role for the Lambda function with deterministic name
+    this.functionRole = Role.Builder.create(this, props.functionName + "-ServiceRole")
+        .roleName(props.functionName + "-service-role")
+        .assumedBy(new ServicePrincipal("lambda.amazonaws.com"))
+        .managedPolicies(List.of(
+            ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSLambdaBasicExecutionRole"),
+            ManagedPolicy.fromAwsManagedPolicyName("AWSXRayDaemonWriteAccess"),
+            ManagedPolicy.fromAwsManagedPolicyName("CloudWatchLambdaApplicationSignalsExecutionRolePolicy")
+        ))
         .build();
 
     // Build args are constant currently but can be extended later
@@ -84,11 +102,8 @@ public class OidcEndpointFunction extends Construct {
         .timeout(Duration.seconds(15))
         .tracing(Tracing.ACTIVE)
         .logGroup(this.logGroup)
+        .role(this.functionRole)
         .build();
-
-      var managedPolicy = ManagedPolicy.fromAwsManagedPolicyName("CloudWatchLambdaApplicationSignalsExecutionRolePolicy");
-      var functionRole = Objects.requireNonNull(this.function.getRole());
-      functionRole.addManagedPolicy(managedPolicy);
 
       this.functionUrl = this.function.addFunctionUrl(FunctionUrlOptions.builder()
         .authType(FunctionUrlAuthType.NONE)

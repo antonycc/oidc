@@ -3,11 +3,12 @@ package com.antonycc.oidc;
 import org.junit.jupiter.api.Test;
 import software.amazon.awscdk.App;
 import software.amazon.awscdk.Environment;
+import software.amazon.awscdk.StageSynthesisOptions;
 
 class SynthTest {
   @Test
   void cdkSynthCompiles() {
-    var app = new App();
+      var app = new App();
 
     Environment env = Environment.builder().account("123456789012").region("us-east-1").build();
 
@@ -35,8 +36,15 @@ class SynthTest {
                 .envName("test")
                 .domainName("oidc.example.com")
                 .cognitoDomainPrefix("oidc-test-xyz")
+                .authCertificateArn("arn:aws:acm:us-east-1:123456789012:certificate/xyz")
+                .hostedZoneName("example.com")
+                .hostedZoneId("Z000EXAMPLE")
                 .build());
 
-    app.synth(); // should not throw
+    StageSynthesisOptions options = StageSynthesisOptions.builder()
+              .skipValidation(false)
+              .validateOnSynthesis(true)
+              .build();
+    app.synth(options); // should not throw
   }
 }

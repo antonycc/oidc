@@ -8,12 +8,18 @@ public class CognitoStackProps implements StackProps {
   public final String envName;
   public final String domainName;
   public final String cognitoDomainPrefix;
+  public final String authCertificateArn;
+  public final String hostedZoneName;
+  public final String hostedZoneId;
 
   private CognitoStackProps(Builder builder) {
     this.env = builder.env;
     this.envName = builder.envName;
     this.domainName = builder.domainName;
     this.cognitoDomainPrefix = builder.cognitoDomainPrefix;
+    this.authCertificateArn = builder.authCertificateArn;
+    this.hostedZoneName = builder.hostedZoneName;
+    this.hostedZoneId = builder.hostedZoneId;
   }
 
   @Override
@@ -30,6 +36,9 @@ public class CognitoStackProps implements StackProps {
     private String envName;
     private String domainName;
     private String cognitoDomainPrefix;
+    private String authCertificateArn;
+    private String hostedZoneName;
+    private String hostedZoneId;
 
     public Builder env(Environment env) {
       this.env = env;
@@ -48,6 +57,21 @@ public class CognitoStackProps implements StackProps {
 
     public Builder cognitoDomainPrefix(String cognitoDomainPrefix) {
       this.cognitoDomainPrefix = cognitoDomainPrefix;
+      return this;
+    }
+
+    public Builder authCertificateArn(String authCertificateArn) {
+      this.authCertificateArn = authCertificateArn;
+      return this;
+    }
+
+    public Builder hostedZoneName(String hostedZoneName) {
+      this.hostedZoneName = hostedZoneName;
+      return this;
+    }
+
+    public Builder hostedZoneId(String hostedZoneId) {
+      this.hostedZoneId = hostedZoneId;
       return this;
     }
 

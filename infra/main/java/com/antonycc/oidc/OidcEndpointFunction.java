@@ -10,15 +10,18 @@ import software.amazon.awscdk.services.cloudfront.OriginRequestPolicy;
 import software.amazon.awscdk.services.cloudfront.ResponseHeadersPolicy;
 import software.amazon.awscdk.services.cloudfront.ViewerProtocolPolicy;
 import software.amazon.awscdk.services.cloudfront.origins.HttpOrigin;
+import software.amazon.awscdk.services.iam.ArnPrincipal;
 import software.amazon.awscdk.services.iam.ManagedPolicy;
 import software.amazon.awscdk.services.iam.Role;
 import software.amazon.awscdk.services.iam.ServicePrincipal;
+import software.amazon.awscdk.services.iam.StarPrincipal;
 import software.amazon.awscdk.services.lambda.AssetImageCodeProps;
 import software.amazon.awscdk.services.lambda.DockerImageCode;
 import software.amazon.awscdk.services.lambda.DockerImageFunction;
 import software.amazon.awscdk.services.lambda.FunctionUrl;
 import software.amazon.awscdk.services.lambda.FunctionUrlAuthType;
 import software.amazon.awscdk.services.lambda.FunctionUrlOptions;
+import software.amazon.awscdk.services.lambda.Permission;
 import software.amazon.awscdk.services.lambda.InvokeMode;
 import software.amazon.awscdk.services.lambda.Tracing;
 import software.amazon.awscdk.services.logs.LogGroup;
@@ -102,10 +105,20 @@ public class OidcEndpointFunction extends Construct {
         .role(this.functionRole)
         .build();
 
-      this.functionUrl = this.function.addFunctionUrl(FunctionUrlOptions.builder()
+      // Create function URL with deterministic permission name
+      this.functionUrl = FunctionUrl.Builder.create(this, props.functionName + "-FunctionUrl")
+        .function(this.function)
         .authType(FunctionUrlAuthType.NONE)
         .invokeMode(InvokeMode.BUFFERED)
-        .build());
+        .build();
+      
+      // Add explicit permission for function URL invocation with deterministic name
+      this.function.addPermission(props.functionName + "-invoke-function-url",
+        Permission.builder()
+          .principal(new ArnPrincipal("*"))
+          .action("lambda:InvokeFunctionUrl")
+          .functionUrlAuthType(FunctionUrlAuthType.NONE)
+          .build());
 
     this.httpOrigin = HttpOrigin.Builder.create(getLambdaUrlHostToken(this.functionUrl))
         .protocolPolicy(software.amazon.awscdk.services.cloudfront.OriginProtocolPolicy.HTTPS_ONLY)

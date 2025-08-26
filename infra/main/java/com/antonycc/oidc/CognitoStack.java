@@ -15,12 +15,6 @@ import software.amazon.awscdk.services.cognito.UserPoolClient;
 import software.amazon.awscdk.services.cognito.UserPoolClientIdentityProvider;
 import software.amazon.awscdk.services.cognito.UserPoolClientOptions;
 import software.amazon.awscdk.services.cognito.UserPoolDomain;
-import software.amazon.awscdk.services.route53.ARecord;
-import software.amazon.awscdk.services.route53.AaaaRecord;
-import software.amazon.awscdk.services.route53.HostedZone;
-import software.amazon.awscdk.services.route53.HostedZoneAttributes;
-import software.amazon.awscdk.services.route53.RecordTarget;
-import software.amazon.awscdk.services.route53.targets.UserPoolDomainTarget;
 import software.constructs.Construct;
 
 import java.util.List;
@@ -31,8 +25,6 @@ public class CognitoStack extends Stack {
   public final UserPoolDomain domain;
   public final UserPoolClient client;
   public final CfnUserPoolIdentityProvider oidcIdp;
-  public final ARecord userPoolDomainARecord;
-  public final AaaaRecord userPoolDomainAaaaRecord;
 
   public CognitoStack(final Construct scope, final String id, final CognitoStackProps props) {
     super(scope, id, props);
@@ -74,29 +66,8 @@ public class CognitoStack extends Stack {
         //                    .domainPrefix(props.cognitoDomainPrefix + "-" + dashedDomainName)
         //                    .build())
         //        .build());
-      var hostedZone =
-              HostedZone.fromHostedZoneAttributes(
-                      this,
-                      resourceNamePrefix + "-HostedZone",
-                      HostedZoneAttributes.builder()
-                              .zoneName(props.hostedZoneName)
-                              .hostedZoneId(props.hostedZoneId)
-                              .build());
-
-      this.userPoolDomainARecord =
-              ARecord.Builder.create(
-                              this, resourceNamePrefix + "-UserPoolDomainARecord")
-                      .zone(hostedZone)
-                      .recordName(cognitoDomainName)
-                      .target(RecordTarget.fromAlias(new UserPoolDomainTarget(this.domain)))
-                      .build();
-      this.userPoolDomainAaaaRecord =
-              AaaaRecord.Builder.create(
-                              this, resourceNamePrefix + "-UserPoolDomainAaaaRecord")
-                      .zone(hostedZone)
-                      .recordName(cognitoDomainName)
-                      .target(RecordTarget.fromAlias(new UserPoolDomainTarget(this.domain)))
-                      .build();
+    // Note: Route53 records for the Cognito custom domain are managed 
+    // by AWS Cognito automatically, so we don't need to create them manually
 
     this.client =
         this.pool.addClient(

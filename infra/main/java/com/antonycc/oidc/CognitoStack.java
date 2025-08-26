@@ -43,18 +43,22 @@ public class CognitoStack extends Stack {
     // String dashedDomainName = domainName.replace('.', '-');
     String dashedCognitoDomainName = cognitoDomainName.replace('.', '-');
 
+    // Generate predictable resource name prefix based on domain and environment
+    String resourceNamePrefix = generateResourceNamePrefix(props.domainName, props.envName);
+
     // Cognito User Pool that federates to our OP (discovery served from CloudFront)
     this.pool =
-        UserPool.Builder.create(this, "UserPool")
+        UserPool.Builder.create(this, resourceNamePrefix + "-UserPool")
+            .userPoolName(resourceNamePrefix + "-user-pool")
             .selfSignUpEnabled(false)
             .signInAliases(SignInAliases.builder().username(true).build())
             .removalPolicy(RemovalPolicy.DESTROY)
             .build();
 
-    var authCertificate = Certificate.fromCertificateArn(this, "AuthCertificate", props.authCertificateArn);
+    var authCertificate = Certificate.fromCertificateArn(this, resourceNamePrefix + "-AuthCertificate", props.authCertificateArn);
 
     this.domain =
-            UserPoolDomain.Builder.create(this, "CognitoDomain")
+            UserPoolDomain.Builder.create(this, resourceNamePrefix + "-CognitoDomain")
                     .userPool(this.pool)
                     .customDomain(
                             software.amazon.awscdk.services.cognito.CustomDomainOptions.builder()
@@ -73,7 +77,7 @@ public class CognitoStack extends Stack {
       var hostedZone =
               HostedZone.fromHostedZoneAttributes(
                       this,
-                      "HostedZone",
+                      resourceNamePrefix + "-HostedZone",
                       HostedZoneAttributes.builder()
                               .zoneName(props.hostedZoneName)
                               .hostedZoneId(props.hostedZoneId)
@@ -81,14 +85,14 @@ public class CognitoStack extends Stack {
 
       this.userPoolDomainARecord =
               ARecord.Builder.create(
-                              this, "UserPoolDomainARecord-%s".formatted(dashedCognitoDomainName))
+                              this, resourceNamePrefix + "-UserPoolDomainARecord")
                       .zone(hostedZone)
                       .recordName(cognitoDomainName)
                       .target(RecordTarget.fromAlias(new UserPoolDomainTarget(this.domain)))
                       .build();
       this.userPoolDomainAaaaRecord =
               AaaaRecord.Builder.create(
-                              this, "UserPoolDomainAaaaRecord-%s".formatted(dashedCognitoDomainName))
+                              this, resourceNamePrefix + "-UserPoolDomainAaaaRecord")
                       .zone(hostedZone)
                       .recordName(cognitoDomainName)
                       .target(RecordTarget.fromAlias(new UserPoolDomainTarget(this.domain)))
@@ -96,8 +100,9 @@ public class CognitoStack extends Stack {
 
     this.client =
         this.pool.addClient(
-            "WebClient",
+            resourceNamePrefix + "-WebClient",
             UserPoolClientOptions.builder()
+                .generateSecret(false)
                 .oAuth(
                     OAuthSettings.builder()
                         .flows(OAuthFlows.builder().authorizationCodeGrant(true).build())
@@ -110,7 +115,7 @@ public class CognitoStack extends Stack {
 
     // OIDC IdP pointing to our issuer endpoints
     this.oidcIdp =
-        CfnUserPoolIdentityProvider.Builder.create(this, "OidcIdp")
+        CfnUserPoolIdentityProvider.Builder.create(this, resourceNamePrefix + "-OidcIdp")
             .providerName("OIDC")
             .providerType("OIDC")
             .userPoolId(this.pool.getUserPoolId())
@@ -144,5 +149,14 @@ public class CognitoStack extends Stack {
         this,
         "UserPoolClientId",
         CfnOutputProps.builder().value(this.client.getUserPoolClientId()).build());
+  }
+
+  /**
+   * Generate a predictable resource name prefix based on domain name and environment.
+   * Converts domain like "oidc.example.com" to "oidc-example-com" and adds environment.
+   */
+  private static String generateResourceNamePrefix(String domainName, String envName) {
+    String dashedDomainName = domainName.replace('.', '-');
+    return dashedDomainName + "-" + envName;
   }
 }

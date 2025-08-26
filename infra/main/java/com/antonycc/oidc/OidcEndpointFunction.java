@@ -46,7 +46,7 @@ public class OidcEndpointFunction extends Construct {
     this.pathPattern = props.pathPattern;
 
     // Log group
-    this.logGroup = LogGroup.Builder.create(this, props.functionName + "LogGroup")
+    this.logGroup = LogGroup.Builder.create(this, props.functionName + "-LogGroup")
         .logGroupName("/aws/lambda/" + props.functionName)
         .removalPolicy(RemovalPolicy.DESTROY)
         .retention(RetentionDays.ONE_WEEK)
@@ -76,7 +76,7 @@ public class OidcEndpointFunction extends Construct {
     );
     environment.putAll(otelEnv);
 
-    this.function = DockerImageFunction.Builder.create(this, props.functionName + "Lambda")
+    this.function = DockerImageFunction.Builder.create(this, props.functionName + "-Lambda")
         .code(DockerImageCode.fromImageAsset(".", imageCodeProps))
         .memorySize(256)
         .environment(environment)

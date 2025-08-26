@@ -78,12 +78,15 @@ public class OidcProviderStack extends Stack {
     super(scope, id, props);
 
     var additionalOriginsBehaviourMappings = new HashMap<String, BehaviorOptions>();
+    
+    // Generate predictable resource name prefix based on domain and environment
+    String resourceNamePrefix = generateResourceNamePrefix(props.domainName, props.envName);
 
     // Hosted zone (must exist)
     IHostedZone zone =
         HostedZone.fromHostedZoneAttributes(
             this,
-            "Zone",
+            resourceNamePrefix + "-Zone",
             HostedZoneAttributes.builder()
                 .hostedZoneId(props.hostedZoneId)
                 .zoneName(props.hostedZoneName)
@@ -100,12 +103,13 @@ public class OidcProviderStack extends Stack {
     this.baseUrl = "https://" + domainName;
 
     // TLS certificate from existing ACM (must be in us-east-1 for CloudFront)
-    var cert = Certificate.fromCertificateArn(this, "WebCert", props.certificateArn);
+    var cert = Certificate.fromCertificateArn(this, resourceNamePrefix + "-WebCert", props.certificateArn);
 
     // Log bucket for CloudFront and S3 access logs
     // TODO: Ship logs to cloudwatch logs
     this.logsBucket =
-        Bucket.Builder.create(this, "LogsBucket")
+        Bucket.Builder.create(this, resourceNamePrefix + "-LogsBucket")
+            .bucketName(resourceNamePrefix + "-logs")
             .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
             .enforceSsl(true)
             .autoDeleteObjects(true)
@@ -120,21 +124,22 @@ public class OidcProviderStack extends Stack {
 
     // CloudTrail - capture management events and deliver to S3 and CloudWatch Logs
     this.trailLogGroup =
-        LogGroup.Builder.create(this, "CloudTrailLogGroup")
-            .logGroupName("/aws/cloudtrail/oidc-trail")
+        LogGroup.Builder.create(this, resourceNamePrefix + "-CloudTrailLogGroup")
+            .logGroupName("/aws/cloudtrail/" + resourceNamePrefix)
             .retention(RetentionDays.ONE_WEEK)
             .removalPolicy(RemovalPolicy.DESTROY)
             .build();
     this.auditTrail =
-        Trail.Builder.create(this, "AuditTrail")
+        Trail.Builder.create(this, resourceNamePrefix + "-AuditTrail")
+            .trailName(resourceNamePrefix + "-audit-trail")
             .bucket(this.logsBucket)
             .cloudWatchLogGroup(this.trailLogGroup)
             .build();
 
     // X-Ray Group for Lambda traces
     this.xrayGroup =
-        CfnGroup.Builder.create(this, "XRayGroup")
-            .groupName("oidc-provider")
+        CfnGroup.Builder.create(this, resourceNamePrefix + "-XRayGroup")
+            .groupName(resourceNamePrefix + "-lambda-traces")
             .filterExpression("service(\"lambda\")")
             .insightsConfiguration(
                 CfnGroup.InsightsConfigurationProperty.builder().insightsEnabled(true).build())
@@ -144,7 +149,8 @@ public class OidcProviderStack extends Stack {
 
     // Web origin bucket
     this.webBucket =
-        Bucket.Builder.create(this, "WebBucket")
+        Bucket.Builder.create(this, resourceNamePrefix + "-WebBucket")
+            .bucketName(resourceNamePrefix + "-web")
             .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
             .enforceSsl(true)
             .autoDeleteObjects(true)
@@ -153,7 +159,7 @@ public class OidcProviderStack extends Stack {
             .serverAccessLogsPrefix("s3/web/")
             .build();
     this.webOriginAccessIdentity =
-        OriginAccessIdentity.Builder.create(this, "WebOriginAccessIdentity")
+        OriginAccessIdentity.Builder.create(this, resourceNamePrefix + "-WebOriginAccessIdentity")
             .comment(
                 "Identity created for access to the website origin bucket via the CloudFront"
                     + " distribution")
@@ -176,7 +182,8 @@ public class OidcProviderStack extends Stack {
 
     // Well-known origin bucket
     this.wellKnownBucket =
-        Bucket.Builder.create(this, "WellKnownBucket")
+        Bucket.Builder.create(this, resourceNamePrefix + "-WellKnownBucket")
+            .bucketName(resourceNamePrefix + "-well-known")
             .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
             .enforceSsl(true)
             .autoDeleteObjects(true)
@@ -185,7 +192,7 @@ public class OidcProviderStack extends Stack {
             .serverAccessLogsPrefix("s3/well-known/")
             .build();
     this.wellKnownOriginAccessIdentity =
-        OriginAccessIdentity.Builder.create(this, "WellKnownOriginAccessIdentity")
+        OriginAccessIdentity.Builder.create(this, resourceNamePrefix + "-WellKnownOriginAccessIdentity")
             .comment(
                 "Identity created for access to the Well Known origin bucket via the CloudFront"
                     + " distribution")
@@ -198,7 +205,8 @@ public class OidcProviderStack extends Stack {
                 .originAccessIdentity(this.wellKnownOriginAccessIdentity)
                 .build());
     this.shortTtl =
-        CachePolicy.Builder.create(this, "ShortTTL")
+        CachePolicy.Builder.create(this, resourceNamePrefix + "-ShortTTL")
+            .cachePolicyName(resourceNamePrefix + "-short-ttl")
             .defaultTtl(Duration.seconds(60))
             .minTtl(Duration.seconds(0))
             .maxTtl(Duration.minutes(5))
@@ -219,14 +227,16 @@ public class OidcProviderStack extends Stack {
 
     // DDB tables
     this.usersTable =
-        Table.Builder.create(this, "Users")
+        Table.Builder.create(this, resourceNamePrefix + "-Users")
+            .tableName(resourceNamePrefix + "-users")
             .partitionKey(Attribute.builder().name("username").type(AttributeType.STRING).build())
             .billingMode(BillingMode.PAY_PER_REQUEST)
             .removalPolicy(RemovalPolicy.DESTROY)
             .build();
 
     this.authCodesTable =
-        Table.Builder.create(this, "AuthCodes")
+        Table.Builder.create(this, resourceNamePrefix + "-AuthCodes")
+            .tableName(resourceNamePrefix + "-auth-codes")
             .partitionKey(Attribute.builder().name("code").type(AttributeType.STRING).build())
             .timeToLiveAttribute("ttl")
             .billingMode(BillingMode.PAY_PER_REQUEST)
@@ -234,7 +244,8 @@ public class OidcProviderStack extends Stack {
             .build();
 
     this.refreshTokensTable =
-        Table.Builder.create(this, "RefreshTokens")
+        Table.Builder.create(this, resourceNamePrefix + "-RefreshTokens")
+            .tableName(resourceNamePrefix + "-refresh-tokens")
             .partitionKey(Attribute.builder().name("rt").type(AttributeType.STRING).build())
             .timeToLiveAttribute("ttl")
             .billingMode(BillingMode.PAY_PER_REQUEST)
@@ -246,9 +257,9 @@ public class OidcProviderStack extends Stack {
     // Authorize endpoint via construct
     this.authorizeEndpoint = new OidcEndpointFunction(
         this,
-        "AuthorizeEndpoint",
+        resourceNamePrefix + "-AuthorizeEndpoint",
         OidcEndpointFunctionProps.builder()
-            .functionName("AuthorizeFn")
+            .functionName(resourceNamePrefix + "-authorize")
             .dockerfilePath("infra/runtimes/authorize.Dockerfile")
             .cmd(List.of("app/functions/authorize.handler"))
             .pathPattern("/authorize")
@@ -266,9 +277,9 @@ public class OidcProviderStack extends Stack {
     // Token endpoint via construct
     this.tokenEndpoint = new OidcEndpointFunction(
         this,
-        "TokenEndpoint",
+        resourceNamePrefix + "-TokenEndpoint",
         OidcEndpointFunctionProps.builder()
-            .functionName("TokenFn")
+            .functionName(resourceNamePrefix + "-token")
             .dockerfilePath("infra/runtimes/token.Dockerfile")
             .cmd(List.of("app/functions/token.handler"))
             .pathPattern("/token")
@@ -287,9 +298,9 @@ public class OidcProviderStack extends Stack {
     // UserInfo endpoint via construct
     this.userinfoEndpoint = new OidcEndpointFunction(
         this,
-        "UserInfoEndpoint",
+        resourceNamePrefix + "-UserInfoEndpoint",
         OidcEndpointFunctionProps.builder()
-            .functionName("UserInfoFn")
+            .functionName(resourceNamePrefix + "-userinfo")
             .dockerfilePath("infra/runtimes/userinfo.Dockerfile")
             .cmd(List.of("app/functions/userinfo.handler"))
             .pathPattern("/userinfo")
@@ -304,7 +315,7 @@ public class OidcProviderStack extends Stack {
 
     // CloudFront with two S3 origins and FunctionUrl origins for OIDC endpoints
     this.distribution =
-        Distribution.Builder.create(this, "WebDist")
+        Distribution.Builder.create(this, resourceNamePrefix + "-WebDist")
             .defaultBehavior(webOriginBehaviorOptions)
             .additionalBehaviors(additionalOriginsBehaviourMappings)
             .domainNames(List.of(domainName))
@@ -331,8 +342,8 @@ public class OidcProviderStack extends Stack {
         "UserInfoLambdaAllowCloudFrontInvoke", invokeFunctionUrlPermission);
 
     this.bucketDeploymentLogGroup =
-        LogGroup.Builder.create(this, "BucketDeploymentLogGroup")
-            .logGroupName("/deployment/bucket-deployment")
+        LogGroup.Builder.create(this, resourceNamePrefix + "-BucketDeploymentLogGroup")
+            .logGroupName("/deployment/" + resourceNamePrefix + "-bucket-deployment")
             .retention(RetentionDays.ONE_WEEK)
             .removalPolicy(RemovalPolicy.DESTROY)
             .build();
@@ -341,7 +352,7 @@ public class OidcProviderStack extends Stack {
     var webDocRootSource =
         Source.asset("web", AssetOptions.builder().assetHashType(AssetHashType.SOURCE).build());
     this.webDeployment =
-        BucketDeployment.Builder.create(this, "DocRootToWebOriginDeployment")
+        BucketDeployment.Builder.create(this, resourceNamePrefix + "-DocRootToWebOriginDeployment")
             .sources(List.of(webDocRootSource))
             .destinationBucket(this.webBucket)
             .distribution(this.distribution)
@@ -357,7 +368,7 @@ public class OidcProviderStack extends Stack {
         Source.asset(
             "well-known", AssetOptions.builder().assetHashType(AssetHashType.SOURCE).build());
     this.wellKnownDeployment =
-        BucketDeployment.Builder.create(this, "DocRootToWellKnownOriginDeployment")
+        BucketDeployment.Builder.create(this, resourceNamePrefix + "-DocRootToWellKnownOriginDeployment")
             .sources(List.of(wellKnownRootSource))
             .destinationBucket(this.wellKnownBucket)
             .destinationKeyPrefix(".well-known/")
@@ -372,7 +383,7 @@ public class OidcProviderStack extends Stack {
     // A record
     this.aliasRecord = new ARecord(
         this,
-        "AliasRecord",
+        resourceNamePrefix + "-AliasRecord",
         ARecordProps.builder()
             .recordName(recordName)
             .zone(zone)
@@ -407,5 +418,14 @@ public class OidcProviderStack extends Stack {
 
   public Distribution getDistribution() {
     return distribution;
+  }
+
+  /**
+   * Generate a predictable resource name prefix based on domain name and environment.
+   * Converts domain like "oidc.example.com" to "oidc-example-com" and adds environment.
+   */
+  private static String generateResourceNamePrefix(String domainName, String envName) {
+    String dashedDomainName = domainName.replace('.', '-');
+    return dashedDomainName + "-" + envName;
   }
 }

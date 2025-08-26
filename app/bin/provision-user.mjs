@@ -3,7 +3,7 @@ import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 import bcrypt from "bcryptjs";
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
-const table = "OidcProviderStack-prod-Users0A0EEA89-9TF7302G6UO6";
+const table = "oidc-antonycc-com-prod-users";
 
 const username = process.argv[2] || "test-user";
 const password = process.argv[3] || "Passw0rd!";

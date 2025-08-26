@@ -56,6 +56,8 @@ public class OidcProviderStack extends Stack {
   public final LogGroup trailLogGroup;
   public final Trail auditTrail;
   public final CfnGroup xrayGroup;
+  public final S3OriginBucket webOriginBucket;
+  public final S3OriginBucket wellKnownOriginBucket;
   public final Bucket webBucket;
   public final OriginAccessIdentity webOriginAccessIdentity;
   public final Bucket wellKnownBucket;
@@ -152,81 +154,37 @@ public class OidcProviderStack extends Stack {
     // Buckets
 
     // Web origin bucket
-    this.webBucket =
-        Bucket.Builder.create(this, resourceNamePrefix + "-WebBucket")
-            .bucketName(resourceNamePrefix + "-web")
-            .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
-            .enforceSsl(true)
-            .autoDeleteObjects(true)
-            .removalPolicy(RemovalPolicy.DESTROY)
-            .serverAccessLogsBucket(this.logsBucket)
-            .serverAccessLogsPrefix("s3/web/")
-            .build();
-    this.webOriginAccessIdentity =
-        OriginAccessIdentity.Builder.create(this, resourceNamePrefix + "-WebOriginAccessIdentity")
-            .comment(
-                "Identity created for access to the website origin bucket via the CloudFront"
-                    + " distribution")
-            .build();
-    this.webBucket.grantRead(this.webOriginAccessIdentity);
-    var webOrigin =
-        S3BucketOrigin.withOriginAccessIdentity(
-            this.webBucket,
-            S3BucketOriginWithOAIProps.builder().originAccessIdentity(this.webOriginAccessIdentity).build());
-    BehaviorOptions webOriginBehaviorOptions =
-        BehaviorOptions.builder()
-            .origin(webOrigin)
-            .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
-            .originRequestPolicy(OriginRequestPolicy.CORS_S3_ORIGIN)
-            .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
-            .responseHeadersPolicy(
-                ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS_WITH_PREFLIGHT_AND_SECURITY_HEADERS)
-            .compress(true)
-            .build();
+    this.webOriginBucket = new S3OriginBucket(
+        this,
+        resourceNamePrefix + "-WebBucket",
+        S3OriginBucketProps.builder()
+            .bucketNameSuffix("web")
+            .logsPrefix("s3/web/")
+            .oaiComment("Identity created for access to the website origin bucket via the CloudFront"
+                + " distribution")
+            .logsBucket(this.logsBucket)
+            .bucketType(S3OriginBucketType.WEB)
+            .build());
+    this.webBucket = this.webOriginBucket.bucket;
+    this.webOriginAccessIdentity = this.webOriginBucket.originAccessIdentity;
+    BehaviorOptions webOriginBehaviorOptions = this.webOriginBucket.behaviorOptions;
 
     // Well-known origin bucket
-    this.wellKnownBucket =
-        Bucket.Builder.create(this, resourceNamePrefix + "-WellKnownBucket")
-            .bucketName(resourceNamePrefix + "-well-known")
-            .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
-            .enforceSsl(true)
-            .autoDeleteObjects(true)
-            .removalPolicy(RemovalPolicy.DESTROY)
-            .serverAccessLogsBucket(this.logsBucket)
-            .serverAccessLogsPrefix("s3/well-known/")
-            .build();
-    this.wellKnownOriginAccessIdentity =
-        OriginAccessIdentity.Builder.create(this, resourceNamePrefix + "-WellKnownOriginAccessIdentity")
-            .comment(
-                "Identity created for access to the Well Known origin bucket via the CloudFront"
-                    + " distribution")
-            .build();
-    this.wellKnownBucket.grantRead(this.wellKnownOriginAccessIdentity);
-    var wellKnownOrigin =
-        S3BucketOrigin.withOriginAccessIdentity(
-            this.wellKnownBucket,
-            S3BucketOriginWithOAIProps.builder()
-                .originAccessIdentity(this.wellKnownOriginAccessIdentity)
-                .build());
-    this.shortTtl =
-        CachePolicy.Builder.create(this, resourceNamePrefix + "-ShortTTL")
-            .cachePolicyName(resourceNamePrefix + "-short-ttl")
-            .defaultTtl(Duration.seconds(60))
-            .minTtl(Duration.seconds(0))
-            .maxTtl(Duration.minutes(5))
-            .enableAcceptEncodingBrotli(true)
-            .enableAcceptEncodingGzip(true)
-            .build();
-    BehaviorOptions wellKnownOriginBehaviorOptions =
-        BehaviorOptions.builder()
-            .origin(wellKnownOrigin)
-            .cachePolicy(this.shortTtl)
-            .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
-            .originRequestPolicy(OriginRequestPolicy.CORS_S3_ORIGIN)
-            .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
-            .responseHeadersPolicy(
-                ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS_WITH_PREFLIGHT_AND_SECURITY_HEADERS)
-            .build();
+    this.wellKnownOriginBucket = new S3OriginBucket(
+        this,
+        resourceNamePrefix + "-WellKnownBucket",
+        S3OriginBucketProps.builder()
+            .bucketNameSuffix("well-known")
+            .logsPrefix("s3/well-known/")
+            .oaiComment("Identity created for access to the Well Known origin bucket via the CloudFront"
+                + " distribution")
+            .logsBucket(this.logsBucket)
+            .bucketType(S3OriginBucketType.WELL_KNOWN)
+            .build());
+    this.wellKnownBucket = this.wellKnownOriginBucket.bucket;
+    this.wellKnownOriginAccessIdentity = this.wellKnownOriginBucket.originAccessIdentity;
+    this.shortTtl = this.wellKnownOriginBucket.cachePolicy;
+    BehaviorOptions wellKnownOriginBehaviorOptions = this.wellKnownOriginBucket.behaviorOptions;
     additionalOriginsBehaviourMappings.put("/.well-known/*", wellKnownOriginBehaviorOptions);
 
     // DDB tables

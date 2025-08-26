@@ -139,8 +139,8 @@ public class OidcProviderStack extends Stack {
 
     // X-Ray Group for Lambda traces
     this.xrayGroup =
-        CfnGroup.Builder.create(this, compressedResourceNamePrefix + "-XRayGroup")
-            .groupName(resourceNamePrefix + "-lambda-traces")
+        CfnGroup.Builder.create(this, resourceNamePrefix + "-XRayGroup")
+            .groupName(compressedResourceNamePrefix + "-lambda-traces")
             .filterExpression("service(\"lambda\")")
             .insightsConfiguration(
                 CfnGroup.InsightsConfigurationProperty.builder().insightsEnabled(true).build())

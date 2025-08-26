@@ -4,8 +4,8 @@ import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
+import software.amazon.awscdk.services.certificatemanager.Certificate;
 import software.amazon.awscdk.services.cognito.CfnUserPoolIdentityProvider;
-import software.amazon.awscdk.services.cognito.CognitoDomainOptions;
 import software.amazon.awscdk.services.cognito.OAuthFlows;
 import software.amazon.awscdk.services.cognito.OAuthScope;
 import software.amazon.awscdk.services.cognito.OAuthSettings;
@@ -15,7 +15,12 @@ import software.amazon.awscdk.services.cognito.UserPoolClient;
 import software.amazon.awscdk.services.cognito.UserPoolClientIdentityProvider;
 import software.amazon.awscdk.services.cognito.UserPoolClientOptions;
 import software.amazon.awscdk.services.cognito.UserPoolDomain;
-import software.amazon.awscdk.services.cognito.UserPoolDomainOptions;
+import software.amazon.awscdk.services.route53.ARecord;
+import software.amazon.awscdk.services.route53.AaaaRecord;
+import software.amazon.awscdk.services.route53.HostedZone;
+import software.amazon.awscdk.services.route53.HostedZoneAttributes;
+import software.amazon.awscdk.services.route53.RecordTarget;
+import software.amazon.awscdk.services.route53.targets.UserPoolDomainTarget;
 import software.constructs.Construct;
 
 import java.util.List;
@@ -26,13 +31,17 @@ public class CognitoStack extends Stack {
   public final UserPoolDomain domain;
   public final UserPoolClient client;
   public final CfnUserPoolIdentityProvider oidcIdp;
+  public final ARecord userPoolDomainARecord;
+  public final AaaaRecord userPoolDomainAaaaRecord;
 
   public CognitoStack(final Construct scope, final String id, final CognitoStackProps props) {
     super(scope, id, props);
 
     String domainName = props.domainName;
     String baseUrl = "https://" + domainName;
-    String dashedDomainName = domainName.replace('.', '-');
+    String cognitoDomainName = props.cognitoDomainPrefix + "." + domainName;
+    // String dashedDomainName = domainName.replace('.', '-');
+    String dashedCognitoDomainName = cognitoDomainName.replace('.', '-');
 
     // Cognito User Pool that federates to our OP (discovery served from CloudFront)
     this.pool =
@@ -42,15 +51,48 @@ public class CognitoStack extends Stack {
             .removalPolicy(RemovalPolicy.DESTROY)
             .build();
 
+    var authCertificate = Certificate.fromCertificateArn(this, "AuthCertificate", props.authCertificateArn);
+
     this.domain =
-        this.pool.addDomain(
-            "CognitoDomain",
-            UserPoolDomainOptions.builder()
-                .cognitoDomain(
-                    CognitoDomainOptions.builder()
-                            .domainPrefix(props.cognitoDomainPrefix + "-" + dashedDomainName)
-                            .build())
-                .build());
+            UserPoolDomain.Builder.create(this, "CognitoDomain")
+                    .userPool(this.pool)
+                    .customDomain(
+                            software.amazon.awscdk.services.cognito.CustomDomainOptions.builder()
+                                    .domainName(cognitoDomainName)
+                                    .certificate(authCertificate)
+                                    .build())
+                    .build();
+        // this.pool.addDomain(
+        //    "CognitoDomain",
+        //    UserPoolDomainOptions.builder()
+        //        .cognitoDomain(
+        //            CognitoDomainOptions.builder()
+        //                    .domainPrefix(props.cognitoDomainPrefix + "-" + dashedDomainName)
+        //                    .build())
+        //        .build());
+      var hostedZone =
+              HostedZone.fromHostedZoneAttributes(
+                      this,
+                      "HostedZone",
+                      HostedZoneAttributes.builder()
+                              .zoneName(props.hostedZoneName)
+                              .hostedZoneId(props.hostedZoneId)
+                              .build());
+
+      this.userPoolDomainARecord =
+              ARecord.Builder.create(
+                              this, "UserPoolDomainARecord-%s".formatted(dashedCognitoDomainName))
+                      .zone(hostedZone)
+                      .recordName(cognitoDomainName)
+                      .target(RecordTarget.fromAlias(new UserPoolDomainTarget(this.domain)))
+                      .build();
+      this.userPoolDomainAaaaRecord =
+              AaaaRecord.Builder.create(
+                              this, "UserPoolDomainAaaaRecord-%s".formatted(dashedCognitoDomainName))
+                      .zone(hostedZone)
+                      .recordName(cognitoDomainName)
+                      .target(RecordTarget.fromAlias(new UserPoolDomainTarget(this.domain)))
+                      .build();
 
     this.client =
         this.pool.addClient(

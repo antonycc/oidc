@@ -14,6 +14,9 @@ public class App {
         System.getenv()
             .getOrDefault("CERTIFICATE_ARN", "arn:aws:acm:us-east-1:123456789012:certificate/abc");
     String cognitoPrefix = System.getenv().getOrDefault("COGNITO_DOMAIN_PREFIX", "oidc-" + envName);
+    String authCertificateArn =
+          System.getenv()
+                  .getOrDefault("AUTH_CERTIFICATE_ARN", "arn:aws:acm:us-east-1:123456789012:certificate/xyz");
 
     Environment env =
         Environment.builder()
@@ -45,6 +48,9 @@ public class App {
                 .envName(envName)
                 .domainName(domainName)
                 .cognitoDomainPrefix(cognitoPrefix)
+                .authCertificateArn(authCertificateArn)
+                .hostedZoneName(hostedZoneName)
+                .hostedZoneId(hostedZoneId)
                 .build());
 
     cognitoStack.addDependency(providerStack);

@@ -264,7 +264,7 @@ public class OidcProviderStack extends Stack {
             .dockerfilePath("infra/runtimes/authorize.Dockerfile")
             .cmd(List.of("app/functions/authorize.handler"))
             .pathPattern("/authorize")
-            .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
+            .allowedMethods(AllowedMethods.ALLOW_ALL)
             .extraEnv(Map.of(
                 "USERS_TABLE", this.usersTable.getTableName(),
                 "CODES_TABLE", this.authCodesTable.getTableName()
@@ -305,7 +305,7 @@ public class OidcProviderStack extends Stack {
             .dockerfilePath("infra/runtimes/userinfo.Dockerfile")
             .cmd(List.of("app/functions/userinfo.handler"))
             .pathPattern("/userinfo")
-            .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
+            .allowedMethods(AllowedMethods.ALLOW_ALL)
             .extraEnv(Map.of(
                 "USERS_TABLE", this.usersTable.getTableName()
             ))

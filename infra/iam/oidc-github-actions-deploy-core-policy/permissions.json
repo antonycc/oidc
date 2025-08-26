@@ -6,15 +6,20 @@
       "Effect": "Allow",
       "Action": [
         "iam:*",
-        "s3:*",
         "ssm:*",
-        "route53:*",
-        "cloudformation:*",
         "secretsmanager:*",
-        "ec2:*",
         "acm:*",
+        "route53:*",
+        "sts:*",
+        "cloudformation:*",
+        "ec2:*",
+        "logs:*",
         "ecs:*",
-        "ecr:*"
+        "ecr:*",
+        "s3:*",
+        "sns:*",
+        "ses:*",
+        "kinesis:*"
       ],
       "Resource": "*"
     }

@@ -108,6 +108,7 @@ public class OidcProviderStack extends Stack {
 
     // Log bucket for CloudFront and S3 access logs
     // TODO: Ship logs to cloudwatch logs
+    // TODO: Move logsBucket to Observability Stack
     this.logsBucket =
         Bucket.Builder.create(this, resourceNamePrefix + "-LogsBucket")
             .bucketName(resourceNamePrefix + "-logs")
@@ -124,6 +125,7 @@ public class OidcProviderStack extends Stack {
             .build();
 
     // CloudTrail - capture management events and deliver to S3 and CloudWatch Logs
+    // TODO: Move trailLogGroup to Observability Stack
     this.trailLogGroup =
         LogGroup.Builder.create(this, resourceNamePrefix + "-CloudTrailLogGroup")
             .logGroupName("/aws/cloudtrail/" + resourceNamePrefix)
@@ -138,6 +140,7 @@ public class OidcProviderStack extends Stack {
             .build();
 
     // X-Ray Group for Lambda traces
+    // TODO: Move xrayGroup to Observability Stack
     this.xrayGroup =
         CfnGroup.Builder.create(this, resourceNamePrefix + "-XRayGroup")
             .groupName(compressedResourceNamePrefix + "-lambda-traces")

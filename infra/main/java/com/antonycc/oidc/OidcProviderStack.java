@@ -81,6 +81,7 @@ public class OidcProviderStack extends Stack {
     
     // Generate predictable resource name prefix based on domain and environment
     String resourceNamePrefix = generateResourceNamePrefix(props.domainName, props.envName);
+    String compressedResourceNamePrefix = generateCompressedResourceNamePrefix(props.domainName, props.envName);
 
     // Hosted zone (must exist)
     IHostedZone zone =
@@ -138,7 +139,7 @@ public class OidcProviderStack extends Stack {
 
     // X-Ray Group for Lambda traces
     this.xrayGroup =
-        CfnGroup.Builder.create(this, resourceNamePrefix + "-XRayGroup")
+        CfnGroup.Builder.create(this, compressedResourceNamePrefix + "-XRayGroup")
             .groupName(resourceNamePrefix + "-lambda-traces")
             .filterExpression("service(\"lambda\")")
             .insightsConfiguration(
@@ -428,4 +429,48 @@ public class OidcProviderStack extends Stack {
     String dashedDomainName = domainName.replace('.', '-');
     return dashedDomainName + "-" + envName;
   }
+
+    /**
+     * Generate a shortened predictable resource name prefix based on domain and environment.
+     * Steps:
+     * 1. Replace dots with dashes.
+     * 2. Split on dashes.
+     * 3. Keep segment "oidc" intact; compress all other non-empty segments to their first letter.
+     * 4. Append '-' + environment name (environment kept whole).
+     *
+     * Examples:
+     *   domain=oidc.example.com, env=dev  -> oidc-e-c-dev
+     *   domain=login.auth.service.example.com, env=prod -> l-a-s-e-c-prod
+     *
+     * @param domainName fully qualified domain name (e.g. "oidc.example.com")
+     * @param envName environment name (e.g. "dev")
+     * @return compressed resource name prefix
+     */
+    private static String generateCompressedResourceNamePrefix(String domainName, String envName) {
+        if (domainName == null || domainName.isBlank()) {
+            throw new IllegalArgumentException("domainName must be non-empty");
+        }
+        if (envName == null || envName.isBlank()) {
+            throw new IllegalArgumentException("envName must be non-empty");
+        }
+
+        String dashed = domainName.replace('.', '-').toLowerCase();
+        String[] parts = dashed.split("-+");
+        StringBuilder sb = new StringBuilder();
+        for (String part : parts) {
+            if (part.isEmpty()) {
+                continue;
+            }
+            if (sb.length() > 0) {
+                sb.append('-');
+            }
+            if ("oidc".equals(part)) {
+                sb.append("oidc");
+            } else {
+                sb.append(part.charAt(0));
+            }
+        }
+        sb.append('-').append(envName);
+        return sb.toString();
+    }
 }

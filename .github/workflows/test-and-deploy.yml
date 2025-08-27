@@ -85,10 +85,15 @@ jobs:
       #    CDK_NEW_BOOTSTRAP: '1'
 
       # Only deploy from main
+      - name: Deploy OIDC Observability Stack (CDK)
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
+        run: |
+          npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk deploy ObservabilityStack-${ENV_NAME} --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-observability.json
+
       - name: Deploy OIDC Provider Stack (CDK)
         if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
         run: |
-          npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk deploy OidcProviderStack-${ENV_NAME} --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-oidc-provider.json
+          npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk deploy OidcProviderStack-${ENV_NAME} --exclusively --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-oidc-provider.json
 
       - name: Setup CloudFront distribution testing
         if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}

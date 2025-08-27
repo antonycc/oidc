@@ -29,20 +29,6 @@ describe("authorize", () => {
     expect(r.headers["content-type"]).toContain("text/html");
   });
 
-  it("handles POST request with demo-client correctly", async () => {
-    const e = {
-      rawPath: "/authorize",
-      rawQueryString: "",
-      requestContext: { http: { method: "POST" } },
-      body: "response_type=code&client_id=demo-client&redirect_uri=https://example.com/callback&scope=openid&state=test-state&code_challenge=abc&code_challenge_method=S256&username=test-user&password=Passw0rd!",
-    };
-    const r = await authorize(e);
-    // Should succeed and return redirect with authorization code
-    expect(r.statusCode).toBe(302);
-    expect(r.headers.Location).toContain("https://example.com/callback?code=");
-    expect(r.headers.Location).toContain("&state=test-state");
-  });
-
   it("returns invalid_client for unknown client_id", async () => {
     const e = {
       ...baseEvent(),

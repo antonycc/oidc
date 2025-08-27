@@ -13,9 +13,14 @@ const getSelfClientBaseUrl = () => {
   return process.env.BASE_URL || "http://localhost:8080";
 };
 
+// Get the actual Cognito client ID from environment variable
+const getCognitoClientId = () => {
+  return process.env.COGNITO_CLIENT_ID || "cognito-web";
+};
+
 export const clients = {
   "cognito-web": {
-    // Use environment variable or placeholder for Cognito domain
+    // Legacy client name for backward compatibility
     get redirectUris() {
       return [`https://${getCognitoDomain()}/oauth2/idpresponse`];
     },
@@ -42,15 +47,6 @@ export const clients = {
     pkceRequired: true,
     // No client secret for public client used in testing
     clientSecret: null
-  },
-  "demo-client": {
-    // Demo client for testing and CI/CD pipeline
-    redirectUris: ["https://example.com/callback"],
-    grantTypes: ["authorization_code"],
-    scopes: ["openid", "email", "profile"],
-    pkceRequired: true,
-    // No client secret for public client used in testing
-    clientSecret: null
   }
 };
 
@@ -60,6 +56,18 @@ export const clients = {
  * @returns {object|null} Client configuration or null if not found
  */
 export function getClient(clientId) {
+  // Check if it's the actual Cognito client ID from environment
+  const cognitoClientId = getCognitoClientId();
+  if (clientId === cognitoClientId && clientId !== "cognito-web") {
+    // Return cognito-web config for the real Cognito client ID
+    const client = clients["cognito-web"];
+    if (client) {
+      log("client_found", "cognito_client_id_mapped", clientId);
+      return client;
+    }
+  }
+  
+  // Check for exact match in registry
   const client = clients[clientId] || null;
   if (client) {
     log("client_found", clientId);

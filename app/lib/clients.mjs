@@ -8,6 +8,11 @@ const getCognitoDomain = () => {
   return process.env.COGNITO_DOMAIN || "YOUR_COGNITO_DOMAIN.auth.us-east-1.amazoncognito.com";
 };
 
+// Get the base URL for self-client redirects (for direct OP login flow)
+const getSelfClientBaseUrl = () => {
+  return process.env.BASE_URL || "http://localhost:8080";
+};
+
 export const clients = {
   "cognito-web": {
     // Use environment variable or placeholder for Cognito domain

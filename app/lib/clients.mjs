@@ -19,6 +19,24 @@ export const clients = {
     pkceRequired: true,
     // No client secret for public client (Cognito doesn't send one by default)
     clientSecret: null
+  },
+  "self-client": {
+    // Client for direct login form testing - allows any redirect URI to the same origin
+    get redirectUris() {
+      // Get base URL from environment, fallback to localhost for development
+      const baseUrl = process.env.BASE_URL || process.env.ISSUER || "http://localhost:3000";
+      const url = new URL(baseUrl);
+      return [
+        `${url.origin}/post-auth.html`,
+        `${url.origin}/callback.html`,
+        `${url.origin}/login-callback.html`
+      ];
+    },
+    grantTypes: ["authorization_code"],
+    scopes: ["openid", "email", "profile"],
+    pkceRequired: true,
+    // No client secret for public client used in testing
+    clientSecret: null
   }
 };
 

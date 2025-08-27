@@ -24,7 +24,18 @@ public class App {
             .region(System.getenv("CDK_DEFAULT_REGION"))
             .build();
 
-    // Create the OIDC Provider stack first (Lambdas, DynamoDB, S3, CloudFront, Route53)
+    // Create the Observability stack first (logging, monitoring, etc.)
+    ObservabilityStack observabilityStack =
+        new ObservabilityStack(
+            app,
+            "ObservabilityStack-" + envName,
+            ObservabilityStackProps.builder()
+                .env(env)
+                .envName(envName)
+                .domainName(domainName)
+                .build());
+
+    // Create the OIDC Provider stack (Lambdas, DynamoDB, S3, CloudFront, Route53)
     OidcProviderStack providerStack =
         new OidcProviderStack(
             app,
@@ -36,6 +47,11 @@ public class App {
                 .hostedZoneId(hostedZoneId)
                 .domainName(domainName)
                 .certificateArn(certificateArn)
+                .logsBucket(observabilityStack.logsBucket)
+                .trailLogGroup(observabilityStack.trailLogGroup)
+                .auditTrail(observabilityStack.auditTrail)
+                .xrayGroup(observabilityStack.xrayGroup)
+                .bucketDeploymentLogGroup(observabilityStack.bucketDeploymentLogGroup)
                 .build());
 
     // Create the Cognito stack (independent of provider stack)
@@ -53,6 +69,7 @@ public class App {
                 .hostedZoneId(hostedZoneId)
                 .build());
 
+    providerStack.addDependency(observabilityStack);
     cognitoStack.addDependency(providerStack);
 
     app.synth();

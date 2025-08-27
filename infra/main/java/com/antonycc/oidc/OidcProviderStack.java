@@ -85,6 +85,13 @@ public class OidcProviderStack extends Stack {
     String resourceNamePrefix = generateResourceNamePrefix(props.domainName, props.envName);
     String compressedResourceNamePrefix = generateCompressedResourceNamePrefix(props.domainName, props.envName);
 
+    // Use observability resources from the passed props
+    this.logsBucket = props.logsBucket;
+    this.trailLogGroup = props.trailLogGroup;
+    this.auditTrail = props.auditTrail;
+    this.xrayGroup = props.xrayGroup;
+    this.bucketDeploymentLogGroup = props.bucketDeploymentLogGroup;
+
     // Hosted zone (must exist)
     IHostedZone zone =
         HostedZone.fromHostedZoneAttributes(
@@ -107,49 +114,6 @@ public class OidcProviderStack extends Stack {
 
     // TLS certificate from existing ACM (must be in us-east-1 for CloudFront)
     var cert = Certificate.fromCertificateArn(this, resourceNamePrefix + "-WebCert", props.certificateArn);
-
-    // Log bucket for CloudFront and S3 access logs
-    // TODO: Ship logs to cloudwatch logs
-    // TODO: Move logsBucket to Observability Stack
-    this.logsBucket =
-        Bucket.Builder.create(this, resourceNamePrefix + "-LogsBucket")
-            .bucketName(resourceNamePrefix + "-logs")
-            .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
-            .enforceSsl(true)
-            .autoDeleteObjects(true)
-            .removalPolicy(RemovalPolicy.DESTROY)
-            .lifecycleRules(
-                List.of(
-                    software.amazon.awscdk.services.s3.LifecycleRule.builder()
-                        .expiration(Duration.days(7))
-                        .enabled(true)
-                        .build()))
-            .build();
-
-    // CloudTrail - capture management events and deliver to S3 and CloudWatch Logs
-    // TODO: Move trailLogGroup to Observability Stack
-    this.trailLogGroup =
-        LogGroup.Builder.create(this, resourceNamePrefix + "-CloudTrailLogGroup")
-            .logGroupName("/aws/cloudtrail/" + resourceNamePrefix)
-            .retention(RetentionDays.ONE_WEEK)
-            .removalPolicy(RemovalPolicy.DESTROY)
-            .build();
-    this.auditTrail =
-        Trail.Builder.create(this, resourceNamePrefix + "-AuditTrail")
-            .trailName(resourceNamePrefix + "-audit-trail")
-            .bucket(this.logsBucket)
-            .cloudWatchLogGroup(this.trailLogGroup)
-            .build();
-
-    // X-Ray Group for Lambda traces
-    // TODO: Move xrayGroup to Observability Stack
-    this.xrayGroup =
-        CfnGroup.Builder.create(this, resourceNamePrefix + "-XRayGroup")
-            .groupName(compressedResourceNamePrefix + "-lambda-traces")
-            .filterExpression("service(\"lambda\")")
-            .insightsConfiguration(
-                CfnGroup.InsightsConfigurationProperty.builder().insightsEnabled(true).build())
-            .build();
 
     // Buckets
 
@@ -301,13 +265,6 @@ public class OidcProviderStack extends Stack {
     this.authorizeEndpoint.function.addPermission(compressedResourceNamePrefix + "-cf-auth", invokeFunctionUrlPermission);
     this.tokenEndpoint.function.addPermission(compressedResourceNamePrefix + "-cf-token", invokeFunctionUrlPermission);
     this.userinfoEndpoint.function.addPermission(compressedResourceNamePrefix + "-cf-userinfo", invokeFunctionUrlPermission);
-
-    this.bucketDeploymentLogGroup =
-        LogGroup.Builder.create(this, resourceNamePrefix + "-BucketDeploymentLogGroup")
-            .logGroupName("/deployment/" + resourceNamePrefix + "-bucket-deployment")
-            .retention(RetentionDays.ONE_WEEK)
-            .removalPolicy(RemovalPolicy.DESTROY)
-            .build();
 
     // Deploy the web website files to the web website bucket and invalidate distribution
     var webDocRootSource =

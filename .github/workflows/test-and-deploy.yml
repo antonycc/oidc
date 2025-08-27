@@ -114,7 +114,7 @@ jobs:
 
       - name: Well-known JWKS behavior
         if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
-        run: curl --include --request GET "${{ steps.setup-cloudfront-tests.outputs.BASE_URL }}/.well-known/jwks.json"
+        run: curl --include --request GET "${{ steps.setup-cloudfront-tests.outputs.BASE_URL }}/jwks"
 
       - name: Deploy Cognito Stack (CDK)
         if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}

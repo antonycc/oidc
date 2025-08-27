@@ -155,7 +155,8 @@
           }
           el.textContent = message;
           // Optionally log the raw error for debugging (not shown to user)
-          res.text().then(text => console.debug("Raw error response:", text));
+          const rawText = await res.text();
+          console.debug("Raw error response:", rawText);
         }
       });
     </script>

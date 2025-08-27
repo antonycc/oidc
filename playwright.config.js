@@ -1,6 +1,6 @@
 // Latest Playwright. Record screenshots, video, traces on every test.
 // Artifacts are uploaded by GH Actions.
-import { defineConfig } from "@playwright/test";
+import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests",
@@ -13,5 +13,11 @@ export default defineConfig({
     video: "on",
     trace: "on",
   },
+  projects: [
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
+    },
+  ],
   reporter: [["html", { open: "never" }]],
 });

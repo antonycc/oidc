@@ -3,10 +3,10 @@
  *
  * This script defines four scenarios that approximate the requested
  * performance tests:
- *  - small  (5 000 users in 1 min, ramping 100/10s → 1 000/10s)
- *  - medium (10 000 users in 2 min, same ramp pattern)
- *  - large  (100 000 users in 5 min, ramping 100/10s → 1 000/10s → 1 000/1s)
- *  - xlarge (1 000 000 users in 10 min, same ramp pattern as large)
+ *  - small  (5000 users in 1min, ramping 100/10s → 1 000/10s)
+ *  - medium (10000 users in 2min, same ramp pattern)
+ *  - large  (100000 users in 5min, ramping 100/10s → 1 000/10s → 1 000/1s)
+ *  - xlarge (1000000 users in 10min, same ramp pattern as large)
  *
  * For each scenario we convert the “ramp up” specification into a set
  * of `ramping‑arrival‑rate` stages.  Each stage defines how many
@@ -145,9 +145,9 @@ export function testFlow() {
  */
 export const options = {
   scenarios: {
-    // 5,000 users over 1 minute: ramp 100 users in 10s (10 rps),
-    // then 1,000 users in 10s (100 rps), then hold at ~97.5 rps for
-    // the remaining 40 seconds to reach ~5 000 total.
+    // 5,000 users over 1 minute: ramp 100 users in 10s (10rps),
+    // then 1,000 users in 10s (100rps), then hold at ~97.5rps for
+    // the remaining 40 seconds to reach ~5000 total.
     small: {
       executor: "ramping-arrival-rate",
       startRate: 0,
@@ -162,7 +162,7 @@ export const options = {
       ],
     },
     // 10,000 users over 2 minutes: same ramps as above but with a
-    // longer steady phase at ~89 rps for 100 seconds.
+    // longer steady phase at ~89rps for 100 seconds.
     medium: {
       executor: "ramping-arrival-rate",
       startRate: 0,
@@ -176,9 +176,9 @@ export const options = {
         { target: 89, duration: "100s" },
       ],
     },
-    // 100,000 users over 5 minutes: ramp 100 (10 rps) for 10s,
-    // 1 000 (100 rps) for 10s, spike 1 000 (1 000 rps) for 1s,
-    // then hold at ~351 rps for the remaining 279 seconds.
+    // 100,000 users over 5 minutes: ramp 100 (10rps) for 10s,
+    // 1000 (100rps) for 10s, spike 1000 (1000rps) for 1s,
+    // then hold at ~351rps for the remaining 279 seconds.
     large: {
       executor: "ramping-arrival-rate",
       startRate: 0,
@@ -194,7 +194,7 @@ export const options = {
       ],
     },
     // 1,000,000 users over 10 minutes: identical ramps as the 100k
-    // test but with a long steady phase of ~1 724 rps for 579 seconds.
+    // test but with a long steady phase of ~1724rps for 579 seconds.
     xlarge: {
       executor: "ramping-arrival-rate",
       startRate: 0,

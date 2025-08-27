@@ -6,6 +6,28 @@ import { getClient, isScopeSubset, isValidRedirectUri, validateRedirectUri, vali
 // Very verbose logging by design
 const log = (...a) => console.log(JSON.stringify({ level: "info", ts: new Date().toISOString(), msg: a.join(" ") }));
 
+function parseFormBody(event) {
+  try {
+    let raw = event.body || "";
+    if (event.isBase64Encoded && typeof raw === "string") {
+      raw = Buffer.from(raw, "base64").toString("utf8");
+    }
+    const headers = event.headers || {};
+    const ct = (headers["content-type"] || headers["Content-Type"] || "").toString().toLowerCase();
+    if (ct.includes("application/json")) {
+      try {
+        const obj = JSON.parse(raw || "{}");
+        const usp = new URLSearchParams();
+        for (const [k, v] of Object.entries(obj)) if (v !== undefined && v !== null) usp.set(k, String(v));
+        return usp;
+      } catch {}
+    }
+    return new URLSearchParams(raw || "");
+  } catch {
+    return new URLSearchParams();
+  }
+}
+
 export const handler = async (event) => {
   try {
     const method = event.requestContext?.http?.method || "GET";
@@ -16,7 +38,7 @@ export const handler = async (event) => {
       return html(200, loginFormHtml(qp));
     }
     if (method === "POST") {
-      const body = new URLSearchParams(event.body || "");
+      const body = parseFormBody(event);
       for (const [k, v] of body.entries()) qp[k] = v;
     }
     log("authorize", method, JSON.stringify(qp));

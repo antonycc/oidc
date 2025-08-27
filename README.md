@@ -137,6 +137,8 @@ Build Lambda container image:
 docker build -t oidc-base:latest -f Dockerfile .
 ```
 
+> **Note**: Docker builds are deterministic to ensure reproducible deployments. See [docs/docker-determinism.md](docs/docker-determinism.md) for details on maintaining this when updating dependencies.
+
 CDK build:
 ```bash
 

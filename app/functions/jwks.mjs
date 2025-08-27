@@ -14,7 +14,6 @@ export const handler = async (event) => {
       headers: {
         "content-type": "application/json",
         "cache-control": "public, max-age=3600", // Cache for 1 hour since keys are stable
-        "access-control-allow-origin": "*", // JWKS endpoint can be publicly cached
       },
       body: JSON.stringify(jwks),
     };

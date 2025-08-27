@@ -166,17 +166,19 @@ jobs:
           TEST_PASSWORD: ${{ env.TEST_PASSWORD }}
         run: |
           echo "BASE_URL=${BASE_URL}"
-          npm run test:api:live
+          npm run test:api
 
       # The behaviour tests are not run for testOnly=true because they would be running against a different deployment.
       - name: Run Playwright behaviour tests
         if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
         run: |
+          echo "BASE_URL=${{ steps.oidc-outputs.outputs.BASE_URL }}"
           echo "COGNITO_DOMAIN=${{ steps.oidc-outputs.outputs.COGNITO_DOMAIN }}"
           echo "COGNITO_CLIENT_ID=${{ steps.oidc-outputs.outputs.COGNITO_CLIENT_ID }}"
+          BASE_URL='${{ steps.oidc-outputs.outputs.BASE_URL }}' \
           COGNITO_DOMAIN='${{ steps.oidc-outputs.outputs.COGNITO_DOMAIN }}' \
           COGNITO_CLIENT_ID='${{ steps.oidc-outputs.outputs.COGNITO_CLIENT_ID }}' \
-          npx playwright test --project=chromium
+          npm run test:behaviour --project=chromium
         env:
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
 

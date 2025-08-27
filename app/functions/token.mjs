@@ -1,14 +1,41 @@
-import crypto from "node:crypto";
+import * as crypto from "node:crypto";
 import { get, conditionalDelete, put, update, tables } from "../lib/db.mjs";
 import { signJwt } from "../lib/crypto.mjs";
 import { validateClientAuth } from "../lib/clients.mjs";
 const log = (...a) => console.log(JSON.stringify({ level: "info", ts: new Date().toISOString(), msg: a.join(" ") }));
 
+function parseFormBody(event) {
+  try {
+    let raw = event.body || "";
+    if (event.isBase64Encoded && typeof raw === "string") {
+      raw = Buffer.from(raw, "base64").toString("utf8");
+    }
+    const headers = event.headers || {};
+    const ct = (headers["content-type"] || headers["Content-Type"] || "").toString().toLowerCase();
+    if (ct.includes("application/json")) {
+      try {
+        const obj = JSON.parse(raw || "{}");
+        const usp = new URLSearchParams();
+        for (const [k, v] of Object.entries(obj)) {
+          if (v !== undefined && v !== null) usp.set(k, String(v));
+        }
+        return usp;
+      } catch {
+        // fall through to URLSearchParams parsing
+      }
+    }
+    // Default: treat as URL-encoded form data
+    return new URLSearchParams(raw || "");
+  } catch {
+    return new URLSearchParams();
+  }
+}
+
 export const handler = async (event) => {
   try {
     if (event.requestContext.http.method !== "POST") return json(405, { error: "method_not_allowed" });
 
-    const body = new URLSearchParams(event.body || "");
+    const body = parseFormBody(event);
     const grant = body.get("grant_type");
     if (grant !== "authorization_code") return json(400, { error: "unsupported_grant_type" });
 

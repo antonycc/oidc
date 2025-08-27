@@ -349,6 +349,10 @@ public class OidcProviderStack extends Stack {
         this,
         "DistributionId",
         CfnOutputProps.builder().value(this.distribution.getDistributionId()).build());
+    new CfnOutput(
+        this,
+        "UsersTableName",
+        CfnOutputProps.builder().value(this.usersTable.getTableName()).build());
   }
 
   private String getLambdaUrlHostToken(FunctionUrl functionUrl) {

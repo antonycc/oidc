@@ -29,6 +29,8 @@ env:
   DEPLOY_ROLE_ARN: ${{ vars.DEPLOY_ROLE_ARN }}
   AWS_REGION: us-east-1
   ENV_NAME: prod
+  TEST_USERNAME: test-user
+  TEST_PASSWORD: Passw0rd!
 
 jobs:
 
@@ -96,6 +98,158 @@ jobs:
         run: |
           npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk deploy OidcProviderStack-${ENV_NAME} --exclusively --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-oidc-provider.json
 
+      - name: Extract OIDC Provider outputs
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
+        id: oidc-outputs
+        run: |
+          ENV_NAME='${{ env.ENV_NAME }}'
+          BASE_URL=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].BaseUrl' cdk.out/cdk-outputs-oidc-provider.json)
+          USERS_TABLE=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].UsersTableName' cdk.out/cdk-outputs-oidc-provider.json)
+          echo "BASE_URL=$BASE_URL" >> $GITHUB_OUTPUT
+          echo "USERS_TABLE=$USERS_TABLE" >> $GITHUB_OUTPUT
+          echo "Base URL: $BASE_URL"
+          echo "Users Table: $USERS_TABLE"
+
+      - name: Provision test user
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
+        run: npm run provision:user ${{ env.TEST_USERNAME }} ${{ env.TEST_PASSWORD }}
+        env:
+          USERS_TABLE: ${{ steps.oidc-outputs.outputs.USERS_TABLE }}
+
+      - name: Test JWKS endpoint
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
+        id: test-jwks
+        run: |
+          echo "Testing JWKS endpoint..."
+          response=$(curl -s --include --request GET "${{ steps.oidc-outputs.outputs.BASE_URL }}/jwks")
+          echo "JWKS Response:"
+          echo "$response"
+          
+          # Extract and validate JSON body
+          body=$(echo "$response" | tail -n 1)
+          echo "JWKS body: $body"
+          
+          # Verify it's valid JSON with keys
+          if echo "$body" | jq -e '.keys | length > 0' > /dev/null; then
+            echo "✓ JWKS endpoint returned valid keys"
+          else
+            echo "✗ JWKS endpoint failed - no keys found"
+            exit 1
+          fi
+
+      - name: Test authorize endpoint
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
+        id: test-authorize
+        run: |
+          echo "Testing authorize endpoint with credentials..."
+          
+          # PKCE challenge (simple base64url for testing)
+          code_challenge="dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+          
+          # Build authorize URL with credentials
+          auth_url="${{ steps.oidc-outputs.outputs.BASE_URL }}/authorize"
+          auth_url="${auth_url}?response_type=code"
+          auth_url="${auth_url}&client_id=demo-client"
+          auth_url="${auth_url}&redirect_uri=https://example.com/callback"
+          auth_url="${auth_url}&scope=openid"
+          auth_url="${auth_url}&state=test-state"
+          auth_url="${auth_url}&code_challenge=${code_challenge}"
+          auth_url="${auth_url}&code_challenge_method=S256"
+          auth_url="${auth_url}&username=${{ env.TEST_USERNAME }}"
+          auth_url="${auth_url}&password=${{ env.TEST_PASSWORD }}"
+          
+          echo "Authorize URL: $auth_url"
+          
+          # Call authorize endpoint expecting 302 redirect
+          response=$(curl -s -i --request GET "$auth_url" || true)
+          echo "Authorize Response:"
+          echo "$response"
+          
+          # Extract authorization code from Location header
+          location=$(echo "$response" | grep -i "location:" | head -1 | sed 's/location: *//i' | tr -d '\r\n')
+          echo "Location header: $location"
+          
+          if [[ "$location" == *"code="* ]]; then
+            code=$(echo "$location" | sed 's/.*code=\([^&]*\).*/\1/')
+            echo "AUTH_CODE=$code" >> $GITHUB_OUTPUT
+            echo "✓ Authorization successful, code: $code"
+          else
+            echo "✗ Authorization failed - no code in redirect"
+            exit 1
+          fi
+
+      - name: Test token endpoint
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
+        id: test-token
+        run: |
+          echo "Testing token endpoint with authorization code..."
+          
+          # PKCE verifier (matches challenge above)
+          code_verifier="dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+          
+          # Exchange code for tokens
+          response=$(curl -s --include --request POST "${{ steps.oidc-outputs.outputs.BASE_URL }}/token" \
+            --header "Content-Type: application/x-www-form-urlencoded" \
+            --data "grant_type=authorization_code&code=${{ steps.test-authorize.outputs.AUTH_CODE }}&redirect_uri=https://example.com/callback&client_id=demo-client&code_verifier=${code_verifier}")
+          
+          echo "Token Response:"
+          echo "$response"
+          
+          # Extract JSON body and access token
+          body=$(echo "$response" | tail -n 1)
+          echo "Token body: $body"
+          
+          if echo "$body" | jq -e '.access_token' > /dev/null; then
+            access_token=$(echo "$body" | jq -r '.access_token')
+            echo "ACCESS_TOKEN=$access_token" >> $GITHUB_OUTPUT
+            echo "✓ Token exchange successful"
+          else
+            echo "✗ Token exchange failed - no access_token"
+            exit 1
+          fi
+
+      - name: Test userinfo endpoint
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
+        id: test-userinfo
+        run: |
+          echo "Testing userinfo endpoint with access token..."
+          
+          response=$(curl -s --include --request GET "${{ steps.oidc-outputs.outputs.BASE_URL }}/userinfo" \
+            --header "Authorization: Bearer ${{ steps.test-token.outputs.ACCESS_TOKEN }}")
+          
+          echo "Userinfo Response:"
+          echo "$response"
+          
+          # Extract JSON body and validate user info
+          body=$(echo "$response" | tail -n 1)
+          echo "Userinfo body: $body"
+          
+          if echo "$body" | jq -e '.sub' > /dev/null; then
+            sub=$(echo "$body" | jq -r '.sub')
+            echo "✓ Userinfo successful, subject: $sub"
+          else
+            echo "✗ Userinfo failed - no subject"
+            exit 1
+          fi
+
+      - name: Deploy Cognito Stack (CDK)
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
+        run: |
+          npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk deploy CognitoStack-${ENV_NAME} --exclusively --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-cognito.json
+
+      - name: Resolve BASE_URL and Cognito outputs
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
+        id: out
+        run: |
+          ENV_NAME='${{ env.ENV_NAME }}'
+          BASE=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].BaseUrl' cdk.out/cdk-outputs-oidc-provider.json)
+          COGD=$(jq -r '.["CognitoStack-'${ENV_NAME}'"].CognitoAuthDomain' cdk.out/cdk-outputs-cognito.json)
+          CLID=$(jq -r '.["CognitoStack-'${ENV_NAME}'"].UserPoolClientId' cdk.out/cdk-outputs-cognito.json)
+          echo "BASE_URL=$BASE" >> $GITHUB_OUTPUT
+          echo "COGNITO_DOMAIN=$COGD" >> $GITHUB_OUTPUT
+          echo "COGNITO_CLIENT_ID=$CLID" >> $GITHUB_OUTPUT
+        shell: bash
+
       - name: Setup CloudFront distribution testing
         if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
         id: setup-cloudfront-tests
@@ -121,30 +275,6 @@ jobs:
       - name: Well-known JWKS behavior
         if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
         run: curl --include --request GET "${{ steps.setup-cloudfront-tests.outputs.BASE_URL }}/jwks"
-
-      - name: Deploy Cognito Stack (CDK)
-        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
-        run: |
-          npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk deploy CognitoStack-${ENV_NAME} --exclusively --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-cognito.json
-
-      - name: Resolve BASE_URL and Cognito outputs
-        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
-        id: out
-        run: |
-          ENV_NAME='${{ env.ENV_NAME }}'
-          BASE=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].BaseUrl' cdk.out/cdk-outputs-oidc-provider.json)
-          COGD=$(jq -r '.["CognitoStack-'${ENV_NAME}'"].CognitoAuthDomain' cdk.out/cdk-outputs-cognito.json)
-          CLID=$(jq -r '.["CognitoStack-'${ENV_NAME}'"].UserPoolClientId' cdk.out/cdk-outputs-cognito.json)
-          echo "BASE_URL=$BASE" >> $GITHUB_OUTPUT
-          echo "COGNITO_DOMAIN=$COGD" >> $GITHUB_OUTPUT
-          echo "COGNITO_CLIENT_ID=$CLID" >> $GITHUB_OUTPUT
-        shell: bash
-
-      - name: Provision test user
-        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
-        run: npm run provision:user test-user Passw0rd!
-        env:
-          USERS_TABLE: ${{ env.USERS_TABLE }}
 
       - name: Install dependencies and Playwright browsers
         if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}

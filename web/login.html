@@ -24,8 +24,9 @@
           <code>/authorize</code>, and redirect back to Post Auth.
         </p>
         <form id="loginForm" class="form-card">
-          <label>Username <input type="text" name="username" required /></label>
-          <label>Password <input type="password" name="password" required /></label>
+          <label>Username <input type="text" name="username" required minlength="1" /></label>
+          <label>Password <input type="password" name="password" required minlength="1" /></label>
+          <label>Client ID <input type="text" name="client_id" value="self-client" required title="OIDC client identifier" /></label>
           <button type="submit">Sign in</button>
         </form>
         <div id="error" class="error" style="display: none"></div>
@@ -103,8 +104,27 @@
         const fd = new FormData(form);
         const username = fd.get("username");
         const password = fd.get("password");
-        const client_id = "self-client";
+        const client_id = fd.get("client_id");
+        
+        // Validate required fields
+        if (!username || !password || !client_id) {
+          const el = document.getElementById("error");
+          el.style.display = "block";
+          el.textContent = "All fields are required.";
+          return;
+        }
+        
         const redirect_uri = new URL("/post-auth.html", location.origin).toString();
+        
+        // Validate redirect_uri format
+        try {
+          new URL(redirect_uri);
+        } catch (e) {
+          const el = document.getElementById("error");
+          el.style.display = "block";
+          el.textContent = "Invalid redirect URI format.";
+          return;
+        }
         const scope = "openid email profile";
         const state = rand(16);
         const nonce = rand(16);

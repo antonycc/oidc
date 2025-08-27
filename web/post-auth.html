@@ -92,7 +92,21 @@
         const key = "pkce:" + state;
         const stash = sessionStorage.getItem(key);
         if (!stash) throw new Error("Missing PKCE data for state");
-        const { code_verifier, client_id, redirect_uri } = JSON.parse(stash);
+        
+        let pkceData;
+        try {
+          pkceData = JSON.parse(stash);
+        } catch (e) {
+          throw new Error("Invalid PKCE data format");
+        }
+        
+        const { code_verifier, client_id, redirect_uri } = pkceData;
+        
+        // Validate required PKCE parameters
+        if (!code_verifier || !client_id || !redirect_uri) {
+          throw new Error("Missing required PKCE parameters");
+        }
+        
         const body = new URLSearchParams({
           grant_type: "authorization_code",
           code,
@@ -132,6 +146,12 @@
           // Call userinfo endpoint if we have an access token
           if (obj.access_token) {
             try {
+              // Validate access token format
+              if (typeof obj.access_token !== "string" || obj.access_token.trim() === "") {
+                console.warn("Invalid access token format");
+                return;
+              }
+              
               const userinfoRes = await fetch("/userinfo", {
                 headers: { "authorization": "Bearer " + obj.access_token }
               });

@@ -283,7 +283,7 @@ public class OidcProviderStack extends Stack {
             .prune(true)
             .build();
 
-    // Deploy the well known website files to the well-known bucket under /.well-known/ path and random postfix on the log group name
+    // Deploy the well-known website files to the well-known bucket under /.well-known/ with a random suffix on the log group name
     var wellKnownRootSource =
         Source.asset(
             "well-known", AssetOptions.builder().assetHashType(AssetHashType.SOURCE).build());

@@ -36,7 +36,6 @@ class CognitoStackDeterministicNamingTest {
                 .authCertificateArn("arn:aws:acm:us-east-1:123456789012:certificate/test")
                 .hostedZoneName("example.com")
                 .hostedZoneId("Z000EXAMPLE")
-                .cloudFrontHostedZoneId("Z2FDTNDATAQYW2")
                 .build());
 
     // Synthesize to get the CloudFormation template

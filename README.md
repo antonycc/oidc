@@ -28,17 +28,17 @@ A **lightweight, inspectable OIDC provider** designed for developers who need to
 ### Home Page
 The main landing page explains the project and provides links to test flows:
 
-![Home Page](https://raw.githubusercontent.com/antonycc/oidc/main/docs/screenshots/home-page.png)
+![Home Page](docs/screenshots/home-page.png)
 
 ### Direct Login Form  
 Test the OIDC provider directly without going through Cognito:
 
-![Login Page](https://raw.githubusercontent.com/antonycc/oidc/main/docs/screenshots/login-page.png)
+![Login Page](docs/screenshots/login-page.png)
 
 ### Post-Authentication Results
 Shows the complete OAuth2 flow results including tokens and claims:
 
-![Post-Auth Page](https://raw.githubusercontent.com/antonycc/oidc/main/docs/screenshots/post-auth-page.png)
+![Post-Auth Page](docs/screenshots/post-auth-page.png)
 
 ## API Reference
 

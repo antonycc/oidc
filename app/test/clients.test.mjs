@@ -81,4 +81,30 @@ describe("clients dynamic configuration", () => {
     );
     expect(isValid).toBe(false);
   });
+
+  it("gets demo-client configuration", () => {
+    const client = getClient("demo-client");
+    expect(client).toBeTruthy();
+    expect(client.grantTypes).toEqual(["authorization_code"]);
+    expect(client.scopes).toEqual(["openid", "email", "profile"]);
+    expect(client.pkceRequired).toBe(true);
+    expect(client.clientSecret).toBeNull();
+    expect(client.redirectUris).toEqual(["https://example.com/callback"]);
+  });
+
+  it("validates demo-client redirect URI", () => {
+    const isValid = validateRedirectUri(
+      "demo-client", 
+      "https://example.com/callback"
+    );
+    expect(isValid).toBe(true);
+  });
+
+  it("rejects invalid demo-client redirect URI", () => {
+    const isValid = validateRedirectUri(
+      "demo-client", 
+      "https://evil.com/callback"
+    );
+    expect(isValid).toBe(false);
+  });
 });

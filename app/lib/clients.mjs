@@ -42,6 +42,15 @@ export const clients = {
     pkceRequired: true,
     // No client secret for public client used in testing
     clientSecret: null
+  },
+  "demo-client": {
+    // Demo client for testing and CI/CD pipeline
+    redirectUris: ["https://example.com/callback"],
+    grantTypes: ["authorization_code"],
+    scopes: ["openid", "email", "profile"],
+    pkceRequired: true,
+    // No client secret for public client used in testing
+    clientSecret: null
   }
 };
 

@@ -51,7 +51,6 @@ public class App {
                 .trailLogGroup(observabilityStack.trailLogGroup)
                 .auditTrail(observabilityStack.auditTrail)
                 .xrayGroup(observabilityStack.xrayGroup)
-                .bucketDeploymentLogGroup(observabilityStack.bucketDeploymentLogGroup)
                 .build());
 
     // Create the Cognito stack (independent of provider stack)

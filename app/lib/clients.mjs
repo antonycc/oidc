@@ -26,15 +26,21 @@ export const clients = {
     clientSecret: null
   },
   "self-client": {
-    // Client for direct OP login flow (login.html -> post-auth.html)
+    // Client for direct login form testing - allows any redirect URI to the same origin
     get redirectUris() {
-      const baseUrl = getSelfClientBaseUrl();
-      return [`${baseUrl}/post-auth.html`];
+      // Get base URL from environment, fallback to localhost for development
+      const baseUrl = process.env.BASE_URL || process.env.ISSUER || "http://localhost:3000";
+      const url = new URL(baseUrl);
+      return [
+        `${url.origin}/post-auth.html`,
+        `${url.origin}/callback.html`,
+        `${url.origin}/login-callback.html`
+      ];
     },
     grantTypes: ["authorization_code"],
     scopes: ["openid", "email", "profile"],
     pkceRequired: true,
-    // No client secret for public client (direct login testing)
+    // No client secret for public client used in testing
     clientSecret: null
   }
 };

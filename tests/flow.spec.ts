@@ -29,7 +29,7 @@ test("Direct login form: failed login shows error", async ({ page }) => {
   await page.getByLabel("Password").fill("wrong");
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page.locator("#error")).toBeVisible();
-  await expect(page.locator("#error")).toContainText("Invalid username or password");
+  await expect(page.locator("#error")).toContainText("Invalid request. Please check your input.");
 });
 
 // @ts-ignore

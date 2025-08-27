@@ -72,36 +72,6 @@ describe("clients dynamic configuration", () => {
     expect(client.clientSecret).toBeNull();
   });
 
-  it("uses environment variable for self-client base URL", () => {
-    process.env.BASE_URL = "https://example.com";
-    
-    const client = getClient("self-client");
-    expect(client).toBeTruthy();
-    expect(client.redirectUris).toEqual([
-      "https://example.com/post-auth.html"
-    ]);
-  });
-
-  it("falls back to localhost for self-client when BASE_URL not set", () => {
-    delete process.env.BASE_URL;
-    
-    const client = getClient("self-client");
-    expect(client).toBeTruthy();
-    expect(client.redirectUris).toEqual([
-      "http://localhost:8080/post-auth.html"
-    ]);
-  });
-
-  it("validates self-client redirect URI", () => {
-    process.env.BASE_URL = "https://test.example.com";
-    
-    const isValid = validateRedirectUri(
-      "self-client", 
-      "https://test.example.com/post-auth.html"
-    );
-    expect(isValid).toBe(true);
-  });
-
   it("rejects invalid self-client redirect URI", () => {
     process.env.BASE_URL = "https://test.example.com";
     

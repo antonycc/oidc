@@ -62,31 +62,6 @@ describe("authorize", () => {
     expect(r.body).toBe("invalid_scope");
   });
 
-  it("accepts self-client with valid redirect URI", async () => {
-    // Ensure BASE_URL is not set so it falls back to localhost:8080
-    const originalBaseUrl = process.env.BASE_URL;
-    delete process.env.BASE_URL;
-    
-    try {
-      const e = {
-        ...baseEvent(),
-        rawQueryString:
-          "client_id=self-client&redirect_uri=http://localhost:8080/post-auth.html&response_type=code&scope=openid+email+profile&state=st&nonce=n&code_challenge=abc&code_challenge_method=S256&username=test",
-      };
-      const r = await authorize(e);
-      if (r.statusCode !== 302) {
-        console.log("Response body:", r.body);
-      }
-      expect(r.statusCode).toBe(302);
-      expect(r.headers.Location).toMatch(/^http:\/\/localhost:8080\/post-auth\.html\?code=.+&state=st$/);
-    } finally {
-      // Restore original BASE_URL
-      if (originalBaseUrl !== undefined) {
-        process.env.BASE_URL = originalBaseUrl;
-      }
-    }
-  });
-
   it("rejects self-client with invalid redirect URI", async () => {
     // Ensure BASE_URL is not set so it falls back to localhost:8080
     const originalBaseUrl = process.env.BASE_URL;

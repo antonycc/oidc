@@ -243,7 +243,7 @@ public class OidcProviderStack extends Stack {
             .dockerfilePath("infra/runtimes/jwks.Dockerfile")
             .cmd(List.of("app/functions/jwks.handler"))
             .pathPattern("/jwks")
-            .allowedMethods(AllowedMethods.ALLOW_GET_HEAD)
+            .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
             .extraEnv(Map.of(
                 "CODES_TABLE", this.authCodesTable.getTableName()
             ))

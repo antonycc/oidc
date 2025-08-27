@@ -6,18 +6,14 @@ dotenv.config();
 
 // @ts-ignore
 test("Cognito Hosted UI -> OP login -> redirect back with code", async ({ page }) => {
-  // @ts-ignore
   const cognitoDomain = process.env.COGNITO_DOMAIN!;
-  // @ts-ignore
   const clientId = process.env.COGNITO_CLIENT_ID!;
-  // @ts-ignore
   const redirect = new URL("/post-auth.html", process.env.BASE_URL!).toString();
   const url = `https://${cognitoDomain}/oauth2/authorize?client_id=${clientId}&response_type=code&scope=openid+email+profile&redirect_uri=${encodeURIComponent(redirect)}`;
   await page.goto(url);
   // OP login page should render after Cognito redirects to our OP /authorize
   await page.getByRole("heading", { name: "Sign in" }).waitFor();
   await page.getByLabel("Username").fill("test-user");
-  // @ts-ignore
   const testPassword = process.env.TEST_PASSWORD ? process.env.TEST_PASSWORD : "no password set in TEST_PASSWORD";
   await page.getByLabel("Password").fill(testPassword);
   await page.getByRole("button", { name: "Continue" }).click();

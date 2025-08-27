@@ -1,8 +1,9 @@
-import { test, expect, request } from "@playwright/test";
+import {expect, request, test} from "@playwright/test";
 import crypto from "node:crypto";
 
 // use dotenv variables for sensitive info
 import * as dotenv from "dotenv";
+
 dotenv.config();
 
 function base64url(input: Buffer | string): string {
@@ -70,12 +71,11 @@ test("live API: authorize -> token -> userinfo", async ({ page }) => {
   // Step 1: authorize (POST) to trigger login and receive code via redirect
   async function tryAuthorize(password: string) {
     const body = new URLSearchParams({ username: TEST_USERNAME, password }).toString();
-    const res = await ctx.fetch(authorizeUrl.toString(), {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      data: body,
+    return await ctx.fetch(authorizeUrl.toString(), {
+        method: "POST",
+        headers: {"content-type": "application/x-www-form-urlencoded"},
+        data: body,
     });
-    return res;
   }
 
   let authorizeRes = await tryAuthorize(TEST_PASSWORD);

@@ -1,24 +1,185 @@
-# OIDC Provider (Serverless, Cognito-compatible)
+# OIDC Provider - Serverless Debugging Utility
 
-**What this is:** An OAuth2/OIDC Provider running on Lambda Function URLs behind CloudFront, with discovery and JWKS on 
-S3, and a Cognito User Pool federated to it for end-to-end login. Everything is pay-per-request, logs retained 7 days, 
-all resources set to destroy on stack deletion.
+> **🔧 This is a debugging and testing utility, not a production authentication service.**
 
-**Why:** Cheap, inspectable auth for tests and small workloads. Verbose logs aid debugging.
+## What This Is
 
-**Tech:** CDK Java v2, Node 22 ESM Lambdas, CloudFront+S3 (OAC), DynamoDB TTL, Cognito Hosted UI. Lambda Node 22 and 
-Function URLs are supported; CloudFront can target Function URLs and S3 via OAC.
+A **lightweight, inspectable OIDC provider** designed for developers who need to:
+- **Debug OAuth2/OIDC flows** with comprehensive logging
+- **Test authentication integrations** with a real OIDC provider
+- **Learn OIDC implementations** by examining working code
+- **Clone and customize** for specific testing scenarios
+
+## Quick Start: Fork → Configure → Deploy → Test
+
+1. **Fork this repository** to your GitHub account
+2. **Set up your domain** and AWS credentials (see [Setup](#setup))
+3. **Deploy via GitHub Actions** (pushes to main auto-deploy)
+4. **Test with included Playwright scenarios** (screenshots, videos, traces)
+
+## Architecture
+
+**Tech Stack:** CDK Java v2, Node.js 22 ESM Lambdas, CloudFront+S3 (OAC), DynamoDB TTL, Cognito User Pool integration
+
+**Why Serverless:** Pay-per-request pricing, automatic scaling, comprehensive CloudWatch logging (7-day retention), infrastructure-as-code with destroy-on-delete for safe testing environments.
+
+## Screenshots
+
+### Home Page
+The main landing page explains the project and provides links to test flows:
+
+![Home Page](https://raw.githubusercontent.com/antonycc/oidc/main/docs/screenshots/home-page.png)
+
+### Direct Login Form  
+Test the OIDC provider directly without going through Cognito:
+
+![Login Page](https://raw.githubusercontent.com/antonycc/oidc/main/docs/screenshots/login-page.png)
+
+### Post-Authentication Results
+Shows the complete OAuth2 flow results including tokens and claims:
+
+![Post-Auth Page](https://raw.githubusercontent.com/antonycc/oidc/main/docs/screenshots/post-auth-page.png)
+
+## API Reference
+
+### Supported Endpoints
+
+| Endpoint | Method | Purpose | Example |
+|----------|--------|---------|---------|
+| `/.well-known/openid-configuration` | GET | OIDC Discovery | Returns provider metadata |
+| `/authorize` | GET/POST | Authorization endpoint | Initiates OAuth2 flow |
+| `/token` | POST | Token endpoint | Exchanges code for tokens |
+| `/userinfo` | GET | UserInfo endpoint | Returns user claims |
+| `/jwks` | GET | JWKS endpoint | Public keys for token verification |
+
+### Authorization Endpoint (`/authorize`)
+
+**GET Request** - Returns login form:
+```
+GET /authorize?client_id=demo-client&redirect_uri=https://example.com/callback&response_type=code&scope=openid&state=abc123
+```
+
+**POST Request** - Submits credentials:
+```
+POST /authorize
+Content-Type: application/x-www-form-urlencoded
+
+client_id=demo-client&
+redirect_uri=https://example.com/callback&
+response_type=code&
+scope=openid email profile&
+state=abc123&
+code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&
+code_challenge_method=S256&
+username=test-user&
+password=Passw0rd!
+```
+
+**Success Response:**
+```
+HTTP/1.1 302 Found
+Location: https://example.com/callback?code=01J6EXAMPLE123&state=abc123
+```
+
+### Token Endpoint (`/token`)
+
+**Request:**
+```
+POST /token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code&
+code=01J6EXAMPLE123&
+redirect_uri=https://example.com/callback&
+client_id=demo-client&
+code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk
+```
+
+**Response:**
+```json
+{
+  "id_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "Bearer",
+  "expires_in": 300
+}
+```
+
+### UserInfo Endpoint (`/userinfo`)
+
+**Request:**
+```
+GET /userinfo
+Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**Response:**
+```json
+{
+  "sub": "test-user",
+  "email": "test@example.com",
+  "email_verified": true,
+  "name": "Test User",
+  "given_name": "Test",
+  "family_name": "User"
+}
+```
+
+### Client Configuration
+
+The provider supports two pre-configured clients:
+
+#### `cognito-web` - For Cognito Integration
+```javascript
+{
+  "redirectUris": ["https://${COGNITO_DOMAIN}/oauth2/idpresponse"],
+  "grantTypes": ["authorization_code"],
+  "scopes": ["openid", "email", "profile"],
+  "pkceRequired": true,
+  "clientSecret": null // Public client
+}
+```
+
+#### `self-client` - For Direct Testing  
+```javascript
+{
+  "redirectUris": [
+    "${BASE_URL}/post-auth.html",
+    "${BASE_URL}/callback.html",
+    "${BASE_URL}/login-callback.html"
+  ],
+  "grantTypes": ["authorization_code"],
+  "scopes": ["openid", "email", "profile"],
+  "pkceRequired": true,
+  "clientSecret": null // Public client
+}
+```
 
 ---
 
-## Prereqs
+## Setup
 
 - Node 22, Java 21, AWS CLI, CDK v2, Maven wrapper.  
 - Existing Route53 hosted zone for your domain.
 
+**Reference:** [GitHub OIDC with AWS Documentation](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services)
+
 ---
 
-## One-time AWS role for GitHub Actions (OIDC)
+## License
+
+MIT License - see LICENSE file for details.
+
+---
+
+## Notes
+
+- Lambda Node.js 22 with ES modules (`"type": "module"`) is fully supported
+- Function URLs with IAM auth and CloudFront OAC provide secure, scalable distribution  
+- All resources are tagged and configured for easy cleanup and cost tracking
+- This implementation prioritizes debugging transparency over production optimization
+
+**For production use:** Consider implementing client secrets, rate limiting, user management APIs, and compliance with your organization's security standards.
 
 1. Create IAM OIDC provider for `https://token.actions.githubusercontent.com` (or use console wizard).  
 2. Create IAM role with trust policy allowing your repo to assume it, and attach minimal policies for CloudFormation/CDK, S3, CloudFront, DynamoDB, Cognito, Route53, ACM.  

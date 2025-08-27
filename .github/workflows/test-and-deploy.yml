@@ -1,4 +1,5 @@
 name: test-and-deploy
+concurrency: "test-and-deploy-${{ github.ref_name }}"
 
 on:
   workflow_dispatch:

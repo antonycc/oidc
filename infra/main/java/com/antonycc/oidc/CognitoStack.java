@@ -86,7 +86,7 @@ public class CognitoStack extends Stack {
         .hostedZoneId(props.hostedZoneId)
         .aliasTarget(CfnRecordSet.AliasTargetProperty.builder()
             .dnsName(this.domain.getAttrCloudFrontDistribution())
-            .hostedZoneId(props.cloudFrontHostedZoneId)
+            .hostedZoneId(props.hostedZoneId)
             .build())
         .build();
 
@@ -99,7 +99,7 @@ public class CognitoStack extends Stack {
         .hostedZoneId(props.hostedZoneId)
         .aliasTarget(CfnRecordSet.AliasTargetProperty.builder()
             .dnsName(this.domain.getAttrCloudFrontDistribution())
-            .hostedZoneId(props.cloudFrontHostedZoneId)
+            .hostedZoneId(props.hostedZoneId)
             .build())
         .build();
 

@@ -65,8 +65,47 @@ export const handler = async (event) => {
     const iss = process.env.ISSUER;
     const aud = row.Item.client;
     const sub = row.Item.sub;
+    const scope = row.Item.scope;
 
-    const id_token = await signJwt({ iss, sub, aud, iat: now, exp: now + 300, nonce: row.Item.nonce });
+    // Build ID token claims
+    const idTokenClaims = { 
+      iss, 
+      sub, 
+      aud, 
+      iat: now, 
+      exp: now + 300, 
+      nonce: row.Item.nonce 
+    };
+
+    // Add user claims if available and scope permits
+    if (process.env.USERS_TABLE && tables.users) {
+      try {
+        const userRecord = await get(tables.users, { username: sub });
+        if (userRecord.Item) {
+          const scopes = scope ? scope.split(" ") : [];
+          
+          // Include email claims if email scope was requested
+          if (scopes.includes("email") && userRecord.Item.email) {
+            idTokenClaims.email = userRecord.Item.email;
+            idTokenClaims.email_verified = userRecord.Item.emailVerified || false;
+          }
+          
+          // Include profile claims if profile scope was requested
+          if (scopes.includes("profile")) {
+            if (userRecord.Item.name) idTokenClaims.name = userRecord.Item.name;
+            if (userRecord.Item.given_name) idTokenClaims.given_name = userRecord.Item.given_name;
+            if (userRecord.Item.family_name) idTokenClaims.family_name = userRecord.Item.family_name;
+          }
+          
+          log("user_claims_added", "scopes:", scopes.join(","));
+        }
+      } catch (dbError) {
+        log("user_lookup_failed", dbError.message);
+        // Continue without user claims if lookup fails
+      }
+    }
+
+    const id_token = await signJwt(idTokenClaims);
     const access_token = await signJwt({ iss, sub, aud, iat: now, exp: now + 300, scope: row.Item.scope });
 
     log("token_issued", sub);

@@ -63,6 +63,7 @@ public class OidcProviderStack extends Stack {
   public final OidcEndpointFunction authorizeEndpoint;
   public final OidcEndpointFunction tokenEndpoint;
   public final OidcEndpointFunction userinfoEndpoint;
+  public final OidcEndpointFunction jwksEndpoint;
   public final Distribution distribution;
   public final LogGroup bucketDeploymentLogGroup;
   public final BucketDeployment webDeployment;
@@ -233,6 +234,24 @@ public class OidcProviderStack extends Stack {
     additionalOriginsBehaviourMappings.put("/userinfo", this.userinfoEndpoint.behaviorOptions);
     this.usersTable.grantReadData(this.userinfoEndpoint.function);
 
+    // JWKS endpoint via construct
+    this.jwksEndpoint = new OidcEndpointFunction(
+        this,
+        resourceNamePrefix + "-JwksEndpoint",
+        OidcEndpointFunctionProps.builder()
+            .functionName(resourceNamePrefix + "-jwks")
+            .dockerfilePath("infra/runtimes/jwks.Dockerfile")
+            .cmd(List.of("app/functions/jwks.handler"))
+            .pathPattern("/jwks")
+            .allowedMethods(AllowedMethods.ALLOW_GET_HEAD)
+            .extraEnv(Map.of(
+                "CODES_TABLE", this.authCodesTable.getTableName()
+            ))
+            .build());
+    this.jwksEndpoint.function.addEnvironment("ISSUER", "https://" + domainName);
+    additionalOriginsBehaviourMappings.put("/jwks", this.jwksEndpoint.behaviorOptions);
+    this.authCodesTable.grantReadWriteData(this.jwksEndpoint.function);
+
     // CloudFront with two S3 origins and FunctionUrl origins for OIDC endpoints
     this.distribution =
         Distribution.Builder.create(this, resourceNamePrefix + "-WebDist")
@@ -259,6 +278,7 @@ public class OidcProviderStack extends Stack {
     this.authorizeEndpoint.function.addPermission(compressedResourceNamePrefix + "-cf-auth", invokeFunctionUrlPermission);
     this.tokenEndpoint.function.addPermission(compressedResourceNamePrefix + "-cf-token", invokeFunctionUrlPermission);
     this.userinfoEndpoint.function.addPermission(compressedResourceNamePrefix + "-cf-userinfo", invokeFunctionUrlPermission);
+    this.jwksEndpoint.function.addPermission(compressedResourceNamePrefix + "-cf-jwks", invokeFunctionUrlPermission);
 
     var deployPostfix = java.util.UUID.randomUUID().toString().substring(0, 8);
 

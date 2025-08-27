@@ -38,7 +38,7 @@ describe("authorize", () => {
     };
     const r = await authorize(e);
     expect(r.statusCode).toBe(400);
-    expect(r.body).toBe("invalid_request");
+    expect(r.body).toBe("invalid_redirect_uri");
   });
 
   it("returns invalid_scope for unauthorized scopes", async () => {
@@ -49,6 +49,6 @@ describe("authorize", () => {
     };
     const r = await authorize(e);
     expect(r.statusCode).toBe(400);
-    expect(r.body).toBe("invalid_request");
+    expect(r.body).toBe("invalid_scope");
   });
 });

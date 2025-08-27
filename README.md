@@ -159,7 +159,7 @@ Smoke test the provider (replace with your domain):
 curl --head 'https://oidc.antonycc.com/'
 curl --head 'https://oidc.antonycc.com/login.html'
 curl --include --request GET 'https://oidc.antonycc.com/.well-known/openid-configuration'
-curl --include --request GET 'https://oidc.antonycc.com/.well-known/jwks.json'
+curl --include --request GET 'https://oidc.antonycc.com/jwks'
 curl --include --request GET 'https://oidc.antonycc.com/authorize'
 curl --include --request POST 'https://oidc.antonycc.com/token'
 curl --include --request GET 'https://oidc.antonycc.com/userinfo'

@@ -188,10 +188,10 @@ jobs:
           # Build authorize URL (without credentials in query)
           auth_url="${{ steps.oidc-outputs.outputs.BASE_URL }}/authorize"
           
-          # Prepare form data for POST request
+          # Prepare form data for POST request using cognito-web client (as configured in CognitoStack)
           form_data="response_type=code"
-          form_data="${form_data}&client_id=demo-client"
-          form_data="${form_data}&redirect_uri=https://example.com/callback"
+          form_data="${form_data}&client_id=cognito-web"
+          form_data="${form_data}&redirect_uri=https://${{ steps.oidc-outputs.outputs.COGNITO_DOMAIN }}/oauth2/idpresponse"
           form_data="${form_data}&scope=openid"
           form_data="${form_data}&state=test-state"
           form_data="${form_data}&code_challenge=${code_challenge}"
@@ -232,10 +232,10 @@ jobs:
           echo "PKCE code_verifier: $code_verifier"
           echo "PKCE code_challenge: $code_challenge"
           
-          # Exchange code for tokens
+          # Exchange code for tokens using cognito-web client (as configured in CognitoStack)
           response=$(curl -s --include --request POST "${{ steps.oidc-outputs.outputs.BASE_URL }}/token" \
             --header "Content-Type: application/x-www-form-urlencoded" \
-            --data "grant_type=authorization_code&code=${{ steps.test-authorize.outputs.AUTH_CODE }}&redirect_uri=https://example.com/callback&client_id=demo-client&code_verifier=${code_verifier}")
+            --data "grant_type=authorization_code&code=${{ steps.test-authorize.outputs.AUTH_CODE }}&redirect_uri=https://${{ steps.oidc-outputs.outputs.COGNITO_DOMAIN }}/oauth2/idpresponse&client_id=cognito-web&code_verifier=${code_verifier}")
           
           echo "Token Response:"
           echo "$response"

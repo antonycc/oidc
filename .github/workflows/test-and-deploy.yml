@@ -30,7 +30,7 @@ env:
   AWS_REGION: us-east-1
   ENV_NAME: prod
   TEST_USERNAME: test-user
-  TEST_PASSWORD: Passw0rd!
+  TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
 
 jobs:
 
@@ -143,25 +143,32 @@ jobs:
         run: |
           echo "Testing authorize endpoint with credentials..."
           
-          # PKCE challenge (simple base64url for testing)
-          code_challenge="dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+          # Generate PKCE code_verifier and code_challenge dynamically
+          code_verifier=$(openssl rand -base64 32 | tr -d '=+/ ' | cut -c1-43)
+          code_challenge=$(echo -n "$code_verifier" | openssl dgst -sha256 -binary | base64 | tr '+/' '-_' | tr -d '=' | tr -d '\n')
+          echo "PKCE code_verifier: $code_verifier"
+          echo "PKCE code_challenge: $code_challenge"
           
-          # Build authorize URL with credentials
+
+          # Build authorize URL (without credentials in query)
           auth_url="${{ steps.oidc-outputs.outputs.BASE_URL }}/authorize"
-          auth_url="${auth_url}?response_type=code"
-          auth_url="${auth_url}&client_id=demo-client"
-          auth_url="${auth_url}&redirect_uri=https://example.com/callback"
-          auth_url="${auth_url}&scope=openid"
-          auth_url="${auth_url}&state=test-state"
-          auth_url="${auth_url}&code_challenge=${code_challenge}"
-          auth_url="${auth_url}&code_challenge_method=S256"
-          auth_url="${auth_url}&username=${{ env.TEST_USERNAME }}"
-          auth_url="${auth_url}&password=${{ env.TEST_PASSWORD }}"
+          
+          # Prepare form data for POST request
+          form_data="response_type=code"
+          form_data="${form_data}&client_id=demo-client"
+          form_data="${form_data}&redirect_uri=https://example.com/callback"
+          form_data="${form_data}&scope=openid"
+          form_data="${form_data}&state=test-state"
+          form_data="${form_data}&code_challenge=${code_challenge}"
+          form_data="${form_data}&code_challenge_method=S256"
+          form_data="${form_data}&username=${{ env.TEST_USERNAME }}"
+          form_data="${form_data}&password=${{ env.TEST_PASSWORD }}"
           
           echo "Authorize URL: $auth_url"
+          echo "Form data: $form_data"
           
-          # Call authorize endpoint expecting 302 redirect
-          response=$(curl -s -i --request GET "$auth_url" || true)
+          # Call authorize endpoint expecting 302 redirect, using POST
+          response=$(curl -s -i --request POST "$auth_url" --header "Content-Type: application/x-www-form-urlencoded" --data "$form_data" || true)
           echo "Authorize Response:"
           echo "$response"
           
@@ -184,8 +191,11 @@ jobs:
         run: |
           echo "Testing token endpoint with authorization code..."
           
-          # PKCE verifier (matches challenge above)
-          code_verifier="dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+          # Generate PKCE code_verifier and code_challenge dynamically
+          code_verifier=$(openssl rand -base64 32 | tr -d '=+/ ' | cut -c1-43)
+          code_challenge=$(echo -n "$code_verifier" | openssl dgst -sha256 -binary | base64 | tr '+/' '-_' | tr -d '=' | tr -d '\n')
+          echo "PKCE code_verifier: $code_verifier"
+          echo "PKCE code_challenge: $code_challenge"
           
           # Exchange code for tokens
           response=$(curl -s --include --request POST "${{ steps.oidc-outputs.outputs.BASE_URL }}/token" \

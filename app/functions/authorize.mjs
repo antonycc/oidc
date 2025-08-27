@@ -27,20 +27,15 @@ export const handler = async (event) => {
       "response_type",
       "scope",
       "state",
-      "nonce",
-      "code_challenge",
-      "code_challenge_method",
+      // nonce is optional, but recommended
+      // code_challenge and code_challenge_method are optional unless client requires PKCE
     ];
     for (const k of req) if (!qp[k]) return bad(400, "missing " + k);
     if (qp.response_type !== "code") return bad(400, "unsupported_response_type");
-    if (qp.code_challenge_method !== "S256") return bad(400, "invalid_request");
 
     // Client registry validation
     const client = getClient(qp.client_id);
     if (!client) return bad(400, "invalid_client");
-    if (client.pkceRequired && !qp.code_challenge) return bad(400, "invalid_request");
-    if (!isValidRedirectUri(client, qp.redirect_uri)) return bad(400, "invalid_request");
-    if (!isScopeSubset(client, qp.scope)) return bad(400, "invalid_scope");
 
     // Validate redirect URI is allowed for this client
     if (!validateRedirectUri(qp.client_id, qp.redirect_uri)) {
@@ -52,9 +47,16 @@ export const handler = async (event) => {
       return bad(400, "invalid_scope");
     }
 
-    // Validate PKCE if required
-    if (isPkceRequired(qp.client_id) && (!qp.code_challenge || !qp.code_challenge_method)) {
-      return bad(400, "pkce_required");
+    // Validate PKCE if required by client or if provided
+    if (isPkceRequired(qp.client_id)) {
+      if (!qp.code_challenge || !qp.code_challenge_method) {
+        return bad(400, "pkce_required");
+      }
+    }
+    
+    // If PKCE provided, validate it's correct format
+    if (qp.code_challenge && qp.code_challenge_method !== "S256") {
+      return bad(400, "invalid_request");
     }
 
     const username = qp.username || "test-user";

@@ -11,7 +11,6 @@ public class CognitoStackProps implements StackProps {
   public final String authCertificateArn;
   public final String hostedZoneName;
   public final String hostedZoneId;
-  public final String cloudFrontHostedZoneId;
 
   private CognitoStackProps(Builder builder) {
     this.env = builder.env;
@@ -21,7 +20,6 @@ public class CognitoStackProps implements StackProps {
     this.authCertificateArn = builder.authCertificateArn;
     this.hostedZoneName = builder.hostedZoneName;
     this.hostedZoneId = builder.hostedZoneId;
-    this.cloudFrontHostedZoneId = builder.cloudFrontHostedZoneId;
   }
 
   @Override
@@ -41,7 +39,6 @@ public class CognitoStackProps implements StackProps {
     private String authCertificateArn;
     private String hostedZoneName;
     private String hostedZoneId;
-    private String cloudFrontHostedZoneId;
 
     public Builder env(Environment env) {
       this.env = env;
@@ -75,11 +72,6 @@ public class CognitoStackProps implements StackProps {
 
     public Builder hostedZoneId(String hostedZoneId) {
       this.hostedZoneId = hostedZoneId;
-      return this;
-    }
-
-    public Builder cloudFrontHostedZoneId(String cloudFrontHostedZoneId) {
-      this.cloudFrontHostedZoneId = cloudFrontHostedZoneId;
       return this;
     }
 

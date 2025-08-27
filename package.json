@@ -45,6 +45,8 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
+    "test:api:live": "npx dotenv -e .env -- playwright test tests/api-live.spec.ts",
+    "test:api:live:local": "npx dotenv -e .env -- playwright test tests/api-live.spec.ts",
     "clean": "./scripts/clean-tests.sh",
     "provision:user": "node app/bin/provision-user.mjs",
     "clear:users": "node app/bin/clear-users.mjs"

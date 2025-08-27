@@ -1,5 +1,9 @@
 import { test, expect } from "@playwright/test";
 
+// use dotenv variables for sensitive info
+import * as dotenv from "dotenv";
+dotenv.config();
+
 // @ts-ignore
 test("Cognito Hosted UI -> OP login -> redirect back with code", async ({ page }) => {
   // @ts-ignore
@@ -13,7 +17,9 @@ test("Cognito Hosted UI -> OP login -> redirect back with code", async ({ page }
   // OP login page should render after Cognito redirects to our OP /authorize
   await page.getByRole("heading", { name: "Sign in" }).waitFor();
   await page.getByLabel("Username").fill("test-user");
-  await page.getByLabel("Password").fill("Passw0rd!");
+  // @ts-ignore
+  const testPassword = process.env.TEST_PASSWORD ? process.env.TEST_PASSWORD : "no password set in TEST_PASSWORD";
+  await page.getByLabel("Password").fill(testPassword);
   await page.getByRole("button", { name: "Continue" }).click();
 
   await page.waitForURL(/post-auth\.html\?code=/, { timeout: 20000 });

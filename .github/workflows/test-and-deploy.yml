@@ -284,6 +284,16 @@ jobs:
           npm ci --ignore-scripts
           npx playwright install chromium --with-deps
 
+      - name: Run Playwright live API test
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
+        env:
+          BASE_URL: ${{ steps.oidc-outputs.outputs.BASE_URL }}
+          TEST_USERNAME: ${{ env.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ env.TEST_PASSWORD }}
+        run: |
+          echo "BASE_URL=${BASE_URL}"
+          npm run test:api:live
+
       # The behaviour tests are not run for testOnly=true because they would be running against a different deployment.
       - name: Run Playwright behaviour tests
         if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
@@ -293,6 +303,8 @@ jobs:
           COGNITO_DOMAIN='${{ steps.oidc-outputs.outputs.COGNITO_DOMAIN }}' \
           COGNITO_CLIENT_ID='${{ steps.oidc-outputs.outputs.COGNITO_CLIENT_ID }}' \
           npx playwright test --project=chromium
+        env:
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
 
       - name: Upload artifacts (report, trace, screenshots, videos)
         if: ${{ !cancelled() && inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}

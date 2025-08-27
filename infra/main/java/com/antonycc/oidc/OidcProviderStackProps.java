@@ -2,6 +2,10 @@ package com.antonycc.oidc;
 
 import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.StackProps;
+import software.amazon.awscdk.services.cloudtrail.Trail;
+import software.amazon.awscdk.services.logs.LogGroup;
+import software.amazon.awscdk.services.s3.Bucket;
+import software.amazon.awscdk.services.xray.CfnGroup;
 
 public class OidcProviderStackProps implements StackProps {
   public final Environment env;
@@ -10,6 +14,11 @@ public class OidcProviderStackProps implements StackProps {
   public final String hostedZoneId;
   public final String domainName;
   public final String certificateArn;
+  public final Bucket logsBucket;
+  public final LogGroup trailLogGroup;
+  public final Trail auditTrail;
+  public final CfnGroup xrayGroup;
+  public final LogGroup bucketDeploymentLogGroup;
 
   private OidcProviderStackProps(Builder builder) {
     this.env = builder.env;
@@ -18,6 +27,11 @@ public class OidcProviderStackProps implements StackProps {
     this.hostedZoneId = builder.hostedZoneId;
     this.domainName = builder.domainName;
     this.certificateArn = builder.certificateArn;
+    this.logsBucket = builder.logsBucket;
+    this.trailLogGroup = builder.trailLogGroup;
+    this.auditTrail = builder.auditTrail;
+    this.xrayGroup = builder.xrayGroup;
+    this.bucketDeploymentLogGroup = builder.bucketDeploymentLogGroup;
   }
 
   @Override
@@ -36,6 +50,11 @@ public class OidcProviderStackProps implements StackProps {
     private String hostedZoneId;
     private String domainName;
     private String certificateArn;
+    private Bucket logsBucket;
+    private LogGroup trailLogGroup;
+    private Trail auditTrail;
+    private CfnGroup xrayGroup;
+    private LogGroup bucketDeploymentLogGroup;
 
     public Builder env(Environment env) {
       this.env = env;
@@ -64,6 +83,31 @@ public class OidcProviderStackProps implements StackProps {
 
     public Builder certificateArn(String certificateArn) {
       this.certificateArn = certificateArn;
+      return this;
+    }
+
+    public Builder logsBucket(Bucket logsBucket) {
+      this.logsBucket = logsBucket;
+      return this;
+    }
+
+    public Builder trailLogGroup(LogGroup trailLogGroup) {
+      this.trailLogGroup = trailLogGroup;
+      return this;
+    }
+
+    public Builder auditTrail(Trail auditTrail) {
+      this.auditTrail = auditTrail;
+      return this;
+    }
+
+    public Builder xrayGroup(CfnGroup xrayGroup) {
+      this.xrayGroup = xrayGroup;
+      return this;
+    }
+
+    public Builder bucketDeploymentLogGroup(LogGroup bucketDeploymentLogGroup) {
+      this.bucketDeploymentLogGroup = bucketDeploymentLogGroup;
       return this;
     }
 

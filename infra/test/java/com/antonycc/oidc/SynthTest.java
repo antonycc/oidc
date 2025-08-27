@@ -12,7 +12,18 @@ class SynthTest {
 
     Environment env = Environment.builder().account("123456789012").region("us-east-1").build();
 
-    // Create the OIDC Provider stack first
+    // Create the Observability stack first
+    ObservabilityStack observabilityStack =
+        new ObservabilityStack(
+            app,
+            "TestObservabilityStack",
+            ObservabilityStackProps.builder()
+                .env(env)
+                .envName("test")
+                .domainName("oidc.example.com")
+                .build());
+
+    // Create the OIDC Provider stack
     OidcProviderStack providerStack =
         new OidcProviderStack(
             app,
@@ -24,6 +35,11 @@ class SynthTest {
                 .hostedZoneId("Z000EXAMPLE")
                 .domainName("oidc.example.com")
                 .certificateArn("arn:aws:acm:us-east-1:123456789012:certificate/abc")
+                .logsBucket(observabilityStack.logsBucket)
+                .trailLogGroup(observabilityStack.trailLogGroup)
+                .auditTrail(observabilityStack.auditTrail)
+                .xrayGroup(observabilityStack.xrayGroup)
+                .bucketDeploymentLogGroup(observabilityStack.bucketDeploymentLogGroup)
                 .build());
 
     // Create the Cognito stack (independent of provider stack)

@@ -85,8 +85,11 @@ public class OidcEndpointFunction extends Construct {
     var otelEnv = Map.of(
           "AWS_LAMBDA_EXEC_WRAPPER", "/opt/otel-instrument", // enable auto-instrumentation
           "OTEL_SERVICE_NAME", "oidc-provider",              // group functions in App Signals
+          "OTEL_TRACES_EXPORTER", "otlp",                    // explicit traces exporter (reduces startup noise)
+          "OTEL_METRICS_EXPORTER", "otlp",                   // enable metrics export to CloudWatch via Application Signals
+          "OTEL_LOGS_EXPORTER", "otlp",                      // explicit logs exporter (reduces startup noise)
           "OTEL_TRACES_SAMPLER", "parentbased_traceidratio", // optional
-          "OTEL_TRACES_SAMPLER_ARG", "0.3",                  // optional sampling
+          "OTEL_TRACES_SAMPLER_ARG", "1.0",                  // 100% sampling as requested
           "OTEL_NODE_DISABLED_INSTRUMENTATIONS", "none"      // enable all Node libs (cold-start tradeoff)
     );
     environment.putAll(otelEnv);

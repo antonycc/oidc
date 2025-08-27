@@ -11,8 +11,7 @@ export const handler = async (event) => {
     const method = event.requestContext?.http?.method || "GET";
     const url = new URL(event.rawPath + (event.rawQueryString ? "?" + event.rawQueryString : ""), "https://issuer");
     const qp = Object.fromEntries(url.searchParams.entries());
-    log("authorize", method, JSON.stringify(qp));
-
+    // TODO: Remove support for GET and whatever calls it
     if (method === "GET" && !qp.username) {
       return html(200, loginFormHtml(qp));
     }
@@ -20,6 +19,7 @@ export const handler = async (event) => {
       const body = new URLSearchParams(event.body || "");
       for (const [k, v] of body.entries()) qp[k] = v;
     }
+    log("authorize", method, JSON.stringify(qp));
 
     const req = [
       "client_id",

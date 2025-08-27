@@ -7,6 +7,7 @@ import software.amazon.awscdk.services.cognito.CfnUserPool;
 import software.amazon.awscdk.services.cognito.CfnUserPoolClient;
 import software.amazon.awscdk.services.cognito.CfnUserPoolDomain;
 import software.amazon.awscdk.services.cognito.CfnUserPoolIdentityProvider;
+import software.amazon.awscdk.services.route53.CfnRecordSet;
 import software.constructs.Construct;
 
 import java.util.List;
@@ -71,16 +72,36 @@ public class CognitoStack extends Stack {
                     .certificateArn(props.authCertificateArn)
                     .build())
             .build();
-        // this.pool.addDomain(
-        //    "CognitoDomain",
-        //    UserPoolDomainOptions.builder()
-        //        .cognitoDomain(
-        //            CognitoDomainOptions.builder()
-        //                    .domainPrefix(props.cognitoDomainPrefix + "-" + dashedDomainName)
-        //                    .build())
-        //        .build());
-    // Note: Route53 records for the Cognito custom domain are managed 
-    // by AWS Cognito automatically, so we don't need to create them manually
+
+    // Create Route53 records for the Cognito custom domain
+    // AWS Cognito creates a CloudFront distribution for custom domains, but doesn't create the DNS records
+
+    // Create A and AAAA alias records pointing to the Cognito CloudFront distribution
+    // A record for IPv4
+    CfnRecordSet cognitoARecord = CfnRecordSet.Builder.create(
+        this,
+        resourceNamePrefix + "CognitoARecord")
+        .name(cognitoDomainName + ".")
+        .type("A")
+        .hostedZoneId(props.hostedZoneId)
+        .aliasTarget(CfnRecordSet.AliasTargetProperty.builder()
+            .dnsName(this.domain.getAttrCloudFrontDistribution())
+            .hostedZoneId("Z2FDTNDATAQYW2") // CloudFront hosted zone ID (constant for all regions)
+            .build())
+        .build();
+
+    // AAAA record for IPv6
+    CfnRecordSet cognitoAaaaRecord = CfnRecordSet.Builder.create(
+        this,
+        resourceNamePrefix + "CognitoAAAARecord")
+        .name(cognitoDomainName + ".")
+        .type("AAAA")
+        .hostedZoneId(props.hostedZoneId)
+        .aliasTarget(CfnRecordSet.AliasTargetProperty.builder()
+            .dnsName(this.domain.getAttrCloudFrontDistribution())
+            .hostedZoneId("Z2FDTNDATAQYW2") // CloudFront hosted zone ID (constant for all regions)
+            .build())
+        .build();
 
     this.client =
         CfnUserPoolClient.Builder.create(this, resourceNamePrefix + "-WebClient")

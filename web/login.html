@@ -32,6 +32,59 @@
       </div>
     </main>
     <script>
+      // Shared login status checking function
+      function checkLoginStatus() {
+        try {
+          const tokenData = localStorage.getItem("oidc_tokens");
+          if (!tokenData) {
+            return { isLoggedIn: false, status: "Not logged in" };
+          }
+          
+          const tokens = JSON.parse(tokenData);
+          if (!tokens.expires_at || Date.now() >= tokens.expires_at) {
+            // Token expired, clear it
+            localStorage.removeItem("oidc_tokens");
+            return { isLoggedIn: false, status: "Not logged in" };
+          }
+          
+          const userDisplay = tokens.userinfo?.name || tokens.claims?.sub || "User";
+          return { 
+            isLoggedIn: true, 
+            status: `Logged in as ${userDisplay}`,
+            tokens: tokens
+          };
+        } catch (e) {
+          console.warn("Error checking login status:", e);
+          localStorage.removeItem("oidc_tokens");
+          return { isLoggedIn: false, status: "Not logged in" };
+        }
+      }
+      
+      // Update login status on page load
+      document.addEventListener("DOMContentLoaded", () => {
+        const loginStatus = checkLoginStatus();
+        const loginElement = document.querySelector(".login-status");
+        if (loginElement) {
+          loginElement.textContent = loginStatus.status;
+        }
+        
+        // Add logout functionality if logged in
+        if (loginStatus.isLoggedIn) {
+          const authSection = document.querySelector(".auth-section");
+          if (authSection && !authSection.querySelector(".logout-btn")) {
+            const logoutBtn = document.createElement("button");
+            logoutBtn.textContent = "Logout";
+            logoutBtn.className = "logout-btn nav";
+            logoutBtn.style.marginLeft = "10px";
+            logoutBtn.addEventListener("click", () => {
+              localStorage.removeItem("oidc_tokens");
+              location.reload();
+            });
+            authSection.appendChild(logoutBtn);
+          }
+        }
+      });
+      
       // Minimal PKCE helpers
       const rand = (len = 32) =>
         crypto.getRandomValues(new Uint8Array(len)).reduce((s, b) => s + ("0" + (b % 36).toString(36)).slice(-1), "");
@@ -102,7 +155,7 @@
           }
           el.textContent = message;
           // Optionally log the raw error for debugging (not shown to user)
-          console.debug("Raw error response:", text);
+          res.text().then(text => console.debug("Raw error response:", text));
         }
       });
     </script>

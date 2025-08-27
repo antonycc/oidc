@@ -25,10 +25,65 @@
       </div>
     </main>
     <script>
+      // Shared login status checking function
+      function checkLoginStatus() {
+        try {
+          const tokenData = localStorage.getItem("oidc_tokens");
+          if (!tokenData) {
+            return { isLoggedIn: false, status: "Not logged in" };
+          }
+          
+          const tokens = JSON.parse(tokenData);
+          if (!tokens.expires_at || Date.now() >= tokens.expires_at) {
+            // Token expired, clear it
+            localStorage.removeItem("oidc_tokens");
+            return { isLoggedIn: false, status: "Not logged in" };
+          }
+          
+          const userDisplay = tokens.userinfo?.name || tokens.claims?.sub || "User";
+          return { 
+            isLoggedIn: true, 
+            status: `Logged in as ${userDisplay}`,
+            tokens: tokens
+          };
+        } catch (e) {
+          console.warn("Error checking login status:", e);
+          localStorage.removeItem("oidc_tokens");
+          return { isLoggedIn: false, status: "Not logged in" };
+        }
+      }
+      
+      // Update login status on page load
+      document.addEventListener("DOMContentLoaded", () => {
+        const loginStatus = checkLoginStatus();
+        const loginElement = document.querySelector(".login-status");
+        if (loginElement) {
+          loginElement.textContent = loginStatus.status;
+        }
+        
+        // Add logout functionality if logged in
+        if (loginStatus.isLoggedIn) {
+          const authSection = document.querySelector(".auth-section");
+          if (authSection && !authSection.querySelector(".logout-btn")) {
+            const logoutBtn = document.createElement("button");
+            logoutBtn.textContent = "Logout";
+            logoutBtn.className = "logout-btn nav";
+            logoutBtn.style.marginLeft = "10px";
+            logoutBtn.addEventListener("click", () => {
+              localStorage.removeItem("oidc_tokens");
+              location.reload();
+            });
+            authSection.appendChild(logoutBtn);
+          }
+        }
+      });
+      
       function decodeJwtNoVerify(jwt) {
         try {
           const [, payload] = jwt.split(".");
-          return JSON.parse(new TextDecoder().decode(Uint8Array.from(json, (c) => c.charCodeAt(0))));
+          const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+          const paddedBase64 = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=');
+          return JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(paddedBase64), (c) => c.charCodeAt(0))));
         } catch {
           return null;
         }
@@ -63,6 +118,38 @@
           document.getElementById("claims").textContent = JSON.stringify(claims, null, 2);
           document.querySelector(".login-status").textContent = "Logged in";
           document.getElementById("status").textContent = "Token exchange succeeded";
+          
+          // Store tokens in localStorage
+          const tokenData = {
+            access_token: obj.access_token,
+            id_token: obj.id_token,
+            token_type: obj.token_type || "Bearer",
+            expires_at: Date.now() + (obj.expires_in || 300) * 1000, // Convert to absolute timestamp
+            claims: claims
+          };
+          localStorage.setItem("oidc_tokens", JSON.stringify(tokenData));
+          
+          // Call userinfo endpoint if we have an access token
+          if (obj.access_token) {
+            try {
+              const userinfoRes = await fetch("/userinfo", {
+                headers: { "authorization": "Bearer " + obj.access_token }
+              });
+              if (userinfoRes.ok) {
+                const userinfo = await userinfoRes.json();
+                document.getElementById("claims").textContent = 
+                  JSON.stringify(claims, null, 2) + "\n\nUserinfo:\n" + JSON.stringify(userinfo, null, 2);
+                
+                // Store userinfo in localStorage
+                tokenData.userinfo = userinfo;
+                localStorage.setItem("oidc_tokens", JSON.stringify(tokenData));
+              } else {
+                console.warn("Failed to fetch userinfo:", userinfoRes.status);
+              }
+            } catch (e) {
+              console.warn("Error fetching userinfo:", e);
+            }
+          }
         } else {
           document.querySelector(".login-status").textContent = "Login failed";
           document.getElementById("status").textContent = "Token exchange failed (" + res.status + ")";

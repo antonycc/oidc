@@ -20,7 +20,6 @@ public class ObservabilityStack extends Stack {
   public final LogGroup trailLogGroup;
   public final Trail auditTrail;
   public final CfnGroup xrayGroup;
-  public final LogGroup bucketDeploymentLogGroup;
 
   public ObservabilityStack(final Construct scope, final String id, final ObservabilityStackProps props) {
     super(scope, id, props);
@@ -68,13 +67,6 @@ public class ObservabilityStack extends Stack {
                 CfnGroup.InsightsConfigurationProperty.builder().insightsEnabled(true).build())
             .build();
 
-    this.bucketDeploymentLogGroup =
-        LogGroup.Builder.create(this, resourceNamePrefix + "-BucketDeploymentLogGroup")
-            .logGroupName("/deployment/" + resourceNamePrefix + "-bucket-deployment")
-            .retention(RetentionDays.ONE_WEEK)
-            .removalPolicy(RemovalPolicy.DESTROY)
-            .build();
-
     // Outputs for the created observability resources
     new CfnOutput(
         this, 
@@ -100,14 +92,6 @@ public class ObservabilityStack extends Stack {
         this, 
         "XRayGroupName", 
         CfnOutputProps.builder().value(this.xrayGroup.getGroupName()).build());
-    new CfnOutput(
-        this, 
-        "BucketDeploymentLogGroupArn", 
-        CfnOutputProps.builder().value(this.bucketDeploymentLogGroup.getLogGroupArn()).build());
-    new CfnOutput(
-        this, 
-        "BucketDeploymentLogGroupName", 
-        CfnOutputProps.builder().value(this.bucketDeploymentLogGroup.getLogGroupName()).build());
   }
 
   /**

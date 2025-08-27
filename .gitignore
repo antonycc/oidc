@@ -22,3 +22,4 @@ infra/.vscode
 cdk.out
 /cdk.out/cdk-outputs.json
 target/
+/.env

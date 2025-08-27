@@ -3,11 +3,20 @@ package com.antonycc.oidc;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.Stack;
+import software.amazon.awscdk.services.cloudfront.Distribution;
+import software.amazon.awscdk.services.cloudfront.DistributionAttributes;
 import software.amazon.awscdk.services.cognito.CfnUserPool;
 import software.amazon.awscdk.services.cognito.CfnUserPoolClient;
 import software.amazon.awscdk.services.cognito.CfnUserPoolDomain;
 import software.amazon.awscdk.services.cognito.CfnUserPoolIdentityProvider;
-import software.amazon.awscdk.services.route53.CfnRecordSet;
+import software.amazon.awscdk.services.route53.ARecord;
+import software.amazon.awscdk.services.route53.ARecordProps;
+import software.amazon.awscdk.services.route53.AaaaRecord;
+import software.amazon.awscdk.services.route53.AaaaRecordProps;
+import software.amazon.awscdk.services.route53.HostedZone;
+import software.amazon.awscdk.services.route53.HostedZoneAttributes;
+import software.amazon.awscdk.services.route53.RecordTarget;
+import software.amazon.awscdk.services.route53.targets.CloudFrontTarget;
 import software.constructs.Construct;
 
 import java.util.List;
@@ -72,7 +81,7 @@ public class CognitoStack extends Stack {
                     .certificateArn(props.authCertificateArn)
                     .build())
             .build();
-
+/*
     // Create Route53 records for the Cognito custom domain
     // AWS Cognito creates a CloudFront distribution for custom domains, but doesn't create the DNS records
 
@@ -101,7 +110,32 @@ public class CognitoStack extends Stack {
             .dnsName(this.domain.getAttrCloudFrontDistribution())
             .hostedZoneId(props.hostedZoneId)
             .build())
-        .build();
+        .build();*/
+
+      // Create A and AAAA records pointing to the CloudFront distribution
+      var hostedZone = HostedZone.fromHostedZoneAttributes(this, "HostedZone",
+              HostedZoneAttributes.builder()
+                      .hostedZoneId(props.hostedZoneId)
+                      .zoneName(domainName) // e.g. example.com
+                      .build());
+      var distributionDomainName = this.domain.getAttrCloudFrontDistribution();
+      var distribution = Distribution.fromDistributionAttributes(this, "CognitoDistribution",
+              DistributionAttributes.builder()
+                      .domainName(distributionDomainName)
+                      .distributionId(distributionDomainName) // Using domain name as ID since we don't have the actual ID
+                      .build());
+      new ARecord(this, "CognitoARecord",
+              ARecordProps.builder()
+                      .zone(hostedZone)
+                      .recordName(cognitoDomainName + ".")
+                      .target(RecordTarget.fromAlias(new CloudFrontTarget(distribution)))
+                      .build());
+      new AaaaRecord(this, "CognitoAaaaRecord",
+              AaaaRecordProps.builder()
+                      .zone(hostedZone)
+                      .recordName(cognitoDomainName + ".")
+                      .target(RecordTarget.fromAlias(new CloudFrontTarget(distribution)))
+                      .build());
 
     this.client =
         CfnUserPoolClient.Builder.create(this, resourceNamePrefix + "-WebClient")

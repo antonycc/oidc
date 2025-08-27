@@ -14,12 +14,7 @@ import software.amazon.awscdk.services.cloudfront.BehaviorOptions;
 import software.amazon.awscdk.services.cloudfront.CachePolicy;
 import software.amazon.awscdk.services.cloudfront.Distribution;
 import software.amazon.awscdk.services.cloudfront.OriginAccessIdentity;
-import software.amazon.awscdk.services.cloudfront.OriginRequestPolicy;
-import software.amazon.awscdk.services.cloudfront.ResponseHeadersPolicy;
 import software.amazon.awscdk.services.cloudfront.SSLMethod;
-import software.amazon.awscdk.services.cloudfront.ViewerProtocolPolicy;
-import software.amazon.awscdk.services.cloudfront.origins.S3BucketOrigin;
-import software.amazon.awscdk.services.cloudfront.origins.S3BucketOriginWithOAIProps;
 import software.amazon.awscdk.services.cloudtrail.Trail;
 import software.amazon.awscdk.services.dynamodb.Attribute;
 import software.amazon.awscdk.services.dynamodb.AttributeType;
@@ -38,7 +33,6 @@ import software.amazon.awscdk.services.route53.HostedZoneAttributes;
 import software.amazon.awscdk.services.route53.IHostedZone;
 import software.amazon.awscdk.services.route53.RecordTarget;
 import software.amazon.awscdk.services.route53.targets.CloudFrontTarget;
-import software.amazon.awscdk.services.s3.BlockPublicAccess;
 import software.amazon.awscdk.services.s3.Bucket;
 import software.amazon.awscdk.services.s3.assets.AssetOptions;
 import software.amazon.awscdk.services.s3.deployment.BucketDeployment;
@@ -266,9 +260,17 @@ public class OidcProviderStack extends Stack {
     this.tokenEndpoint.function.addPermission(compressedResourceNamePrefix + "-cf-token", invokeFunctionUrlPermission);
     this.userinfoEndpoint.function.addPermission(compressedResourceNamePrefix + "-cf-userinfo", invokeFunctionUrlPermission);
 
+    var deployPostfix = java.util.UUID.randomUUID().toString().substring(0, 8);
+
     // Deploy the web website files to the web website bucket and invalidate distribution
     var webDocRootSource =
         Source.asset("web", AssetOptions.builder().assetHashType(AssetHashType.SOURCE).build());
+    var webDeploymentLogGroup =
+          LogGroup.Builder.create(this, resourceNamePrefix + "-WebDeploymentLogGroup")
+              .logGroupName("/deployment/" + resourceNamePrefix + "-web-deployment-" + deployPostfix)
+              .retention(RetentionDays.ONE_DAY)
+              .removalPolicy(RemovalPolicy.DESTROY)
+              .build();
     this.webDeployment =
         BucketDeployment.Builder.create(this, resourceNamePrefix + "-DocRootToWebOriginDeployment")
             .sources(List.of(webDocRootSource))
@@ -276,15 +278,22 @@ public class OidcProviderStack extends Stack {
             .distribution(this.distribution)
             .distributionPaths(List.of("/*"))
             .retainOnDelete(false)
-            .logGroup(this.bucketDeploymentLogGroup)
+            .logGroup(webDeploymentLogGroup)
             .expires(Expiration.after(Duration.minutes(5)))
             .prune(true)
             .build();
 
-    // Deploy the well known website files to the well-known bucket under /.well-known/ path
+    // Deploy the well-known website files to the well-known bucket under /.well-known/ with a random suffix on the log group name
     var wellKnownRootSource =
         Source.asset(
             "well-known", AssetOptions.builder().assetHashType(AssetHashType.SOURCE).build());
+
+    var wellKnownDeploymentLogGroup =
+          LogGroup.Builder.create(this, resourceNamePrefix + "-WellKnownDeploymentLogGroup")
+                  .logGroupName("/deployment/" + resourceNamePrefix + "-well-known-deployment-" + deployPostfix)
+                  .retention(RetentionDays.ONE_DAY)
+                  .removalPolicy(RemovalPolicy.DESTROY)
+                  .build();
     this.wellKnownDeployment =
         BucketDeployment.Builder.create(this, resourceNamePrefix + "-DocRootToWellKnownOriginDeployment")
             .sources(List.of(wellKnownRootSource))
@@ -293,7 +302,7 @@ public class OidcProviderStack extends Stack {
             .distribution(this.distribution)
             .distributionPaths(List.of("/*"))
             .retainOnDelete(false)
-            .logGroup(this.bucketDeploymentLogGroup)
+            .logGroup(wellKnownDeploymentLogGroup)
             .expires(Expiration.after(Duration.minutes(5)))
             .prune(true)
             .build();

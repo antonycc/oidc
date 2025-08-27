@@ -4,11 +4,13 @@ import { test, expect } from "@playwright/test";
 import * as dotenv from "dotenv";
 dotenv.config();
 
+const BASE_URL = process.env.BASE_URL || "https://oidc.antonycc.com";
+
 // @ts-ignore
 test("Cognito Hosted UI -> OP login -> redirect back with code", async ({ page }) => {
   const cognitoDomain = process.env.COGNITO_DOMAIN!;
   const clientId = process.env.COGNITO_CLIENT_ID!;
-  const redirect = new URL("/post-auth.html", process.env.BASE_URL!).toString();
+  const redirect = new URL("/post-auth.html", BASE_URL).toString();
   const url = `https://${cognitoDomain}/oauth2/authorize?client_id=${clientId}&response_type=code&scope=openid+email+profile&redirect_uri=${encodeURIComponent(redirect)}`;
   await page.goto(url);
   // OP login page should render after Cognito redirects to our OP /authorize
@@ -25,7 +27,7 @@ test("Cognito Hosted UI -> OP login -> redirect back with code", async ({ page }
 
 // @ts-ignore
 test("Direct login form: failed login shows error", async ({ page }) => {
-  await page.goto("/login.html");
+  await page.goto(new URL("/login.html", BASE_URL).toString());
   await page.getByRole("heading", { name: "Direct OP Login" }).waitFor();
   await page.getByLabel("Username").fill("test-user");
   await page.getByLabel("Password").fill("wrong");
@@ -36,10 +38,11 @@ test("Direct login form: failed login shows error", async ({ page }) => {
 
 // @ts-ignore
 test("Direct login form: successful login returns tokens and claims", async ({ page }) => {
-  await page.goto("/login.html");
+  await page.goto(new URL("/login.html", BASE_URL).toString());
   await page.getByRole("heading", { name: "Direct OP Login" }).waitFor();
   await page.getByLabel("Username").fill("test-user");
-  await page.getByLabel("Password").fill("Passw0rd!");
+  const successPassword = process.env.TEST_PASSWORD || "Passw0rd!";
+  await page.getByLabel("Password").fill(successPassword);
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.waitForURL(/post-auth\.html\?code=/, { timeout: 20000 });
   await expect(page.locator("#status")).toContainText("Token exchange");
@@ -49,6 +52,6 @@ test("Direct login form: successful login returns tokens and claims", async ({ p
 
 // @ts-ignore
 test("Home renders", async ({ page }) => {
-  await page.goto("/");
+  await page.goto(new URL("/", BASE_URL).toString());
   await expect(page.getByRole("heading", { name: "OIDC Provider" })).toBeVisible();
 });

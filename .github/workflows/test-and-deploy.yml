@@ -98,17 +98,52 @@ jobs:
         run: |
           npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk deploy OidcProviderStack-${ENV_NAME} --exclusively --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-oidc-provider.json
 
-      - name: Extract OIDC Provider outputs
+      - name: Deploy Cognito Stack (CDK)
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
+        run: |
+          npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk deploy CognitoStack-${ENV_NAME} --exclusively --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-cognito.json
+
+      - name: Resolve OIDC Provider and Cognito outputs
         if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
         id: oidc-outputs
         run: |
           ENV_NAME='${{ env.ENV_NAME }}'
           BASE_URL=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].BaseUrl' cdk.out/cdk-outputs-oidc-provider.json)
           USERS_TABLE=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].UsersTableName' cdk.out/cdk-outputs-oidc-provider.json)
+          COGNITO_DOMAIN=$(jq -r '.["CognitoStack-'${ENV_NAME}'"].CognitoAuthDomain' cdk.out/cdk-outputs-cognito.json)
+          COGNITO_CLIENT_ID=$(jq -r '.["CognitoStack-'${ENV_NAME}'"].UserPoolClientId' cdk.out/cdk-outputs-cognito.json)
+          echo "ENV_NAME=$ENV_NAME"
+          echo "BASE_URL=$BASE_URL"
+          echo "USERS_TABLE=$USERS_TABLE"
+          echo "COGNITO_DOMAIN=$COGNITO_DOMAIN"
+          echo "COGNITO_CLIENT_ID=$COGNITO_CLIENT_ID"
+          echo "ENV_NAME=$ENV_NAME" >> $GITHUB_OUTPUT
           echo "BASE_URL=$BASE_URL" >> $GITHUB_OUTPUT
           echo "USERS_TABLE=$USERS_TABLE" >> $GITHUB_OUTPUT
-          echo "Base URL: $BASE_URL"
-          echo "Users Table: $USERS_TABLE"
+          echo "COGNITO_DOMAIN=$COGNITO_DOMAIN" >> $GITHUB_OUTPUT
+          echo "COGNITO_CLIENT_ID=$COGNITO_CLIENT_ID" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Wait 30 seconds for CloudFront distribution testing
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
+        id: setup-cloudfront-tests
+        run: sleep 30
+
+      - name: Web bucket default behavior
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
+        run: curl --include --request GET "${{ steps.oidc-outputs.outputs.BASE_URL }}/"
+
+      - name: Web bucket file behavior
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
+        run: curl --include --request GET "${{ steps.oidc-outputs.outputs.BASE_URL }}/post-auth.html"
+
+      - name: Well-known endpoint behavior
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
+        run: curl --include --request GET "${{ steps.oidc-outputs.outputs.BASE_URL }}/.well-known/openid-configuration"
+
+      - name: Well-known JWKS behavior
+        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
+        run: curl --include --request GET "${{ steps.oidc-outputs.outputs.BASE_URL }}/jwks"
 
       - name: Provision test user
         if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
@@ -242,50 +277,6 @@ jobs:
             exit 1
           fi
 
-      - name: Deploy Cognito Stack (CDK)
-        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
-        run: |
-          npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk deploy CognitoStack-${ENV_NAME} --exclusively --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-cognito.json
-
-      - name: Resolve BASE_URL and Cognito outputs
-        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
-        id: out
-        run: |
-          ENV_NAME='${{ env.ENV_NAME }}'
-          BASE=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].BaseUrl' cdk.out/cdk-outputs-oidc-provider.json)
-          COGD=$(jq -r '.["CognitoStack-'${ENV_NAME}'"].CognitoAuthDomain' cdk.out/cdk-outputs-cognito.json)
-          CLID=$(jq -r '.["CognitoStack-'${ENV_NAME}'"].UserPoolClientId' cdk.out/cdk-outputs-cognito.json)
-          echo "BASE_URL=$BASE" >> $GITHUB_OUTPUT
-          echo "COGNITO_DOMAIN=$COGD" >> $GITHUB_OUTPUT
-          echo "COGNITO_CLIENT_ID=$CLID" >> $GITHUB_OUTPUT
-        shell: bash
-
-      - name: Setup CloudFront distribution testing
-        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
-        id: setup-cloudfront-tests
-        run: |
-          ENV_NAME='${{ env.ENV_NAME }}'
-          BASE_URL=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].BaseUrl' cdk.out/cdk-outputs-oidc-provider.json)
-          echo "BASE_URL=$BASE_URL" >> $GITHUB_OUTPUT
-          echo "$BASE_URL"
-          sleep 30
-
-      - name: Web bucket default behavior
-        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
-        run: curl --include --request GET "${{ steps.setup-cloudfront-tests.outputs.BASE_URL }}/"
-
-      - name: Web bucket file behavior
-        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
-        run: curl --include --request GET "${{ steps.setup-cloudfront-tests.outputs.BASE_URL }}/post-auth.html"
-
-      - name: Well-known endpoint behavior
-        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
-        run: curl --include --request GET "${{ steps.setup-cloudfront-tests.outputs.BASE_URL }}/.well-known/openid-configuration"
-
-      - name: Well-known JWKS behavior
-        if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
-        run: curl --include --request GET "${{ steps.setup-cloudfront-tests.outputs.BASE_URL }}/jwks"
-
       - name: Install dependencies and Playwright browsers
         if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
         run: |
@@ -297,12 +288,10 @@ jobs:
       - name: Run Playwright behaviour tests
         if: ${{ inputs.testOnly != 'true' && github.ref == 'refs/heads/main' }}
         run: |
-          echo "BASE_URL=${{ steps.out.outputs.BASE_URL }}"
-          echo "COGNITO_DOMAIN=${{ steps.out.outputs.COGNITO_DOMAIN }}"
-          echo "COGNITO_CLIENT_ID=${{ steps.out.outputs.COGNITO_CLIENT_ID }}"
-          BASE_URL='${{ steps.out.outputs.BASE_URL }}' \
-          COGNITO_DOMAIN='${{ steps.out.outputs.COGNITO_DOMAIN }}' \
-          COGNITO_CLIENT_ID='${{ steps.out.outputs.COGNITO_CLIENT_ID }}' \
+          echo "COGNITO_DOMAIN=${{ steps.oidc-outputs.outputs.COGNITO_DOMAIN }}"
+          echo "COGNITO_CLIENT_ID=${{ steps.oidc-outputs.outputs.COGNITO_CLIENT_ID }}"
+          COGNITO_DOMAIN='${{ steps.oidc-outputs.outputs.COGNITO_DOMAIN }}' \
+          COGNITO_CLIENT_ID='${{ steps.oidc-outputs.outputs.COGNITO_CLIENT_ID }}' \
           npx playwright test --project=chromium
 
       - name: Upload artifacts (report, trace, screenshots, videos)

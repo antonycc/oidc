@@ -54,6 +54,7 @@ class SynthTest {
                 .authCertificateArn("arn:aws:acm:us-east-1:123456789012:certificate/xyz")
                 .hostedZoneName("example.com")
                 .hostedZoneId("Z000EXAMPLE")
+                .cloudFrontHostedZoneId("Z2FDTNDATAQYW2")
                 .build());
 
     StageSynthesisOptions options = StageSynthesisOptions.builder()

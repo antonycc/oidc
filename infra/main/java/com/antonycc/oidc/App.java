@@ -17,6 +17,7 @@ public class App {
     String authCertificateArn =
           System.getenv()
                   .getOrDefault("AUTH_CERTIFICATE_ARN", "arn:aws:acm:us-east-1:123456789012:certificate/xyz");
+    String cloudFrontHostedZoneId = System.getenv().getOrDefault("CLOUDFRONT_HOSTED_ZONE_ID", "Z2FDTNDATAQYW2");
 
     Environment env =
         Environment.builder()
@@ -66,6 +67,7 @@ public class App {
                 .authCertificateArn(authCertificateArn)
                 .hostedZoneName(hostedZoneName)
                 .hostedZoneId(hostedZoneId)
+                .cloudFrontHostedZoneId(cloudFrontHostedZoneId)
                 .build());
 
     providerStack.addDependency(observabilityStack);

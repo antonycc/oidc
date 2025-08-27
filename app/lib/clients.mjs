@@ -3,12 +3,17 @@
 
 const log = (...a) => console.log(JSON.stringify({ level: "info", ts: new Date().toISOString(), msg: a.join(" ") }));
 
+// Get the actual Cognito domain from environment variable, fallback to placeholder
+const getCognitoDomain = () => {
+  return process.env.COGNITO_DOMAIN || "YOUR_COGNITO_DOMAIN.auth.us-east-1.amazoncognito.com";
+};
+
 export const clients = {
   "cognito-web": {
-    // This will be replaced with actual Cognito domain during deployment
-    redirectUris: [
-      "https://YOUR_COGNITO_DOMAIN.auth.us-east-1.amazoncognito.com/oauth2/idpresponse"
-    ],
+    // Use environment variable or placeholder for Cognito domain
+    get redirectUris() {
+      return [`https://${getCognitoDomain()}/oauth2/idpresponse`];
+    },
     grantTypes: ["authorization_code"],
     scopes: ["openid", "email", "profile"],
     pkceRequired: true,

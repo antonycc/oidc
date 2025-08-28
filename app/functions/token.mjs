@@ -2,7 +2,26 @@ import * as crypto from "node:crypto";
 import { get, conditionalDelete, put, update, tables } from "../lib/db.mjs";
 import { signJwt } from "../lib/crypto.mjs";
 import { validateClientAuth } from "../lib/clients.mjs";
-const log = (...a) => console.log(JSON.stringify({ level: "info", ts: new Date().toISOString(), msg: a.join(" ") }));
+const safeStringify = (val) => {
+  try {
+    if (val instanceof Error) {
+      return JSON.stringify({ name: val.name, message: val.message, stack: val.stack });
+    }
+    if (typeof val === "object") {
+      return JSON.stringify(val);
+    }
+    return String(val);
+  } catch {
+    return String(val);
+  }
+};
+const log = (...a) => console.log(JSON.stringify({ level: "info", ts: new Date().toISOString(), msg: a.map(safeStringify).join(" ") }));
+const logError = (msg, err, extra) => {
+  const payload = { level: "error", ts: new Date().toISOString(), msg: safeStringify(msg) };
+  if (err) payload.err = err instanceof Error ? { name: err.name, message: err.message, stack: err.stack } : err;
+  if (extra !== undefined) payload.extra = extra;
+  console.error(JSON.stringify(payload));
+};
 
 function parseFormBody(event) {
   try {
@@ -109,6 +128,7 @@ export const handler = async (event) => {
 
     // Add user claims if available and scope permits
     if (process.env.USERS_TABLE && tables.users) {
+      log("looking_up_user_claims", sub);
       try {
         const userRecord = await get(tables.users, { username: sub });
         if (userRecord.Item) {
@@ -130,7 +150,7 @@ export const handler = async (event) => {
           log("user_claims_added", "scopes:", scopes.join(","));
         }
       } catch (dbError) {
-        log("user_lookup_failed", dbError.message);
+        log("user_lookup_failed", dbError);
         // Continue without user claims if lookup fails
       }
     }
@@ -141,7 +161,7 @@ export const handler = async (event) => {
     log("token_issued", sub);
     return json(200, { id_token, access_token, token_type: "Bearer", expires_in: 300 });
   } catch (e) {
-    console.error("token_error", e);
+    logError("token_error", e);
     return json(500, { error: "server_error" });
   }
 };

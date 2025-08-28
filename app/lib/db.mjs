@@ -100,7 +100,9 @@ export const conditionalDelete = (TableName, Key, ConditionExpression, Expressio
     store.delete(keyString(Key));
     return Promise.resolve({});
   }
-  return ddb.send(
-    new DeleteCommand({ TableName, Key, ConditionExpression, ExpressionAttributeValues })
-  );
+  const input = { TableName, Key, ConditionExpression };
+  if (ExpressionAttributeValues && Object.keys(ExpressionAttributeValues).length > 0) {
+    input.ExpressionAttributeValues = ExpressionAttributeValues;
+  }
+  return ddb.send(new DeleteCommand(input));
 };

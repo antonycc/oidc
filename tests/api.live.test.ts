@@ -79,16 +79,12 @@ test("live API: authorize -> token -> userinfo", async ({ page }) => {
   }
 
   let authorizeRes = await tryAuthorize(TEST_PASSWORD);
-  if (authorizeRes.status() === 401) {
-    // Fallback to commonly used demo password if secret password is not provisioned in live env
-    authorizeRes = await tryAuthorize("Passw0rd!");
-  }
+  const authorizeResStatus = authorizeRes.status();
 
   // Accept either 302 with Location header or final 200 at redirect URI
-  const status = authorizeRes.status();
-  if (![200, 302].includes(status)) {
+  if (![200, 302].includes(authorizeResStatus)) {
     const bodyText = await authorizeRes.text();
-    throw new Error(`Authorize unexpected status ${status}. Body: ${bodyText}`);
+    throw new Error(`Authorize unexpected status ${authorizeResStatus}. Body: ${bodyText}`);
   }
 
   const location = authorizeRes.headers()["location"]; // when 302
@@ -112,44 +108,14 @@ test("live API: authorize -> token -> userinfo", async ({ page }) => {
       code_verifier,
     },
   });
+  const tokenResStatus = tokenRes.status();
   const tokenText = await tokenRes.text();
   let tokenJson: any | null = null;
-  if (tokenRes.status() !== 200) {
-    // Fallback: some environments base64-encode or drop form bodies; use browser page to do the exchange
-    if (tokenText.includes("unsupported_grant_type")) {
-      await page.addInitScript(({ state, code_verifier, client_id, redirect_uri }) => {
-        try {
-          const key = "pkce:" + state;
-          const value = JSON.stringify({ code_verifier, client_id, redirect_uri });
-          sessionStorage.setItem(key, value);
-        } catch (e) {
-          console.warn("Failed to set sessionStorage PKCE:", e);
-        }
-      }, { state, code_verifier, client_id, redirect_uri });
-
-      await page.goto(finalUrl);
-      await page.getByText(/Token exchange/).waitFor({ timeout: 20000 });
-      const resultText = await page.locator('#result').textContent();
-      try {
-        tokenJson = resultText ? JSON.parse(resultText) : null;
-      } catch {
-        tokenJson = null;
-      }
-      if (!tokenJson || !tokenJson.id_token || !tokenJson.access_token) {
-        console.warn(`[DEBUG_LOG] Fallback token exchange failed. Status ${tokenRes.status()} body: ${tokenText}`);
-        // Known live issue: skip remainder to keep pipeline green until deployment includes body decoding fix
-        return;
-      }
-    } else {
-      // If it's not the known live issue, assert 200 to surface real failures
-      expect(tokenRes.status(), `Token status ${tokenRes.status()} body: ${tokenText}`).toBe(200);
-    }
-  } else {
-    try {
-      tokenJson = JSON.parse(tokenText);
-    } catch {
-      throw new Error("Token response not JSON: " + tokenText);
-    }
+  expect(tokenResStatus, `Token status ${tokenRes.status()} body: ${tokenText}`).toBe(200);
+  try {
+    tokenJson = JSON.parse(tokenText);
+  } catch {
+    throw new Error("Token response not JSON: " + tokenText);
   }
 
   // If unsupported_grant_type was returned and browser fallback failed, mark test as skipped for current live env

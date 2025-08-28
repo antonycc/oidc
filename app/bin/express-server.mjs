@@ -1,6 +1,6 @@
 import express from "express";
 
-// Build an API Gateway v2 HTTP event from Express request
+// Build an AWS Lambda Function URL style HTTP event from Express request
 function toEvent(req) {
   const url = new URL(req.originalUrl || req.url, `http://localhost:${req.socket.localPort || 0}`);
   const headers = {};
@@ -19,13 +19,49 @@ function toEvent(req) {
     body = req.rawBody;
   }
 
+  // Cookies array (Lambda URLs expose cookies separately)
+  const cookies = [];
+  const cookieHeader = headers["cookie"];
+  if (cookieHeader && typeof cookieHeader === "string") {
+    for (const c of cookieHeader.split(";")) {
+      const trimmed = c.trim();
+      if (trimmed) cookies.push(trimmed);
+    }
+  }
+
+  // Query string parameters map (optional but common in events)
+  const rawQueryString = url.search ? url.search.slice(1) : "";
+  const query = rawQueryString ? Object.fromEntries(new URLSearchParams(rawQueryString).entries()) : null;
+
+  // requestContext additions for Lambda Function URL parity
+  const host = (headers["x-forwarded-host"] || headers["host"] || "localhost").toString();
+  const hostname = host.split(",")[0].trim();
+  const domainName = hostname;
+  const domainPrefix = domainName.includes(".") ? domainName.split(".")[0] : domainName;
+  const now = Date.now();
+
   return {
     version: "2.0",
-    routeKey: `${req.method} ${url.pathname}`,
     rawPath: url.pathname,
-    rawQueryString: url.search ? url.search.slice(1) : "",
+    rawQueryString,
     headers,
-    requestContext: { http: { method: req.method, path: url.pathname, protocol: "HTTP/1.1", sourceIp: "127.0.0.1" } },
+    ...(cookies.length ? { cookies } : {}),
+    ...(query ? { queryStringParameters: query } : { queryStringParameters: null }),
+    requestContext: {
+      routeKey: "$default",
+      stage: "$default",
+      domainName,
+      domainPrefix,
+      time: new Date(now).toISOString().replace("T", " ").replace("Z", ""),
+      timeEpoch: now,
+      http: {
+        method: req.method,
+        path: url.pathname,
+        protocol: "HTTP/1.1",
+        sourceIp: "127.0.0.1",
+        userAgent: headers["user-agent"] || "",
+      },
+    },
     isBase64Encoded: false,
     body,
   };

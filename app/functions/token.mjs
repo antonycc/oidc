@@ -44,7 +44,8 @@ export const handler = async (event) => {
 
     const clientId = body.get("client_id");
     const redirectUri = body.get("redirect_uri");
-    
+
+    log("token_request", clientId, redirectUri, code ? `has_code: ${code}` : "no_code", verifier ? `has_verifier: ${verifier}` : "no_verifier");
     if (!code || !verifier || !clientId || !redirectUri) return json(400, { error: "invalid_request" });
 
     // Validate client authentication (for public clients, no secret needed)
@@ -54,6 +55,7 @@ export const handler = async (event) => {
     }
 
     const row = await get(tables.codes, { code });
+    log("token_request_validation row for code", row, code);
     if (!row.Item) return json(400, { error: "invalid_grant" });
 
     const now = Math.floor(Date.now() / 1000);
@@ -79,6 +81,7 @@ export const handler = async (event) => {
     if (expect !== row.Item.ch) return json(400, { error: "invalid_grant" });
 
     // Use conditional delete to ensure one-time use
+    log("token_request_validated", clientId, row, code);
     try {
       await conditionalDelete(tables.codes, { code }, "attribute_exists(code)");
     } catch (error) {

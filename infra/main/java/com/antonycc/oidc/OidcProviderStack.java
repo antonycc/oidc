@@ -215,6 +215,8 @@ public class OidcProviderStack extends Stack {
     additionalOriginsBehaviourMappings.put("/token", this.tokenEndpoint.behaviorOptions);
     this.authCodesTable.grantReadWriteData(this.tokenEndpoint.function);
     this.refreshTokensTable.grantReadWriteData(this.tokenEndpoint.function);
+    // Allow token Lambda to read user records for ID token claims
+    this.usersTable.grantReadData(this.tokenEndpoint.function);
 
     // UserInfo endpoint via construct
     this.userinfoEndpoint = new OidcEndpointFunction(

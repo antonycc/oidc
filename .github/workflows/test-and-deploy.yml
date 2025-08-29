@@ -1,5 +1,7 @@
 name: test-and-deploy
-concurrency: "test-and-deploy-${{ github.ref_name }}"
+concurrency:
+    group: "test-and-deploy-${{ github.ref_name }}"
+    cancel-in-progress: true
 
 on:
   workflow_dispatch:
@@ -250,7 +252,3 @@ jobs:
           path: |
             playwright-report
             test-results
-
-      - name: Destroy ephemeral OIDC stack
-        if: ${{ inputs.skipDeploy != 'true' && env.DEPLOYMENT_NAME != 'prod' && env.DEPLOYMENT_NAME != 'ci' }}
-        run: npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk destroy OidcProviderStack-${DEPLOYMENT_NAME} --exclusively --force

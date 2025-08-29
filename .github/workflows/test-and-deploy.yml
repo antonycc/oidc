@@ -14,19 +14,7 @@ on:
         default: ''
   push:
     branches:
-      - '.github/**'
-      - 'app/**'
-      - 'infra/**'
-      - 'tests/**'
-      - 'web/**'
-      - 'well-known/**'
-      - '.env.ci'
-      - '.env.prod'
-      - 'cdk.json'
-      - 'Dockerfile'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'pom.xml'
+      - '**'
       - '!gh_pages'
     paths:
       - '.github/**'
@@ -158,7 +146,7 @@ jobs:
 
       # Only deploy from main
       - name: Deploy OIDC Observability Stack (CDK)
-        if: ${{ inputs.skipDeploy != 'true' && (env.ENV_NAME == 'prod' || (env.ENV_NAME == 'ci' && env.DEPLOYMENT_NAME == 'ci')) }}
+        if: ${{ inputs.skipDeploy != 'true' }}
         run: |
           npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk deploy ObservabilityStack-${ENV_NAME} --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-observability.json
 
@@ -168,7 +156,7 @@ jobs:
           npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk deploy OidcProviderStack-${DEPLOYMENT_NAME} --exclusively --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-oidc-provider.json
 
       - name: Deploy Cognito Stack (CDK)
-        if: ${{ inputs.skipDeploy != 'true' && (env.ENV_NAME == 'prod' || (env.ENV_NAME == 'ci' && env.DEPLOYMENT_NAME == 'ci')) }}
+        if: ${{ inputs.skipDeploy != 'true' }}
         run: |
           npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk deploy CognitoStack-${ENV_NAME} --exclusively --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-cognito.json
 

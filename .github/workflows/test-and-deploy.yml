@@ -103,6 +103,12 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
+      - name: Verify Node environment
+        run: |
+          echo "Node version: $(node --version)"
+          echo "NPM version: $(npm --version)"
+          echo "Expected Node version: ${{ env.NODE_VERSION }}"
+
       - name: Node test
         run: npm ci && npm test
 
@@ -111,6 +117,12 @@ jobs:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
           cache: 'maven'
+
+      - name: Verify Java environment
+        run: |
+          echo "Java version: $(java -version 2>&1 | head -1)"
+          echo "JAVA_HOME: $JAVA_HOME"
+          echo "Expected Java version: ${{ env.JAVA_VERSION }}"
 
       - name: Configure AWS creds via OIDC
         if: ${{ inputs.skipDeploy != 'true' }}

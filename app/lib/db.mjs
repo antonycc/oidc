@@ -51,7 +51,7 @@ export const get = (TableName, Key) => {
     const Item = store.get(keyString(Key));
     return Promise.resolve({ Item });
   }
-  return ddb.send(new GetCommand({ TableName, Key }));
+  return ddb.send(new GetCommand({ TableName, Key, ConsistentRead: true }));
 };
 
 export const del = (TableName, Key) => {

@@ -39,12 +39,16 @@ async function saveToStore() {
   }
 }
 
-export async function ensureKeys() {
-  if (jwkPrivate && jwkPublic) return;
+export async function ensureKeys(generateIfMissing = true) {
+  if (jwkPrivate && jwkPublic) return true;
   
   // Try to load existing keys from store
-  if (await loadFromStore()) return;
+  if (await loadFromStore()) return true;
   
+  if (!generateIfMissing) {
+    // Do not generate keys in verifier contexts to avoid cross-function key mismatches
+    return false;
+  }
   // Generate new keys if none exist
   log("generating_new_keys");
   const { privateKey, publicKey } = await jose.generateKeyPair("RS256", { modulusLength: 2048 });
@@ -59,18 +63,23 @@ export async function ensureKeys() {
   
   // Save keys to store for future use
   await saveToStore();
+  return true;
 }
 
 export async function signJwt(payload) {
-  await ensureKeys();
+  const ok = await ensureKeys(true);
+  if (!ok) throw new Error("signJwt: failed to ensure keys");
   const key = await jose.importJWK(jwkPrivate, "RS256");
   return await new jose.SignJWT(payload).setProtectedHeader({ alg: "RS256", kid }).sign(key);
 }
 
 export async function publicJwks() {
-  await ensureKeys();
+  await ensureKeys(true);
   return { keys: [jwkPublic] };
 }
+
+let remoteJwkSet; // cached RemoteJWKSet function
+let remoteJwksUrl; // cached URL string used to build RemoteJWKSet
 
 /**
  * Verify and decode a JWT token
@@ -78,16 +87,38 @@ export async function publicJwks() {
  * @returns {object|null} Decoded payload or null if invalid
  */
 export async function verifyJwt(token) {
+  const issuer = process.env.ISSUER;
   try {
-    await ensureKeys();
-    const key = await jose.importJWK(jwkPublic, "RS256");
-    const { payload } = await jose.jwtVerify(token, key, {
-      issuer: process.env.ISSUER,
-      algorithms: ["RS256"]
+    // Attempt local key verification first (no key generation in verifier)
+    const haveKeys = await ensureKeys(false);
+    if (haveKeys) {
+      const key = await jose.importJWK(jwkPublic, "RS256");
+      const { payload } = await jose.jwtVerify(token, key, {
+        issuer,
+        algorithms: ["RS256"],
+      });
+      return payload;
+    }
+  } catch (e) {
+    // Fall through to remote JWKS verification
+    console.warn("local_jwk_verification_failed", e?.message || String(e));
+  }
+
+  // Remote JWKS fallback
+  try {
+    if (!issuer) throw new Error("ISSUER is not configured");
+    const url = new URL("/jwks", issuer).toString();
+    if (!remoteJwkSet || remoteJwksUrl !== url) {
+      remoteJwkSet = jose.createRemoteJWKSet(new URL(url));
+      remoteJwksUrl = url;
+    }
+    const { payload } = await jose.jwtVerify(token, remoteJwkSet, {
+      issuer,
+      algorithms: ["RS256"],
     });
     return payload;
   } catch (error) {
-    console.error("jwt_verification_failed", error.message);
+    console.error("jwt_verification_failed", error.message || String(error));
     return null;
   }
 }

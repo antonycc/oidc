@@ -10,7 +10,19 @@ on:
         default: 'false'
   push:
     branches:
-      - '**'
+      - '.github/**'
+      - 'app/**'
+      - 'infra/**'
+      - 'tests/**'
+      - 'web/**'
+      - 'well-known/**'
+      - '.env.ci'
+      - '.env.prod'
+      - 'cdk.json'
+      - 'Dockerfile'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'pom.xml'
       - '!gh_pages'
   schedule:
     - cron: '23 4 * * *'

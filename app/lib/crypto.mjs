@@ -39,12 +39,16 @@ async function saveToStore() {
   }
 }
 
-export async function ensureKeys() {
-  if (jwkPrivate && jwkPublic) return;
+export async function ensureKeys(generateIfMissing = true) {
+  if (jwkPrivate && jwkPublic) return true;
   
   // Try to load existing keys from store
-  if (await loadFromStore()) return;
+  if (await loadFromStore()) return true;
   
+  if (!generateIfMissing) {
+    // Do not generate keys in verifier contexts to avoid cross-function key mismatches
+    return false;
+  }
   // Generate new keys if none exist
   log("generating_new_keys");
   const { privateKey, publicKey } = await jose.generateKeyPair("RS256", { modulusLength: 2048 });
@@ -59,16 +63,18 @@ export async function ensureKeys() {
   
   // Save keys to store for future use
   await saveToStore();
+  return true;
 }
 
 export async function signJwt(payload) {
-  await ensureKeys();
+  const ok = await ensureKeys(true);
+  if (!ok) throw new Error("signJwt: failed to ensure keys");
   const key = await jose.importJWK(jwkPrivate, "RS256");
   return await new jose.SignJWT(payload).setProtectedHeader({ alg: "RS256", kid }).sign(key);
 }
 
 export async function publicJwks() {
-  await ensureKeys();
+  await ensureKeys(true);
   return { keys: [jwkPublic] };
 }
 
@@ -79,7 +85,8 @@ export async function publicJwks() {
  */
 export async function verifyJwt(token) {
   try {
-    await ensureKeys();
+    const ok = await ensureKeys(false);
+    if (!ok) return null;
     const key = await jose.importJWK(jwkPublic, "RS256");
     const { payload } = await jose.jwtVerify(token, key, {
       issuer: process.env.ISSUER,

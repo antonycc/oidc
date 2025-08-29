@@ -92,7 +92,11 @@ describe("system: express server authorize -> token -> userinfo", () => {
     expect(tokenJson.id_token).toBeTruthy();
     expect(tokenJson.access_token).toBeTruthy();
 
-    // Step 3: /userinfo
+    // Ensure access_token is a JWT (three segments)
+    const parts = String(tokenJson.access_token).split(".");
+    expect(parts.length).toBe(3);
+
+    // Step 3: /userinfo (valid token)
     const uiRes = await fetch(new URL("/userinfo", BASE_URL), {
       headers: { authorization: `Bearer ${tokenJson.access_token}` },
     });
@@ -100,5 +104,14 @@ describe("system: express server authorize -> token -> userinfo", () => {
     expect(uiRes.status, `userinfo body: ${uiText}`).toBe(200);
     const claims = JSON.parse(uiText);
     expect(claims.sub).toBeTruthy();
+
+    // Step 3b: /userinfo with tampered token should be rejected
+    const tamperedSigChar = parts[2].slice(-1) === "A" ? "B" : "A";
+    const badToken = `${parts[0]}.${parts[1]}.${parts[2].slice(0, -1)}${tamperedSigChar}`;
+    const badRes = await fetch(new URL("/userinfo", BASE_URL), {
+      headers: { authorization: `Bearer ${badToken}` },
+    });
+    const badText = await badRes.text();
+    expect(badRes.status, `tampered userinfo body: ${badText}`).toBe(401);
   });
 });

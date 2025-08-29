@@ -90,7 +90,9 @@ public class OidcEndpointFunction extends Construct {
           "OTEL_LOGS_EXPORTER", "otlp",                      // explicit logs exporter (reduces startup noise)
           "OTEL_TRACES_SAMPLER", "parentbased_traceidratio", // optional
           "OTEL_TRACES_SAMPLER_ARG", "1.0",                  // 100% sampling as requested
-          "OTEL_NODE_DISABLED_INSTRUMENTATIONS", "none"      // enable all Node libs (cold-start tradeoff)
+          "OTEL_NODE_DISABLED_INSTRUMENTATIONS", "none",     // enable all Node libs (cold-start tradeoff)
+          "OTEL_LOG_LEVEL", "error",                         // suppress OTEL internal debug/info logs
+          "NODE_NO_WARNINGS", "1"                            // suppress Node.js warnings (experimental loader, deprecation)
     );
     environment.putAll(otelEnv);
 

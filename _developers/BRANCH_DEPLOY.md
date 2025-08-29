@@ -10,7 +10,7 @@ for physical names such as domain names and table names. Clean the deployment
 name to be suitable for all these occasions. If 16 characters is not feasible
 anywhere use 8 but if it's just a couple of small spots, use a mechanism to
 truncate without likely clashes. With the ci deployments in place, remove the
-conditions around the behaviour tests and make sure sure that where there are 
+conditions around the behavior tests and make sure that where there are 
 URLs the endpoints hit are the ones for that specific stack. Also also a deployment 
 name to be added as a parameter which would deploy all 3 stacks using that name. After
  all the test steps have run and passed and as long as the deployment wasn't skipped 

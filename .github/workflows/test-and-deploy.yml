@@ -14,6 +14,9 @@ on:
         default: ''
   push:
     branches:
+      - '**'
+      - '!gh_pages'
+    paths:
       - '.github/**'
       - 'app/**'
       - 'infra/**'
@@ -27,7 +30,6 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'pom.xml'
-      - '!gh_pages'
   schedule:
     - cron: '23 4 * * *'
 

@@ -10,6 +10,7 @@ import software.amazon.awscdk.services.xray.CfnGroup;
 public class OidcProviderStackProps implements StackProps {
   public final Environment env;
   public final String envName;
+  public final String deploymentName;
   public final String hostedZoneName;
   public final String hostedZoneId;
   public final String domainName;
@@ -23,6 +24,7 @@ public class OidcProviderStackProps implements StackProps {
   private OidcProviderStackProps(Builder builder) {
     this.env = builder.env;
     this.envName = builder.envName;
+    this.deploymentName = builder.deploymentName;
     this.hostedZoneName = builder.hostedZoneName;
     this.hostedZoneId = builder.hostedZoneId;
     this.domainName = builder.domainName;
@@ -46,6 +48,7 @@ public class OidcProviderStackProps implements StackProps {
   public static class Builder {
     private Environment env;
     private String envName;
+    private String deploymentName;
     private String hostedZoneName;
     private String hostedZoneId;
     private String domainName;
@@ -63,6 +66,11 @@ public class OidcProviderStackProps implements StackProps {
 
     public Builder envName(String envName) {
       this.envName = envName;
+      return this;
+    }
+
+    public Builder deploymentName(String deploymentName) {
+      this.deploymentName = deploymentName;
       return this;
     }
 

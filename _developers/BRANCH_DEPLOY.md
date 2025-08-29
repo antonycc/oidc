@@ -2,7 +2,7 @@ Chat GPT prompt
 ```
 Please make a detailed plan of the changes required so that when the repository 
 https://github.com/antonycc/oidc is running `.github/workflows/test-and-deploy.yml`
-in a branch other than `main`, instead not deploying the whole thing is deployed to a 
+in a branch other than `main`, instead of not deploying, the whole thing is deployed to a 
 ci stack with there being just 1 ci version of cognito and observability but an
 oidcprovider stack per branch named along the lines of ci-<16 chars of branch name> 
 and use this name the stack name and all the cloudformation resource names and

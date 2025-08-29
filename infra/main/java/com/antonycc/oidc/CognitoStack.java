@@ -33,7 +33,7 @@ public class CognitoStack extends Stack {
 
     String domainName = props.domainName;
     String baseUrl = "https://" + domainName;
-    String cognitoDomainName = props.cognitoDomainPrefix + "." + domainName;
+    String cognitoDomainName = props.authDomainName;
     // String dashedDomainName = domainName.replace('.', '-');
     String dashedCognitoDomainName = cognitoDomainName.replace('.', '-');
 

@@ -87,9 +87,9 @@ C) Behaviour tests (Playwright)
 
 D) Provisioning test data
 - Provision a local test user in the DynamoDB table used by app/oidc:
-  npm run provision:user <username> <password>
+  npm run users:provision <username> <password>
 - Clear users:
-  npm run clear:users
+  npm run users:clear
 - Notes: These scripts expect USERS_TABLE to be set and valid AWS credentials/region. CI sets USERS_TABLE; set it locally to target your environment.
 
 Additional development notes

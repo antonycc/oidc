@@ -118,11 +118,6 @@ test("live API: authorize -> token -> userinfo", async ({ page }) => {
     throw new Error("Token response not JSON: " + tokenText);
   }
 
-  // If unsupported_grant_type was returned and browser fallback failed, mark test as skipped for current live env
-  if (!tokenJson) {
-    test.skip(true, "Live /token returned unsupported_grant_type and fallback failed; skipping until deployment includes body decoding fix");
-  }
-
   expect.soft(tokenJson!.id_token).toBeTruthy();
   expect.soft(tokenJson!.access_token).toBeTruthy();
 
@@ -133,7 +128,8 @@ test("live API: authorize -> token -> userinfo", async ({ page }) => {
     headers: { authorization: `Bearer ${tokenJson!.access_token}` },
   });
   const userinfoText = await userinfoRes.text();
-  expect(userinfoRes.status(), `Userinfo status ${userinfoRes.status()} body: ${userinfoText}`).toBe(200);
+  const userinfoResStatus = userinfoRes.status();
+  expect(userinfoResStatus, `Userinfo status ${userinfoRes.status()} body: ${userinfoText}`).toBe(200);
   let claims: any;
   try {
     claims = JSON.parse(userinfoText);

@@ -352,10 +352,10 @@ Users are stored in DynamoDB (`Users` table). CI calls:
 
 ```bash
 # Create a test user (defaults shown)
-USERS_TABLE=<UsersTableName> npm run provision:user test-user Passw0rd!
+USERS_TABLE=<UsersTableName> npm run users:provision test-user Passw0rd!
 
 # Clear all users
-USERS_TABLE=<UsersTableName> npm run clear:users
+USERS_TABLE=<UsersTableName> npm run users:clear
 ```
 
 ---
@@ -477,7 +477,7 @@ Lambda Node 22, Function URLs, and CloudFront origins are standard.
 * `./mvnw --errors compile exec:java` → no exceptions.
 * `npx cdk synth` → template appears.
 * `npx cdk deploy` → outputs show `BaseUrl` and Cognito values.
-* `npm run provision:user` → prints `created`.
+* `npm run users:provision` → prints `created`.
 * `BASE_URL=... COGNITO_DOMAIN=... COGNITO_CLIENT_ID=... npx playwright test` → two tests pass.
 * Check **Actions artifacts** for `playwright-report`, `test-results` folders.
 

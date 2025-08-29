@@ -51,8 +51,8 @@
     "test:headed": "npx dotenv -e .env -- playwright test --headed tests/web.live.test.ts",
     "test:api": "npx dotenv -e .env -- playwright test tests/api.live.test.ts",
     "clean": "./scripts/clean-tests.sh",
-    "provision:user": "node app/bin/provision-user.mjs",
-    "clear:users": "node app/bin/clear-users.mjs"
+    "users:provision": "node app/bin/provision-user.mjs",
+    "users:clear": "node app/bin/clear-users.mjs"
   },
   "overrides": {
     "yocto-queue": "^1.0.0",

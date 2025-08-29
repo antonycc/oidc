@@ -14,7 +14,10 @@ A **lightweight, inspectable OIDC provider** designed for developers who need to
 
 1. **Fork this repository** to your GitHub account
 2. **Set up your domain** and AWS credentials (see [Setup](#setup))
-3. **Deploy via GitHub Actions** (pushes to main auto-deploy)
+3. **Deploy via GitHub Actions**:
+   - **Production**: Pushes to `main` branch auto-deploy to `oidc.antonycc.com` / `auth.oidc.antonycc.com`
+   - **CI Testing**: Use manual dispatch with `deploymentName: ci` to deploy to `ci.oidc.antonycc.com` / `ci.auth.oidc.antonycc.com`
+   - **Branch Testing**: Any branch push deploys to `ci-{branch}.oidc.antonycc.com` / `ci-{branch}.auth.oidc.antonycc.com` and auto-cleans up after tests
 4. **Test with included Playwright scenarios** (screenshots, videos, traces)
 
 ## Architecture
@@ -163,6 +166,36 @@ The provider supports two pre-configured clients:
 - Existing Route53 hosted zone for your domain.
 
 **Reference:** [GitHub OIDC with AWS Documentation](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services)
+
+## Deployment Environments
+
+This repository supports three deployment patterns:
+
+### Production (main branch)
+- **Domains**: `oidc.antonycc.com` / `auth.oidc.antonycc.com`
+- **Trigger**: Automatic on push to `main` branch
+- **Infrastructure**: All stacks deployed and persistent
+- **Configuration**: Uses `.env.prod`
+
+### CI (manual dispatch)
+- **Domains**: `ci.oidc.antonycc.com` / `ci.auth.oidc.antonycc.com`
+- **Trigger**: Manual GitHub Actions dispatch with `deploymentName: ci`
+- **Infrastructure**: Shared Observability and Cognito stacks, separate OIDC Provider stack
+- **Configuration**: Uses `.env.ci`
+
+### Branch Testing (any branch)
+- **Domains**: `ci-{branch}.oidc.antonycc.com` / `ci-{branch}.auth.oidc.antonycc.com`
+- **Trigger**: Automatic on push to any branch except `main`
+- **Infrastructure**: Shares CI Observability and Cognito, deploys ephemeral OIDC Provider stack
+- **Cleanup**: OIDC Provider stack automatically destroyed after successful tests
+- **Configuration**: Uses `.env.ci` with dynamic domain computation
+
+### Required Certificates
+For all CI deployments to work, you need wildcard certificates:
+- `*.oidc.antonycc.com` (for OIDC provider endpoints)
+- `*.auth.oidc.antonycc.com` (for Cognito auth endpoints)
+
+Both certificates must be in the `us-east-1` region for CloudFront compatibility.
 
 ---
 

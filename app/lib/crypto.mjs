@@ -101,7 +101,7 @@ export async function verifyJwt(token) {
     }
   } catch (e) {
     // Fall through to remote JWKS verification
-    console.warn("local_jwk_verification_failed", e?.message || String(e));
+    log("local_jwk_verification_failed", e?.message || String(e));
   }
 
   // Remote JWKS fallback

@@ -76,9 +76,9 @@ public class OidcProviderStack extends Stack {
 
     var additionalOriginsBehaviourMappings = new HashMap<String, BehaviorOptions>();
     
-    // Generate predictable resource name prefix based on domain and environment
-    String resourceNamePrefix = generateResourceNamePrefix(props.domainName, props.envName);
-    String compressedResourceNamePrefix = generateCompressedResourceNamePrefix(props.domainName, props.envName);
+    // Generate predictable resource name prefix based on domain and deployment name
+    String resourceNamePrefix = generateResourceNamePrefix(props.domainName, props.deploymentName);
+    String compressedResourceNamePrefix = generateCompressedResourceNamePrefix(props.domainName, props.deploymentName);
 
     // Use observability resources from the passed props
     this.logsBucket = props.logsBucket;
@@ -180,7 +180,7 @@ public class OidcProviderStack extends Stack {
         this,
         resourceNamePrefix + "-AuthorizeEndpoint",
         OidcEndpointFunctionProps.builder()
-            .functionName(resourceNamePrefix + "-authorize")
+            .functionName(compressedResourceNamePrefix + "-authorize")
             .dockerfilePath("infra/runtimes/authorize.Dockerfile")
             .cmd(List.of("app/functions/authorize.handler"))
             .pathPattern("/authorize")
@@ -200,7 +200,7 @@ public class OidcProviderStack extends Stack {
         this,
         resourceNamePrefix + "-TokenEndpoint",
         OidcEndpointFunctionProps.builder()
-            .functionName(resourceNamePrefix + "-token")
+            .functionName(compressedResourceNamePrefix + "-token")
             .dockerfilePath("infra/runtimes/token.Dockerfile")
             .cmd(List.of("app/functions/token.handler"))
             .pathPattern("/token")
@@ -223,7 +223,7 @@ public class OidcProviderStack extends Stack {
         this,
         resourceNamePrefix + "-UserInfoEndpoint",
         OidcEndpointFunctionProps.builder()
-            .functionName(resourceNamePrefix + "-userinfo")
+            .functionName(compressedResourceNamePrefix + "-userinfo")
             .dockerfilePath("infra/runtimes/userinfo.Dockerfile")
             .cmd(List.of("app/functions/userinfo.handler"))
             .pathPattern("/userinfo")
@@ -241,7 +241,7 @@ public class OidcProviderStack extends Stack {
         this,
         resourceNamePrefix + "-JwksEndpoint",
         OidcEndpointFunctionProps.builder()
-            .functionName(resourceNamePrefix + "-jwks")
+            .functionName(compressedResourceNamePrefix + "-jwks")
             .dockerfilePath("infra/runtimes/jwks.Dockerfile")
             .cmd(List.of("app/functions/jwks.handler"))
             .pathPattern("/jwks")
@@ -374,36 +374,36 @@ public class OidcProviderStack extends Stack {
   }
 
   /**
-   * Generate a predictable resource name prefix based on domain name and environment.
-   * Converts domain like "oidc.example.com" to "oidc-example-com" and adds environment.
+   * Generate a predictable resource name prefix based on domain name and deployment name.
+   * Converts domain like "oidc.example.com" to "oidc-example-com" and adds deployment name.
    */
-  private static String generateResourceNamePrefix(String domainName, String envName) {
+  private static String generateResourceNamePrefix(String domainName, String deploymentName) {
     String dashedDomainName = domainName.replace('.', '-');
-    return dashedDomainName + "-" + envName;
+    return dashedDomainName + "-" + deploymentName;
   }
 
     /**
-     * Generate a shortened predictable resource name prefix based on domain and environment.
+     * Generate a shortened predictable resource name prefix based on domain and deployment name.
      * Steps:
      * 1. Replace dots with dashes.
      * 2. Split on dashes.
      * 3. Keep segment "oidc" intact; compress all other non-empty segments to their first letter.
-     * 4. Append '-' + environment name (environment kept whole).
+     * 4. Append '-' + deployment name (deployment name kept whole).
      *
      * Examples:
-     *   domain=oidc.example.com, env=dev  -> oidc-e-c-dev
-     *   domain=login.auth.service.example.com, env=prod -> l-a-s-e-c-prod
+     *   domain=oidc.example.com, deployment=dev  -> oidc-e-c-dev
+     *   domain=login.auth.service.example.com, deployment=prod -> l-a-s-e-c-prod
      *
      * @param domainName fully qualified domain name (e.g. "oidc.example.com")
-     * @param envName environment name (e.g. "dev")
+     * @param deploymentName deployment name (e.g. "dev", "ci", "ci-branchname")
      * @return compressed resource name prefix
      */
-    private static String generateCompressedResourceNamePrefix(String domainName, String envName) {
+    private static String generateCompressedResourceNamePrefix(String domainName, String deploymentName) {
         if (domainName == null || domainName.isBlank()) {
             throw new IllegalArgumentException("domainName must be non-empty");
         }
-        if (envName == null || envName.isBlank()) {
-            throw new IllegalArgumentException("envName must be non-empty");
+        if (deploymentName == null || deploymentName.isBlank()) {
+            throw new IllegalArgumentException("deploymentName must be non-empty");
         }
 
         String dashed = domainName.replace('.', '-').toLowerCase();
@@ -422,7 +422,7 @@ public class OidcProviderStack extends Stack {
                 sb.append(part.charAt(0));
             }
         }
-        sb.append('-').append(envName);
+        sb.append('-').append(deploymentName);
         return sb.toString();
     }
 }

@@ -133,6 +133,18 @@ export async function start({ port = 0, staticDir = "web", env = {} } = {}) {
     }
   });
 
+  app.get("/jwks", async (req, res) => {
+    try {
+      const event = toEvent(req);
+      const { handler } = await import("../functions/jwks.mjs");
+      const result = await handler(event);
+      return applyResult(res, result);
+    } catch (e) {
+      console.error("/jwks error", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
   const server = await new Promise((resolve) => {
     const s = app.listen(port, () => resolve(s));
   });

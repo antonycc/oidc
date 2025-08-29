@@ -1,5 +1,7 @@
 name: test-and-deploy
-concurrency: "test-and-deploy-${{ github.ref_name }}"
+concurrency:
+    group: "test-and-deploy-${{ github.ref_name }}"
+    cancel-in-progress: true
 
 on:
   workflow_dispatch:
@@ -8,8 +10,15 @@ on:
         description: 'Run tests only (no deploy)'
         required: false
         default: 'false'
+      deploymentName:
+        description: 'Deployment name (ci for shared CI, or custom name)'
+        required: false
+        default: ''
   push:
     branches:
+      - '**'
+      - '!gh_pages'
+    paths:
       - '.github/**'
       - 'app/**'
       - 'infra/**'
@@ -23,7 +32,6 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'pom.xml'
-      - '!gh_pages'
   schedule:
     - cron: '23 4 * * *'
 
@@ -36,7 +44,6 @@ env:
   NODE_VERSION: '22'
   DEPLOY_ROLE_ARN: ${{ vars.DEPLOY_ROLE_ARN }}
   AWS_REGION: us-east-1
-  ENV_NAME: prod
   TEST_USERNAME: test-user
   TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
 
@@ -48,11 +55,49 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Compute deployment name and environment
+        id: deployment-config
+        run: |
+          REF_NAME="${{ github.ref_name }}"
+          INPUT_DEPLOYMENT_NAME="${{ inputs.deploymentName }}"
+          
+          # Clean branch name: lowercase, replace non-alphanumeric with hyphens, collapse consecutive hyphens
+          CLEANED=$(echo "$REF_NAME" | tr '[:upper:]' '[:lower:]' | sed -e 's/[^a-z0-9]/-/g' -e 's/-\{2,\}/-/g' -e 's/^-//' -e 's/-$//')
+          
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+              ENV_NAME="prod"
+              DEPLOYMENT_NAME="prod"
+          elif [ "$INPUT_DEPLOYMENT_NAME" = "ci" ]; then
+              ENV_NAME="ci"
+              DEPLOYMENT_NAME="ci"
+          elif [ -n "$INPUT_DEPLOYMENT_NAME" ]; then
+              ENV_NAME="ci"
+              DEPLOYMENT_NAME="$INPUT_DEPLOYMENT_NAME"
+          else
+              ENV_NAME="ci"
+              # Truncate to 16 chars for branch-based deployments
+              DEPLOYMENT_NAME="ci-${CLEANED:0:16}"
+          fi
+          
+          echo "ENV_NAME=$ENV_NAME" >> "$GITHUB_ENV"
+          echo "DEPLOYMENT_NAME=$DEPLOYMENT_NAME" >> "$GITHUB_ENV"
+          echo "ENV_NAME=$ENV_NAME" >> "$GITHUB_OUTPUT"
+          echo "DEPLOYMENT_NAME=$DEPLOYMENT_NAME" >> "$GITHUB_OUTPUT"
+          
+          echo "Computed ENV_NAME: $ENV_NAME"
+          echo "Computed DEPLOYMENT_NAME: $DEPLOYMENT_NAME"
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+
+      - name: Verify Node environment
+        run: |
+          echo "Node version: $(node --version)"
+          echo "NPM version: $(npm --version)"
+          echo "Expected Node version: ${{ env.NODE_VERSION }}"
 
       - name: Node test
         run: npm ci && npm test
@@ -63,8 +108,14 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           cache: 'maven'
 
+      - name: Verify Java environment
+        run: |
+          echo "Java version: $(java -version 2>&1 | head -1)"
+          echo "JAVA_HOME: $JAVA_HOME"
+          echo "Expected Java version: ${{ env.JAVA_VERSION }}"
+
       - name: Configure AWS creds via OIDC
-        if: ${{ inputs.skipDeploy != 'true' && github.ref == 'refs/heads/main' }}
+        if: ${{ inputs.skipDeploy != 'true' }}
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
@@ -97,35 +148,38 @@ jobs:
 
       # Only deploy from main
       - name: Deploy OIDC Observability Stack (CDK)
-        if: ${{ inputs.skipDeploy != 'true' && github.ref == 'refs/heads/main' }}
+        if: ${{ inputs.skipDeploy != 'true' }}
         run: |
           npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk deploy ObservabilityStack-${ENV_NAME} --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-observability.json
 
       - name: Deploy OIDC Provider Stack (CDK)
-        if: ${{ inputs.skipDeploy != 'true' && github.ref == 'refs/heads/main' }}
+        if: ${{ inputs.skipDeploy != 'true' }}
         run: |
-          npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk deploy OidcProviderStack-${ENV_NAME} --exclusively --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-oidc-provider.json
+          npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk deploy OidcProviderStack-${DEPLOYMENT_NAME} --exclusively --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-oidc-provider.json
 
       - name: Deploy Cognito Stack (CDK)
-        if: ${{ inputs.skipDeploy != 'true' && github.ref == 'refs/heads/main' }}
+        if: ${{ inputs.skipDeploy != 'true' }}
         run: |
           npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk deploy CognitoStack-${ENV_NAME} --exclusively --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-cognito.json
 
       - name: Resolve OIDC Provider and Cognito outputs
-        if: ${{ github.ref == 'refs/heads/main' }}
+        if: ${{ inputs.skipDeploy != 'true' }}
         id: oidc-outputs
         run: |
           ENV_NAME='${{ env.ENV_NAME }}'
-          BASE_URL=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].BaseUrl' cdk.out/cdk-outputs-oidc-provider.json)
-          USERS_TABLE=$(jq -r '.["OidcProviderStack-'${ENV_NAME}'"].UsersTableName' cdk.out/cdk-outputs-oidc-provider.json)
+          DEPLOYMENT_NAME='${{ env.DEPLOYMENT_NAME }}'
+          BASE_URL=$(jq -r '.["OidcProviderStack-'${DEPLOYMENT_NAME}'"].BaseUrl' cdk.out/cdk-outputs-oidc-provider.json)
+          USERS_TABLE=$(jq -r '.["OidcProviderStack-'${DEPLOYMENT_NAME}'"].UsersTableName' cdk.out/cdk-outputs-oidc-provider.json)
           COGNITO_DOMAIN=$(jq -r '.["CognitoStack-'${ENV_NAME}'"].CognitoAuthDomain' cdk.out/cdk-outputs-cognito.json)
           COGNITO_CLIENT_ID=$(jq -r '.["CognitoStack-'${ENV_NAME}'"].UserPoolClientId' cdk.out/cdk-outputs-cognito.json)
           echo "ENV_NAME=$ENV_NAME"
+          echo "DEPLOYMENT_NAME=$DEPLOYMENT_NAME"
           echo "BASE_URL=$BASE_URL"
           echo "USERS_TABLE=$USERS_TABLE"
           echo "COGNITO_DOMAIN=$COGNITO_DOMAIN"
           echo "COGNITO_CLIENT_ID=$COGNITO_CLIENT_ID"
           echo "ENV_NAME=$ENV_NAME" >> $GITHUB_OUTPUT
+          echo "DEPLOYMENT_NAME=$DEPLOYMENT_NAME" >> $GITHUB_OUTPUT
           echo "BASE_URL=$BASE_URL" >> $GITHUB_OUTPUT
           echo "USERS_TABLE=$USERS_TABLE" >> $GITHUB_OUTPUT
           echo "COGNITO_DOMAIN=$COGNITO_DOMAIN" >> $GITHUB_OUTPUT
@@ -133,41 +187,41 @@ jobs:
         shell: bash
 
       - name: Wait 30 seconds for CloudFront distribution testing
-        if: ${{ github.ref == 'refs/heads/main' }}
+        if: ${{ inputs.skipDeploy != 'true' }}
         id: setup-cloudfront-tests
         run: sleep 30
 
       - name: Web bucket default behavior
-        if: ${{ github.ref == 'refs/heads/main' }}
+        if: ${{ inputs.skipDeploy != 'true' }}
         run: curl --include --request GET "${{ steps.oidc-outputs.outputs.BASE_URL }}/"
 
       - name: Web bucket file behavior
-        if: ${{ github.ref == 'refs/heads/main' }}
+        if: ${{ inputs.skipDeploy != 'true' }}
         run: curl --include --request GET "${{ steps.oidc-outputs.outputs.BASE_URL }}/post-auth.html"
 
       - name: Well-known endpoint behavior
-        if: ${{ github.ref == 'refs/heads/main' }}
+        if: ${{ inputs.skipDeploy != 'true' }}
         run: curl --include --request GET "${{ steps.oidc-outputs.outputs.BASE_URL }}/.well-known/openid-configuration"
 
       - name: Well-known JWKS behavior
-        if: ${{ github.ref == 'refs/heads/main' }}
+        if: ${{ inputs.skipDeploy != 'true' }}
         run: curl --include --request GET "${{ steps.oidc-outputs.outputs.BASE_URL }}/jwks"
 
       - name: Provision test user
-        if: ${{ github.ref == 'refs/heads/main' }}
+        if: ${{ inputs.skipDeploy != 'true' }}
         run: npm run users:provision ${{ env.TEST_USERNAME }} ${{ env.TEST_PASSWORD }}
         env:
           USERS_TABLE: ${{ steps.oidc-outputs.outputs.USERS_TABLE }}
 
       - name: Install dependencies and Playwright browsers
-        if: ${{ github.ref == 'refs/heads/main' }}
+        if: ${{ inputs.skipDeploy != 'true' }}
         run: |
           npm -v
           npm ci --ignore-scripts
           npx playwright install chromium --with-deps
 
       - name: Run Playwright live API test
-        if: ${{ github.ref == 'refs/heads/main' }}
+        if: ${{ inputs.skipDeploy != 'true' }}
         env:
           BASE_URL: ${{ steps.oidc-outputs.outputs.BASE_URL }}
           TEST_USERNAME: ${{ env.TEST_USERNAME }}
@@ -178,7 +232,7 @@ jobs:
 
       # The behaviour tests are not run for skipDeploy=true because they would be running against a different deployment.
       - name: Run Playwright behaviour tests
-        if: ${{ github.ref == 'refs/heads/main' }}
+        if: ${{ inputs.skipDeploy != 'true' }}
         run: |
           echo "BASE_URL=${{ steps.oidc-outputs.outputs.BASE_URL }}"
           echo "COGNITO_DOMAIN=${{ steps.oidc-outputs.outputs.COGNITO_DOMAIN }}"
@@ -191,7 +245,7 @@ jobs:
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
 
       - name: Upload artifacts (report, trace, screenshots, videos)
-        if: ${{ !cancelled() && github.ref == 'refs/heads/main' }}
+        if: ${{ !cancelled() && inputs.skipDeploy != 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: playwright-artifacts

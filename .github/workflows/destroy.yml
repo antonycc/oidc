@@ -1,0 +1,97 @@
+name: destroy
+concurrency: destroy
+on:
+  delete:
+
+jobs:
+  cleanup:
+    if: ${{ github.event.ref_type == 'branch' }} # only for branch deletions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }} # e.g. main
+          fetch-depth: 0
+
+      - name: Report deleted ref
+        run: |
+          echo "Deleted: ${{ github.event.ref }}"      # branch name
+          echo "Ref type: ${{ github.event.ref_type }}"
+
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Compute deployment name and environment
+        id: deployment-config
+        run: |
+          REF_NAME="${{ github.ref_name }}"
+          INPUT_DEPLOYMENT_NAME="${{ inputs.deploymentName }}"
+          
+          # Clean branch name: lowercase, replace non-alphanumeric with hyphens, collapse consecutive hyphens
+          CLEANED=$(echo "$REF_NAME" | tr '[:upper:]' '[:lower:]' | sed -e 's/[^a-z0-9]/-/g' -e 's/-\{2,\}/-/g' -e 's/^-//' -e 's/-$//')
+          
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+              ENV_NAME="prod"
+              DEPLOYMENT_NAME="prod"
+          elif [ "$INPUT_DEPLOYMENT_NAME" = "ci" ]; then
+              ENV_NAME="ci"
+              DEPLOYMENT_NAME="ci"
+          elif [ -n "$INPUT_DEPLOYMENT_NAME" ]; then
+              ENV_NAME="ci"
+              DEPLOYMENT_NAME="$INPUT_DEPLOYMENT_NAME"
+          else
+              ENV_NAME="ci"
+              # Truncate to 16 chars for branch-based deployments
+              DEPLOYMENT_NAME="ci-${CLEANED:0:16}"
+          fi
+          
+          echo "ENV_NAME=$ENV_NAME" >> "$GITHUB_ENV"
+          echo "DEPLOYMENT_NAME=$DEPLOYMENT_NAME" >> "$GITHUB_ENV"
+          echo "ENV_NAME=$ENV_NAME" >> "$GITHUB_OUTPUT"
+          echo "DEPLOYMENT_NAME=$DEPLOYMENT_NAME" >> "$GITHUB_OUTPUT"
+          
+          echo "Computed ENV_NAME: $ENV_NAME"
+          echo "Computed DEPLOYMENT_NAME: $DEPLOYMENT_NAME"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Verify Node environment
+        run: |
+          echo "Node version: $(node --version)"
+          echo "NPM version: $(npm --version)"
+          echo "Expected Node version: ${{ env.NODE_VERSION }}"
+
+      - name: Node test
+        run: npm ci && npm test
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'maven'
+
+      - name: Verify Java environment
+        run: |
+          echo "Java version: $(java -version 2>&1 | head -1)"
+          echo "JAVA_HOME: $JAVA_HOME"
+          echo "Expected Java version: ${{ env.JAVA_VERSION }}"
+
+      - name: Configure AWS creds via OIDC
+        if: ${{ inputs.skipDeploy != 'true' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-oidc-deploy
+
+      - name: Build CDK and synth
+        run: ./mvnw --errors clean package
+
+      - name: Destroy ephemeral OIDC stack
+        if: ${{ env.DEPLOYMENT_NAME != 'prod' && env.DEPLOYMENT_NAME != 'ci' }}
+        run: npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk destroy OidcProviderStack-${DEPLOYMENT_NAME} --exclusively --force

@@ -7,13 +7,28 @@ public class App {
     var app = new software.amazon.awscdk.App();
 
     String envName = System.getenv().getOrDefault("ENV_NAME", "dev");
+    String deploymentName = System.getenv().getOrDefault("DEPLOYMENT_NAME", envName);
     String hostedZoneName = System.getenv().getOrDefault("HOSTED_ZONE_NAME", "example.com");
     String hostedZoneId = System.getenv().getOrDefault("HOSTED_ZONE_ID", "Z000EXAMPLE");
-    String domainName = System.getenv().getOrDefault("DOMAIN_NAME", "oidc.example.com");
+    
+    // Compute domain name based on deployment pattern
+    String domainName;
+    String authDomainName;
+    if ("prod".equals(deploymentName)) {
+      domainName = System.getenv().getOrDefault("DOMAIN_NAME", "oidc.example.com");
+      authDomainName = System.getenv().getOrDefault("AUTH_DOMAIN_NAME", "auth.oidc.example.com");
+    } else if ("ci".equals(deploymentName)) {
+      domainName = System.getenv().getOrDefault("DOMAIN_NAME", "ci.oidc.example.com");
+      authDomainName = System.getenv().getOrDefault("AUTH_DOMAIN_NAME", "ci.auth.oidc.example.com");
+    } else {
+      // For branch deployments like ci-branchname
+      domainName = System.getenv().getOrDefault("DOMAIN_NAME", deploymentName + ".oidc.example.com");
+      authDomainName = System.getenv().getOrDefault("AUTH_DOMAIN_NAME", deploymentName + ".auth.oidc.example.com");
+    }
+    
     String certificateArn =
         System.getenv()
             .getOrDefault("CERTIFICATE_ARN", "arn:aws:acm:us-east-1:123456789012:certificate/abc");
-    String cognitoPrefix = System.getenv().getOrDefault("COGNITO_DOMAIN_PREFIX", "oidc-" + envName);
     String authCertificateArn =
           System.getenv()
                   .getOrDefault("AUTH_CERTIFICATE_ARN", "arn:aws:acm:us-east-1:123456789012:certificate/xyz");
@@ -39,10 +54,11 @@ public class App {
     OidcProviderStack providerStack =
         new OidcProviderStack(
             app,
-            "OidcProviderStack-" + envName,
+            "OidcProviderStack-" + deploymentName,
             OidcProviderStackProps.builder()
                 .env(env)
                 .envName(envName)
+                .deploymentName(deploymentName)
                 .hostedZoneName(hostedZoneName)
                 .hostedZoneId(hostedZoneId)
                 .domainName(domainName)
@@ -62,7 +78,7 @@ public class App {
                 .env(env)
                 .envName(envName)
                 .domainName(domainName)
-                .cognitoDomainPrefix(cognitoPrefix)
+                .authDomainName(authDomainName)
                 .authCertificateArn(authCertificateArn)
                 .hostedZoneName(hostedZoneName)
                 .hostedZoneId(hostedZoneId)

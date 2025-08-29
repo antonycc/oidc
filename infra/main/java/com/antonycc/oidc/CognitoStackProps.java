@@ -7,7 +7,7 @@ public class CognitoStackProps implements StackProps {
   public final Environment env;
   public final String envName;
   public final String domainName;
-  public final String cognitoDomainPrefix;
+  public final String authDomainName;
   public final String authCertificateArn;
   public final String hostedZoneName;
   public final String hostedZoneId;
@@ -16,7 +16,7 @@ public class CognitoStackProps implements StackProps {
     this.env = builder.env;
     this.envName = builder.envName;
     this.domainName = builder.domainName;
-    this.cognitoDomainPrefix = builder.cognitoDomainPrefix;
+    this.authDomainName = builder.authDomainName;
     this.authCertificateArn = builder.authCertificateArn;
     this.hostedZoneName = builder.hostedZoneName;
     this.hostedZoneId = builder.hostedZoneId;
@@ -35,7 +35,7 @@ public class CognitoStackProps implements StackProps {
     private Environment env;
     private String envName;
     private String domainName;
-    private String cognitoDomainPrefix;
+    private String authDomainName;
     private String authCertificateArn;
     private String hostedZoneName;
     private String hostedZoneId;
@@ -55,8 +55,8 @@ public class CognitoStackProps implements StackProps {
       return this;
     }
 
-    public Builder cognitoDomainPrefix(String cognitoDomainPrefix) {
-      this.cognitoDomainPrefix = cognitoDomainPrefix;
+    public Builder authDomainName(String authDomainName) {
+      this.authDomainName = authDomainName;
       return this;
     }
 

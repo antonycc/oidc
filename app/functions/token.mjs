@@ -15,6 +15,15 @@ const safeStringify = (val) => {
     return String(val);
   }
 };
+
+// Mask sensitive data in logs for security compliance
+const maskSensitive = (value, showLength = true) => {
+  if (!value) return "null";
+  const str = String(value);
+  if (str.length <= 4) return "***";
+  return showLength ? `***${str.length}chars` : "***";
+};
+
 const log = (...a) => console.log(JSON.stringify({ level: "info", ts: new Date().toISOString(), msg: a.map(safeStringify).join(" ") }));
 const logError = (msg, err, extra) => {
   const payload = { level: "error", ts: new Date().toISOString(), msg: safeStringify(msg) };
@@ -64,7 +73,7 @@ export const handler = async (event) => {
     const clientId = body.get("client_id");
     const redirectUri = body.get("redirect_uri");
 
-    log("token_request", clientId, redirectUri, code ? `has_code: ${code}` : "no_code", verifier ? `has_verifier: ${verifier}` : "no_verifier");
+    log("token_request", clientId, redirectUri, code ? `has_code: ${maskSensitive(code)}` : "no_code", verifier ? `has_verifier: ${maskSensitive(verifier)}` : "no_verifier");
     if (!code || !verifier || !clientId || !redirectUri) return json(400, { error: "invalid_request" });
 
     // Validate client authentication (for public clients, no secret needed)
@@ -74,7 +83,7 @@ export const handler = async (event) => {
     }
 
     const row = await get(tables.codes, { code });
-    log("token_request_validation row for code", row, code);
+    log("token_request_validation row for code", { codeExists: !!row.Item, clientMatches: row.Item?.client === clientId }, maskSensitive(code));
     if (!row.Item) return json(400, { error: "invalid_grant" });
 
     const now = Math.floor(Date.now() / 1000);
@@ -100,12 +109,12 @@ export const handler = async (event) => {
     if (expect !== row.Item.ch) return json(400, { error: "invalid_grant" });
 
     // Use conditional delete to ensure one-time use
-    log("token_request_validated", clientId, row, code);
+    log("token_request_validated", clientId, { codeValidated: true, sub: row.Item?.sub }, maskSensitive(code));
     try {
       await conditionalDelete(tables.codes, { code }, "attribute_exists(code)");
     } catch (error) {
       if (error.name === "ConditionalCheckFailedException") {
-        log("authorization_code_already_used", code);
+        log("authorization_code_already_used", maskSensitive(code));
         return json(400, { error: "invalid_grant" });
       }
       throw error;

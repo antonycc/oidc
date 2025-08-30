@@ -6,6 +6,23 @@ import { getClient, isScopeSubset, isValidRedirectUri, validateRedirectUri, vali
 // Very verbose logging by design
 const log = (...a) => console.log(JSON.stringify({ level: "info", ts: new Date().toISOString(), msg: a.join(" ") }));
 
+// Mask sensitive data in logs for security compliance
+const maskSensitive = (value, showLength = true) => {
+  if (!value) return "null";
+  const str = String(value);
+  if (str.length <= 4) return "***";
+  return showLength ? `***${str.length}chars` : "***";
+};
+
+// Create a safe version of query params for logging (mask sensitive fields)
+const createSafeQpForLogging = (qp) => {
+  const safeQp = { ...qp };
+  if (safeQp.password) safeQp.password = maskSensitive(safeQp.password);
+  if (safeQp.code_verifier) safeQp.code_verifier = maskSensitive(safeQp.code_verifier);
+  if (safeQp.code_challenge) safeQp.code_challenge = maskSensitive(safeQp.code_challenge);
+  return safeQp;
+};
+
 function parseFormBody(event) {
   try {
     let raw = event.body || "";
@@ -41,7 +58,7 @@ export const handler = async (event) => {
       const body = parseFormBody(event);
       for (const [k, v] of body.entries()) qp[k] = v;
     }
-    log("authorize", method, JSON.stringify(qp));
+    log("authorize", method, JSON.stringify(createSafeQpForLogging(qp)));
 
     const req = [
       "client_id",

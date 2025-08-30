@@ -53,7 +53,7 @@ public class OidcEndpointFunction extends Construct {
     this.logGroup = LogGroup.Builder.create(this, props.functionName + "-LogGroup")
         .logGroupName("/aws/lambda/" + props.functionName)
         .removalPolicy(RemovalPolicy.DESTROY)
-        .retention(RetentionDays.ONE_WEEK)
+        .retention(RetentionDays.ONE_DAY) // Reduced from ONE_WEEK for cost optimization
         .build();
 
     // IAM role for the Lambda function with deterministic name

@@ -24,9 +24,6 @@ import software.amazon.awscdk.services.lambda.Permission;
 import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.logs.RetentionDays;
 import software.amazon.awscdk.services.route53.ARecord;
-import software.amazon.awscdk.services.route53.ARecordProps;
-import software.amazon.awscdk.services.route53.RecordTarget;
-import software.amazon.awscdk.services.route53.targets.CloudFrontTarget;
 import software.amazon.awscdk.services.s3.Bucket;
 import software.amazon.awscdk.services.s3.assets.AssetOptions;
 import software.amazon.awscdk.services.s3.deployment.BucketDeployment;
@@ -92,10 +89,6 @@ public class OidcProviderStack extends Stack {
 
     // Add well-known behavior to additional behaviors mapping
     additionalOriginsBehaviourMappings.put("/.well-known/*", props.wellKnownOriginBehaviorOptions);
-
-    // Use certificates and DNS from EdgeStack instead of creating our own
-    var cert = props.edgeStack.certificate;
-    var zone = props.edgeStack.hostedZone;
 
     // DDB tables
     this.usersTable =
@@ -205,41 +198,16 @@ public class OidcProviderStack extends Stack {
     additionalOriginsBehaviourMappings.put("/jwks", this.jwksEndpoint.behaviorOptions);
     this.authCodesTable.grantReadWriteData(this.jwksEndpoint.function);
 
-    // Use EdgeStack's distribution as the base, but we need to modify this approach
-    // Since CDK doesn't allow modifying distributions after creation,
-    // we'll use EdgeStack's certificates and DNS but create our own distribution
-    // that includes Lambda function behaviors
-    
-    // Combine EdgeStack's S3 behaviors with our Lambda function behaviors
-    var allBehaviors = new HashMap<String, BehaviorOptions>();
-    allBehaviors.put("/.well-known/*", props.wellKnownOriginBehaviorOptions);
-    allBehaviors.putAll(additionalOriginsBehaviourMappings);
-
-    // Create CloudFront distribution with all behaviors (S3 + Lambda)
-    this.distribution = Distribution.Builder.create(this, resourceNamePrefix + "-Distribution")
-        .defaultBehavior(props.webOriginBehaviorOptions)
-        .additionalBehaviors(allBehaviors)
-        .domainNames(List.of(domainName))
-        .certificate(cert)
-        .defaultRootObject("index.html")
-        .enableLogging(true)
-        .logBucket(this.logsBucket)
-        .logFilePrefix("cloudfront/")
-        .enableIpv6(true)
-        .sslSupportMethod(SSLMethod.SNI)
-        .comment("OIDC Provider distribution for " + domainName)
-        .build();
-
-    // Create DNS A record using EdgeStack's hosted zone
-    String recordName = computeRecordName(domainName, zone.getZoneName());
-    this.aliasRecord = new ARecord(
+    // Use EdgeStack's centralized distribution configuration
+    // This consolidates all CloudFront logic in EdgeStack while avoiding circular dependencies
+    this.distribution = props.edgeStack.createDistribution(
         this,
-        resourceNamePrefix + "-AliasRecord",
-        ARecordProps.builder()
-            .recordName(recordName)
-            .zone(zone)
-            .target(RecordTarget.fromAlias(new CloudFrontTarget(this.distribution)))
-            .build());
+        resourceNamePrefix + "-Distribution",
+        additionalOriginsBehaviourMappings,
+        "OIDC Provider distribution for " + domainName);
+
+    // DNS record is created by EdgeStack's createDistribution method
+    this.aliasRecord = null; // EdgeStack manages the alias record
 
     // Grant CloudFront access to the origin lambdas with compressed names
     Permission invokeFunctionUrlPermission =
@@ -376,22 +344,5 @@ public class OidcProviderStack extends Stack {
         }
         sb.append('-').append(deploymentName);
         return sb.toString();
-    }
-
-    /**
-     * Compute the record name for Route53 A record based on domain and hosted zone names.
-     * If domain matches hosted zone, returns null for root record.
-     * If domain is a subdomain of hosted zone, returns the subdomain part.
-     * Otherwise returns the full domain name.
-     */
-    private static String computeRecordName(String domainName, String hostedZoneName) {
-        if (hostedZoneName.equals(domainName)) {
-            return null; // Root record
-        } else if (domainName.endsWith("." + hostedZoneName)) {
-            // Extract subdomain part
-            return domainName.substring(0, domainName.length() - (hostedZoneName.length() + 1));
-        } else {
-            return domainName; // Full domain name
-        }
     }
 }

@@ -57,7 +57,7 @@ public class EdgeStack extends Stack {
   // Store for later use in distribution creation
   private final String domainName;
   private final String hostedZoneName;
-  private final Bucket logsBucket;
+  public final Bucket logsBucket;  // Made public for createDistribution method
 
   public EdgeStack(final Construct scope, final String id, final EdgeStackProps props) {
     super(scope, id, props);
@@ -146,6 +146,54 @@ public class EdgeStack extends Stack {
         this,
         "HostedZoneName",
         CfnOutputProps.builder().value(this.hostedZone.getZoneName()).build());
+  }
+
+  /**
+   * Create a CloudFront distribution using EdgeStack resources and provided Lambda behaviors.
+   * This method centralizes distribution configuration in EdgeStack while allowing
+   * OidcProviderStack to provide the Lambda function behaviors.
+   * 
+   * @param scope The construct scope (should be the calling stack)
+   * @param id The distribution construct ID
+   * @param lambdaBehaviors Map of path patterns to Lambda function behavior options
+   * @param comment Optional comment for the distribution
+   * @return The created Distribution
+   */
+  public Distribution createDistribution(Construct scope, String id, Map<String, BehaviorOptions> lambdaBehaviors, String comment) {
+    // Combine S3 behaviors with Lambda function behaviors
+    var allBehaviors = new HashMap<String, BehaviorOptions>();
+    allBehaviors.put("/.well-known/*", this.wellKnownOriginBehaviorOptions);
+    if (lambdaBehaviors != null) {
+      allBehaviors.putAll(lambdaBehaviors);
+    }
+
+    // Create CloudFront distribution with all behaviors using EdgeStack resources
+    Distribution distribution = Distribution.Builder.create(scope, id)
+        .defaultBehavior(this.webOriginBehaviorOptions)
+        .additionalBehaviors(allBehaviors)
+        .domainNames(List.of(this.domainName))
+        .certificate(this.certificate)
+        .defaultRootObject("index.html")
+        .enableLogging(true)
+        .logBucket(this.logsBucket)
+        .logFilePrefix("cloudfront/")
+        .enableIpv6(true)
+        .sslSupportMethod(SSLMethod.SNI)
+        .comment(comment != null ? comment : "EdgeStack-configured distribution for " + this.domainName)
+        .build();
+
+    // Create DNS A record pointing to the CloudFront distribution  
+    String recordName = computeRecordName(this.domainName, this.hostedZoneName);
+    new ARecord(
+        scope,
+        id + "-AliasRecord", 
+        ARecordProps.builder()
+            .recordName(recordName)
+            .zone(this.hostedZone)
+            .target(RecordTarget.fromAlias(new CloudFrontTarget(distribution)))
+            .build());
+
+    return distribution;
   }
 
 

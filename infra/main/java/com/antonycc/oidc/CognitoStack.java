@@ -75,7 +75,6 @@ public class CognitoStack extends Stack {
                             .build())
                     .build())
             // User attributes for enhanced profile management
-            .aliasAttributes(List.of("email"))
             .autoVerifiedAttributes(List.of("email"))
             .schema(List.of(
                 CfnUserPool.SchemaAttributeProperty.builder()

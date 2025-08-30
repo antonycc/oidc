@@ -96,6 +96,11 @@
     hr.className = 'menu-divider';
 
     // Items
+    const viewPostAuth = document.createElement('a');
+    viewPostAuth.href = '/post-auth.html';
+    viewPostAuth.textContent = 'View post-auth page';
+    viewPostAuth.setAttribute('data-action', 'view-local-storage');
+
     const viewLS = document.createElement('a');
     viewLS.href = '#';
     viewLS.textContent = 'View local storage';

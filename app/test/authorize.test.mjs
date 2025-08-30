@@ -14,26 +14,25 @@ vi.mock("../lib/db.mjs", () => ({
 const baseEvent = () => ({
   rawPath: "/authorize",
   rawQueryString: "",
-  requestContext: { http: { method: "GET" } },
+  requestContext: { http: { method: "POST" } },
 });
 
 describe("authorize", () => {
-  it("renders login form when missing username", async () => {
+  it("returns method_not_allowed for GET requests", async () => {
     const e = {
-      ...baseEvent(),
-      rawQueryString:
-        "client_id=x&redirect_uri=https://example.com/cb&response_type=code&scope=openid&state=st&nonce=n&code_challenge=abc&code_challenge_method=S256",
+      rawPath: "/authorize",
+      rawQueryString: "client_id=test&redirect_uri=https://example.com/cb&response_type=code&scope=openid&state=st",
+      requestContext: { http: { method: "GET" } },
     };
     const r = await authorize(e);
-    expect(r.statusCode).toBe(200);
-    expect(r.headers["content-type"]).toContain("text/html");
+    expect(r.statusCode).toBe(405);
+    expect(r.body).toBe("method_not_allowed");
   });
 
   it("returns invalid_client for unknown client_id", async () => {
     const e = {
       ...baseEvent(),
-      rawQueryString:
-        "client_id=unknown&redirect_uri=https://example.com/cb&response_type=code&scope=openid&state=st&nonce=n&code_challenge=abc&code_challenge_method=S256&username=test",
+      body: "client_id=unknown&redirect_uri=https://example.com/cb&response_type=code&scope=openid&state=st&nonce=n&code_challenge=abc&code_challenge_method=S256&username=test&password=test",
     };
     const r = await authorize(e);
     expect(r.statusCode).toBe(400);
@@ -43,8 +42,7 @@ describe("authorize", () => {
   it("returns invalid_redirect_uri for unauthorized redirect_uri", async () => {
     const e = {
       ...baseEvent(),
-      rawQueryString:
-        "client_id=cognito-web&redirect_uri=https://evil.com/cb&response_type=code&scope=openid&state=st&nonce=n&code_challenge=abc&code_challenge_method=S256&username=test",
+      body: "client_id=cognito-web&redirect_uri=https://evil.com/cb&response_type=code&scope=openid&state=st&nonce=n&code_challenge=abc&code_challenge_method=S256&username=test&password=test",
     };
     const r = await authorize(e);
     expect(r.statusCode).toBe(400);
@@ -54,8 +52,7 @@ describe("authorize", () => {
   it("returns invalid_scope for unauthorized scopes", async () => {
     const e = {
       ...baseEvent(),
-      rawQueryString:
-        "client_id=cognito-web&redirect_uri=https://YOUR_COGNITO_DOMAIN.auth.us-east-1.amazoncognito.com/oauth2/idpresponse&response_type=code&scope=openid+admin&state=st&nonce=n&code_challenge=abc&code_challenge_method=S256&username=test",
+      body: "client_id=cognito-web&redirect_uri=https://YOUR_COGNITO_DOMAIN.auth.us-east-1.amazoncognito.com/oauth2/idpresponse&response_type=code&scope=openid+admin&state=st&nonce=n&code_challenge=abc&code_challenge_method=S256&username=test&password=test",
     };
     const r = await authorize(e);
     expect(r.statusCode).toBe(400);
@@ -70,8 +67,7 @@ describe("authorize", () => {
     try {
       const e = {
         ...baseEvent(),
-        rawQueryString:
-          "client_id=self-client&redirect_uri=https://evil.com/post-auth.html&response_type=code&scope=openid+email+profile&state=st&nonce=n&code_challenge=abc&code_challenge_method=S256&username=test",
+        body: "client_id=self-client&redirect_uri=https://evil.com/post-auth.html&response_type=code&scope=openid+email+profile&state=st&nonce=n&code_challenge=abc&code_challenge_method=S256&username=test&password=test",
       };
       const r = await authorize(e);
       expect(r.statusCode).toBe(400);

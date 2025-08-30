@@ -2,6 +2,9 @@ package com.antonycc.oidc;
 
 import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.StackProps;
+import software.amazon.awscdk.services.cloudfront.BehaviorOptions;
+import software.amazon.awscdk.services.cloudfront.CachePolicy;
+import software.amazon.awscdk.services.cloudfront.OriginAccessIdentity;
 import software.amazon.awscdk.services.cloudtrail.Trail;
 import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.s3.Bucket;
@@ -11,29 +14,43 @@ public class OidcProviderStackProps implements StackProps {
   public final Environment env;
   public final String envName;
   public final String deploymentName;
-  public final String hostedZoneName;
-  public final String hostedZoneId;
   public final String domainName;
-  public final String certificateArn;
   public final Bucket logsBucket;
   public final LogGroup trailLogGroup;
   public final Trail auditTrail;
   public final CfnGroup xrayGroup;
   public final LogGroup bucketDeploymentLogGroup;
+  // Edge resources from EdgeStack
+  public final S3OriginBucket webOriginBucket;
+  public final S3OriginBucket wellKnownOriginBucket;
+  public final Bucket webBucket;
+  public final OriginAccessIdentity webOriginAccessIdentity;
+  public final Bucket wellKnownBucket;
+  public final OriginAccessIdentity wellKnownOriginAccessIdentity;
+  public final CachePolicy shortTtl;
+  public final BehaviorOptions webOriginBehaviorOptions;
+  public final BehaviorOptions wellKnownOriginBehaviorOptions;
 
   private OidcProviderStackProps(Builder builder) {
     this.env = builder.env;
     this.envName = builder.envName;
     this.deploymentName = builder.deploymentName;
-    this.hostedZoneName = builder.hostedZoneName;
-    this.hostedZoneId = builder.hostedZoneId;
     this.domainName = builder.domainName;
-    this.certificateArn = builder.certificateArn;
     this.logsBucket = builder.logsBucket;
     this.trailLogGroup = builder.trailLogGroup;
     this.auditTrail = builder.auditTrail;
     this.xrayGroup = builder.xrayGroup;
     this.bucketDeploymentLogGroup = builder.bucketDeploymentLogGroup;
+    // Edge resources
+    this.webOriginBucket = builder.webOriginBucket;
+    this.wellKnownOriginBucket = builder.wellKnownOriginBucket;
+    this.webBucket = builder.webBucket;
+    this.webOriginAccessIdentity = builder.webOriginAccessIdentity;
+    this.wellKnownBucket = builder.wellKnownBucket;
+    this.wellKnownOriginAccessIdentity = builder.wellKnownOriginAccessIdentity;
+    this.shortTtl = builder.shortTtl;
+    this.webOriginBehaviorOptions = builder.webOriginBehaviorOptions;
+    this.wellKnownOriginBehaviorOptions = builder.wellKnownOriginBehaviorOptions;
   }
 
   @Override
@@ -49,15 +66,22 @@ public class OidcProviderStackProps implements StackProps {
     private Environment env;
     private String envName;
     private String deploymentName;
-    private String hostedZoneName;
-    private String hostedZoneId;
     private String domainName;
-    private String certificateArn;
     private Bucket logsBucket;
     private LogGroup trailLogGroup;
     private Trail auditTrail;
     private CfnGroup xrayGroup;
     private LogGroup bucketDeploymentLogGroup;
+    // Edge resources
+    private S3OriginBucket webOriginBucket;
+    private S3OriginBucket wellKnownOriginBucket;
+    private Bucket webBucket;
+    private OriginAccessIdentity webOriginAccessIdentity;
+    private Bucket wellKnownBucket;
+    private OriginAccessIdentity wellKnownOriginAccessIdentity;
+    private CachePolicy shortTtl;
+    private BehaviorOptions webOriginBehaviorOptions;
+    private BehaviorOptions wellKnownOriginBehaviorOptions;
 
     public Builder env(Environment env) {
       this.env = env;
@@ -74,23 +98,8 @@ public class OidcProviderStackProps implements StackProps {
       return this;
     }
 
-    public Builder hostedZoneName(String hostedZoneName) {
-      this.hostedZoneName = hostedZoneName;
-      return this;
-    }
-
-    public Builder hostedZoneId(String hostedZoneId) {
-      this.hostedZoneId = hostedZoneId;
-      return this;
-    }
-
     public Builder domainName(String domainName) {
       this.domainName = domainName;
-      return this;
-    }
-
-    public Builder certificateArn(String certificateArn) {
-      this.certificateArn = certificateArn;
       return this;
     }
 
@@ -116,6 +125,52 @@ public class OidcProviderStackProps implements StackProps {
 
     public Builder bucketDeploymentLogGroup(LogGroup bucketDeploymentLogGroup) {
       this.bucketDeploymentLogGroup = bucketDeploymentLogGroup;
+      return this;
+    }
+
+    // Edge resources builders
+    public Builder webOriginBucket(S3OriginBucket webOriginBucket) {
+      this.webOriginBucket = webOriginBucket;
+      return this;
+    }
+
+    public Builder wellKnownOriginBucket(S3OriginBucket wellKnownOriginBucket) {
+      this.wellKnownOriginBucket = wellKnownOriginBucket;
+      return this;
+    }
+
+    public Builder webBucket(Bucket webBucket) {
+      this.webBucket = webBucket;
+      return this;
+    }
+
+    public Builder webOriginAccessIdentity(OriginAccessIdentity webOriginAccessIdentity) {
+      this.webOriginAccessIdentity = webOriginAccessIdentity;
+      return this;
+    }
+
+    public Builder wellKnownBucket(Bucket wellKnownBucket) {
+      this.wellKnownBucket = wellKnownBucket;
+      return this;
+    }
+
+    public Builder wellKnownOriginAccessIdentity(OriginAccessIdentity wellKnownOriginAccessIdentity) {
+      this.wellKnownOriginAccessIdentity = wellKnownOriginAccessIdentity;
+      return this;
+    }
+
+    public Builder shortTtl(CachePolicy shortTtl) {
+      this.shortTtl = shortTtl;
+      return this;
+    }
+
+    public Builder webOriginBehaviorOptions(BehaviorOptions webOriginBehaviorOptions) {
+      this.webOriginBehaviorOptions = webOriginBehaviorOptions;
+      return this;
+    }
+
+    public Builder wellKnownOriginBehaviorOptions(BehaviorOptions wellKnownOriginBehaviorOptions) {
+      this.wellKnownOriginBehaviorOptions = wellKnownOriginBehaviorOptions;
       return this;
     }
 

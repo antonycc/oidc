@@ -50,7 +50,22 @@ public class App {
                 .domainName(domainName)
                 .build());
 
-    // Create the OIDC Provider stack (Lambdas, DynamoDB, S3, CloudFront, Route53)
+    // Create the Edge stack first (S3 buckets, CloudFront prep)
+    EdgeStack edgeStack =
+        new EdgeStack(
+            app,
+            "EdgeStack-" + envName,
+            EdgeStackProps.builder()
+                .env(env)
+                .envName(envName)
+                .domainName(domainName)
+                .hostedZoneName(hostedZoneName)
+                .hostedZoneId(hostedZoneId)
+                .certificateArn(certificateArn)
+                .logsBucket(observabilityStack.logsBucket)
+                .build());
+
+    // Create the OIDC Provider stack (Lambdas, DynamoDB, CloudFront, Route53)
     OidcProviderStack providerStack =
         new OidcProviderStack(
             app,
@@ -59,14 +74,22 @@ public class App {
                 .env(env)
                 .envName(envName)
                 .deploymentName(deploymentName)
-                .hostedZoneName(hostedZoneName)
-                .hostedZoneId(hostedZoneId)
                 .domainName(domainName)
-                .certificateArn(certificateArn)
                 .logsBucket(observabilityStack.logsBucket)
                 .trailLogGroup(observabilityStack.trailLogGroup)
                 .auditTrail(observabilityStack.auditTrail)
                 .xrayGroup(observabilityStack.xrayGroup)
+                .bucketDeploymentLogGroup(observabilityStack.trailLogGroup) // TODO: create proper bucket deployment log group
+                // Edge resources from EdgeStack
+                .webOriginBucket(edgeStack.webOriginBucket)
+                .wellKnownOriginBucket(edgeStack.wellKnownOriginBucket)
+                .webBucket(edgeStack.webBucket)
+                .webOriginAccessIdentity(edgeStack.webOriginAccessIdentity)
+                .wellKnownBucket(edgeStack.wellKnownBucket)
+                .wellKnownOriginAccessIdentity(edgeStack.wellKnownOriginAccessIdentity)
+                .shortTtl(edgeStack.shortTtl)
+                .webOriginBehaviorOptions(edgeStack.webOriginBehaviorOptions)
+                .wellKnownOriginBehaviorOptions(edgeStack.wellKnownOriginBehaviorOptions)
                 .build());
 
     // Create the Cognito stack (independent of provider stack)
@@ -85,6 +108,7 @@ public class App {
                 .build());
 
     providerStack.addDependency(observabilityStack);
+    providerStack.addDependency(edgeStack);
     cognitoStack.addDependency(providerStack);
 
     app.synth();

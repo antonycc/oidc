@@ -5,7 +5,6 @@ import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.Expiration;
-import software.amazon.awscdk.Fn;
 import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.services.certificatemanager.Certificate;
@@ -21,7 +20,6 @@ import software.amazon.awscdk.services.dynamodb.AttributeType;
 import software.amazon.awscdk.services.dynamodb.BillingMode;
 import software.amazon.awscdk.services.dynamodb.Table;
 import software.amazon.awscdk.services.iam.ServicePrincipal;
-import software.amazon.awscdk.services.lambda.FunctionUrl;
 import software.amazon.awscdk.services.lambda.FunctionUrlAuthType;
 import software.amazon.awscdk.services.lambda.Permission;
 import software.amazon.awscdk.services.logs.LogGroup;
@@ -57,6 +55,7 @@ public class OidcProviderStack extends Stack {
   public final Bucket wellKnownBucket;
   public final OriginAccessIdentity wellKnownOriginAccessIdentity;
   public final CachePolicy shortTtl;
+  // OIDC Provider specific resources
   public final Table usersTable;
   public final Table authCodesTable;
   public final Table refreshTokensTable;
@@ -65,10 +64,9 @@ public class OidcProviderStack extends Stack {
   public final OidcEndpointFunction userinfoEndpoint;
   public final OidcEndpointFunction jwksEndpoint;
   public final Distribution distribution;
-  public final LogGroup bucketDeploymentLogGroup;
+  public final ARecord aliasRecord;
   public final BucketDeployment webDeployment;
   public final BucketDeployment wellKnownDeployment;
-  public final ARecord aliasRecord;
 
   public OidcProviderStack(
       final Construct scope, final String id, final OidcProviderStackProps props) {
@@ -80,12 +78,32 @@ public class OidcProviderStack extends Stack {
     String resourceNamePrefix = generateResourceNamePrefix(props.domainName, props.deploymentName);
     String compressedResourceNamePrefix = generateCompressedResourceNamePrefix(props.domainName, props.deploymentName);
 
-    // Use observability resources from the passed props
+    // Use edge resources from the passed props
     this.logsBucket = props.logsBucket;
     this.trailLogGroup = props.trailLogGroup;
     this.auditTrail = props.auditTrail;
     this.xrayGroup = props.xrayGroup;
-    this.bucketDeploymentLogGroup = props.bucketDeploymentLogGroup;
+    this.webOriginBucket = props.webOriginBucket;
+    this.wellKnownOriginBucket = props.wellKnownOriginBucket;
+    this.webBucket = props.webBucket;
+    this.webOriginAccessIdentity = props.webOriginAccessIdentity;
+    this.wellKnownBucket = props.wellKnownBucket;
+    this.wellKnownOriginAccessIdentity = props.wellKnownOriginAccessIdentity;
+    this.shortTtl = props.shortTtl;
+
+    String domainName = props.domainName;
+    this.baseUrl = "https://" + domainName;
+
+    // Add well-known behavior to additional behaviors mapping
+    additionalOriginsBehaviourMappings.put("/.well-known/*", props.wellKnownOriginBehaviorOptions);
+
+    // We need the hosted zone and certificate for the distribution and DNS record
+    // These should be passed in props, but for now let's discover them from the deployment name
+    // TODO: Consider moving this to EdgeStack or passing via props
+    String envName = props.envName;
+    String hostedZoneName = System.getenv().getOrDefault("HOSTED_ZONE_NAME", "example.com");
+    String hostedZoneId = System.getenv().getOrDefault("HOSTED_ZONE_ID", "Z000EXAMPLE");
+    String certificateArn = System.getenv().getOrDefault("CERTIFICATE_ARN", "arn:aws:acm:us-east-1:123456789012:certificate/abc");
 
     // Hosted zone (must exist)
     IHostedZone zone =
@@ -93,58 +111,19 @@ public class OidcProviderStack extends Stack {
             this,
             resourceNamePrefix + "-Zone",
             HostedZoneAttributes.builder()
-                .hostedZoneId(props.hostedZoneId)
-                .zoneName(props.hostedZoneName)
+                .hostedZoneId(hostedZoneId)
+                .zoneName(hostedZoneName)
                 .build());
-    String domainName = props.domainName;
     String recordName =
-        props.hostedZoneName.equals(props.domainName)
+        hostedZoneName.equals(domainName)
             ? null
-            : (props.domainName.endsWith("." + props.hostedZoneName)
-                ? props.domainName.substring(
-                    0, props.domainName.length() - (props.hostedZoneName.length() + 1))
-                : props.domainName);
-
-    this.baseUrl = "https://" + domainName;
+            : (domainName.endsWith("." + hostedZoneName)
+                ? domainName.substring(
+                    0, domainName.length() - (hostedZoneName.length() + 1))
+                : domainName);
 
     // TLS certificate from existing ACM (must be in us-east-1 for CloudFront)
-    var cert = Certificate.fromCertificateArn(this, resourceNamePrefix + "-WebCert", props.certificateArn);
-
-    // Buckets
-
-    // Web origin bucket
-    this.webOriginBucket = new S3OriginBucket(
-        this,
-        resourceNamePrefix + "-WebBucket",
-        S3OriginBucketProps.builder()
-            .bucketNameSuffix("web")
-            .logsPrefix("s3/web/")
-            .oaiComment("Identity created for access to the website origin bucket via the CloudFront"
-                + " distribution")
-            .logsBucket(this.logsBucket)
-            .bucketType(S3OriginBucketType.WEB)
-            .build());
-    this.webBucket = this.webOriginBucket.bucket;
-    this.webOriginAccessIdentity = this.webOriginBucket.originAccessIdentity;
-    BehaviorOptions webOriginBehaviorOptions = this.webOriginBucket.behaviorOptions;
-
-    // Well-known origin bucket
-    this.wellKnownOriginBucket = new S3OriginBucket(
-        this,
-        resourceNamePrefix + "-WellKnownBucket",
-        S3OriginBucketProps.builder()
-            .bucketNameSuffix("well-known")
-            .logsPrefix("s3/well-known/")
-            .oaiComment("Identity created for access to the Well Known origin bucket via the CloudFront"
-                + " distribution")
-            .logsBucket(this.logsBucket)
-            .bucketType(S3OriginBucketType.WELL_KNOWN)
-            .build());
-    this.wellKnownBucket = this.wellKnownOriginBucket.bucket;
-    this.wellKnownOriginAccessIdentity = this.wellKnownOriginBucket.originAccessIdentity;
-    this.shortTtl = this.wellKnownOriginBucket.cachePolicy;
-    BehaviorOptions wellKnownOriginBehaviorOptions = this.wellKnownOriginBucket.behaviorOptions;
-    additionalOriginsBehaviourMappings.put("/.well-known/*", wellKnownOriginBehaviorOptions);
+    var cert = Certificate.fromCertificateArn(this, resourceNamePrefix + "-WebCert", certificateArn);
 
     // DDB tables
     this.usersTable =
@@ -254,10 +233,10 @@ public class OidcProviderStack extends Stack {
     additionalOriginsBehaviourMappings.put("/jwks", this.jwksEndpoint.behaviorOptions);
     this.authCodesTable.grantReadWriteData(this.jwksEndpoint.function);
 
-    // CloudFront with two S3 origins and FunctionUrl origins for OIDC endpoints
+    // CloudFront with S3 origins (from EdgeStack) and FunctionUrl origins for OIDC endpoints
     this.distribution =
         Distribution.Builder.create(this, resourceNamePrefix + "-WebDist")
-            .defaultBehavior(webOriginBehaviorOptions)
+            .defaultBehavior(props.webOriginBehaviorOptions)
             .additionalBehaviors(additionalOriginsBehaviourMappings)
             .domainNames(List.of(domainName))
             .certificate(cert)
@@ -282,15 +261,24 @@ public class OidcProviderStack extends Stack {
     this.userinfoEndpoint.function.addPermission(compressedResourceNamePrefix + "-cf-userinfo", invokeFunctionUrlPermission);
     this.jwksEndpoint.function.addPermission(compressedResourceNamePrefix + "-cf-jwks", invokeFunctionUrlPermission);
 
-    var deployPostfix = java.util.UUID.randomUUID().toString().substring(0, 8);
+    // A record
+    this.aliasRecord = new ARecord(
+        this,
+        resourceNamePrefix + "-AliasRecord",
+        ARecordProps.builder()
+            .recordName(recordName)
+            .zone(zone)
+            .target(RecordTarget.fromAlias(new CloudFrontTarget(this.distribution)))
+            .build());
 
     // Deploy the web website files to the web website bucket and invalidate distribution
+    var deployPostfix = java.util.UUID.randomUUID().toString().substring(0, 8);
     var webDocRootSource =
         Source.asset("web", AssetOptions.builder().assetHashType(AssetHashType.SOURCE).build());
     var webDeploymentLogGroup =
           LogGroup.Builder.create(this, resourceNamePrefix + "-WebDeploymentLogGroup")
-              .logGroupName("/deployment/" + resourceNamePrefix + "-web-deployment-" + deployPostfix)
-              .retention(RetentionDays.ONE_DAY)
+              .logGroupName("/aws/vendedlogs/bucketdeployment/" + compressedResourceNamePrefix + "-web-" + deployPostfix)
+              .retention(RetentionDays.ONE_WEEK)
               .removalPolicy(RemovalPolicy.DESTROY)
               .build();
     this.webDeployment =
@@ -305,15 +293,14 @@ public class OidcProviderStack extends Stack {
             .prune(true)
             .build();
 
-    // Deploy the well-known website files to the well-known bucket under /.well-known/ with a random suffix on the log group name
+    // Deploy the well-known website files to the well-known bucket under /.well-known/ and invalidate distribution
     var wellKnownRootSource =
         Source.asset(
             "well-known", AssetOptions.builder().assetHashType(AssetHashType.SOURCE).build());
-
     var wellKnownDeploymentLogGroup =
           LogGroup.Builder.create(this, resourceNamePrefix + "-WellKnownDeploymentLogGroup")
-                  .logGroupName("/deployment/" + resourceNamePrefix + "-well-known-deployment-" + deployPostfix)
-                  .retention(RetentionDays.ONE_DAY)
+                  .logGroupName("/aws/vendedlogs/bucketdeployment/" + compressedResourceNamePrefix + "-wk-" + deployPostfix)
+                  .retention(RetentionDays.ONE_WEEK)
                   .removalPolicy(RemovalPolicy.DESTROY)
                   .build();
     this.wellKnownDeployment =
@@ -329,24 +316,8 @@ public class OidcProviderStack extends Stack {
             .prune(true)
             .build();
 
-    // A record
-    this.aliasRecord = new ARecord(
-        this,
-        resourceNamePrefix + "-AliasRecord",
-        ARecordProps.builder()
-            .recordName(recordName)
-            .zone(zone)
-            .target(RecordTarget.fromAlias(new CloudFrontTarget(this.distribution)))
-            .build());
-
     // Outputs
     new CfnOutput(this, "BaseUrl", CfnOutputProps.builder().value("https://" + domainName).build());
-    new CfnOutput(
-        this, "WebBucketName", CfnOutputProps.builder().value(this.webBucket.getBucketName()).build());
-    new CfnOutput(
-        this,
-        "WellKnownBucketName",
-        CfnOutputProps.builder().value(this.wellKnownBucket.getBucketName()).build());
     new CfnOutput(
         this,
         "DistributionId",
@@ -355,10 +326,6 @@ public class OidcProviderStack extends Stack {
         this,
         "UsersTableName",
         CfnOutputProps.builder().value(this.usersTable.getTableName()).build());
-  }
-
-  private String getLambdaUrlHostToken(FunctionUrl functionUrl) {
-    return Fn.select(2, Fn.split("/", functionUrl.getUrl()));
   }
 
   public String getBaseUrl() {

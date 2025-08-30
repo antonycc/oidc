@@ -4,6 +4,10 @@ on:
   workflow_dispatch:
   delete:
 
+permissions:
+  id-token: write
+  contents: read
+
 env:
   JAVA_VERSION: '21'
   NODE_VERSION: '22'
@@ -87,3 +91,4 @@ jobs:
       - name: Destroy ephemeral OIDC stack
         if: ${{ env.DEPLOYMENT_NAME != 'prod' && env.DEPLOYMENT_NAME != 'ci' }}
         run: npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk destroy OidcProviderStack-${DEPLOYMENT_NAME} --exclusively --force
+        

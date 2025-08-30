@@ -4,6 +4,10 @@ on:
   workflow_dispatch:
   delete:
 
+permissions:
+  id-token: write
+  contents: read
+
 env:
   JAVA_VERSION: '21'
   NODE_VERSION: '22'

@@ -14,6 +14,7 @@ import software.amazon.awscdk.services.cloudfront.origins.S3BucketOrigin;
 import software.amazon.awscdk.services.cloudfront.origins.S3BucketOriginWithOAIProps;
 import software.amazon.awscdk.services.s3.BlockPublicAccess;
 import software.amazon.awscdk.services.s3.Bucket;
+import software.amazon.awscdk.services.s3.BucketEncryption;
 import software.constructs.Construct;
 
 /**
@@ -39,6 +40,7 @@ public class S3OriginBucket extends Construct {
         .bucketName(resourceNamePrefix + "-" + props.bucketNameSuffix)
         .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
         .enforceSsl(true)
+        .encryption(BucketEncryption.S3_MANAGED) // Explicit SSE-S3 encryption (zero cost)
         .autoDeleteObjects(true)
         .removalPolicy(RemovalPolicy.DESTROY)
         .serverAccessLogsBucket(props.logsBucket)

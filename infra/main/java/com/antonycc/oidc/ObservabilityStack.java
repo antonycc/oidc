@@ -6,10 +6,17 @@ import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.services.cloudtrail.Trail;
+import software.amazon.awscdk.services.cloudwatch.Alarm;
+import software.amazon.awscdk.services.cloudwatch.ComparisonOperator;
+import software.amazon.awscdk.services.cloudwatch.Metric;
+import software.amazon.awscdk.services.cloudwatch.TreatMissingData;
+import software.amazon.awscdk.services.logs.FilterPattern;
 import software.amazon.awscdk.services.logs.LogGroup;
+import software.amazon.awscdk.services.logs.MetricFilter;
 import software.amazon.awscdk.services.logs.RetentionDays;
 import software.amazon.awscdk.services.s3.BlockPublicAccess;
 import software.amazon.awscdk.services.s3.Bucket;
+import software.amazon.awscdk.services.s3.BucketEncryption;
 import software.amazon.awscdk.services.xray.CfnGroup;
 import software.constructs.Construct;
 
@@ -20,6 +27,10 @@ public class ObservabilityStack extends Stack {
   public final LogGroup trailLogGroup;
   public final Trail auditTrail;
   public final CfnGroup xrayGroup;
+  public final MetricFilter authFailureMetricFilter;
+  public final Alarm authFailureAlarm;
+  public final MetricFilter securityEventMetricFilter;
+  public final Alarm securityEventAlarm;
 
   public ObservabilityStack(final Construct scope, final String id, final ObservabilityStackProps props) {
     super(scope, id, props);
@@ -34,6 +45,7 @@ public class ObservabilityStack extends Stack {
             .bucketName(resourceNamePrefix + "-logs")
             .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
             .enforceSsl(true)
+            .encryption(BucketEncryption.S3_MANAGED) // Explicit SSE-S3 encryption (zero cost)
             .autoDeleteObjects(true)
             .removalPolicy(RemovalPolicy.DESTROY)
             .lifecycleRules(
@@ -48,7 +60,7 @@ public class ObservabilityStack extends Stack {
     this.trailLogGroup =
         LogGroup.Builder.create(this, resourceNamePrefix + "-CloudTrailLogGroup")
             .logGroupName("/aws/cloudtrail/" + resourceNamePrefix)
-            .retention(RetentionDays.ONE_WEEK)
+            .retention(RetentionDays.ONE_DAY) // Reduced from ONE_WEEK for cost optimization
             .removalPolicy(RemovalPolicy.DESTROY)
             .build();
     this.auditTrail =
@@ -65,6 +77,60 @@ public class ObservabilityStack extends Stack {
             .filterExpression("service(\"lambda\")")
             .insightsConfiguration(
                 CfnGroup.InsightsConfigurationProperty.builder().insightsEnabled(true).build())
+            .build();
+
+    // Security Monitoring: Metric Filters and Alarms for authentication failures
+    this.authFailureMetricFilter = 
+        MetricFilter.Builder.create(this, resourceNamePrefix + "-AuthFailureMetricFilter")
+            .logGroup(this.trailLogGroup)
+            .metricNamespace("OIDC/Security")
+            .metricName("AuthenticationFailures")
+            .filterPattern(
+                FilterPattern.anyTerm("invalid_client", "invalid_grant", "invalid_request")
+            )
+            .metricValue("1")
+            .build();
+
+    this.authFailureAlarm = 
+        Alarm.Builder.create(this, resourceNamePrefix + "-AuthFailureAlarm")
+            .metric(Metric.Builder.create()
+                .namespace("OIDC/Security")
+                .metricName("AuthenticationFailures")
+                .statistic("Sum")
+                .period(Duration.minutes(5))
+                .build())
+            .threshold(5.0) // Alert on 5+ auth failures in 5 minutes
+            .comparisonOperator(ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD)
+            .evaluationPeriods(1)
+            .treatMissingData(TreatMissingData.NOT_BREACHING)
+            .alarmDescription("Multiple authentication failures detected - possible attack")
+            .build();
+
+    // Security Monitoring: Metric Filter for general security events
+    this.securityEventMetricFilter = 
+        MetricFilter.Builder.create(this, resourceNamePrefix + "-SecurityEventMetricFilter")
+            .logGroup(this.trailLogGroup)
+            .metricNamespace("OIDC/Security")
+            .metricName("SecurityEvents")
+            .filterPattern(
+                FilterPattern.anyTerm("client_not_found", "redirect_validation", "scope_validation")
+            )
+            .metricValue("1")
+            .build();
+
+    this.securityEventAlarm = 
+        Alarm.Builder.create(this, resourceNamePrefix + "-SecurityEventAlarm")
+            .metric(Metric.Builder.create()
+                .namespace("OIDC/Security")
+                .metricName("SecurityEvents")
+                .statistic("Sum")
+                .period(Duration.minutes(15))
+                .build())
+            .threshold(10.0) // Alert on 10+ security events in 15 minutes
+            .comparisonOperator(ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD)
+            .evaluationPeriods(1)
+            .treatMissingData(TreatMissingData.NOT_BREACHING)
+            .alarmDescription("Unusual security activity detected - review logs")
             .build();
 
     // Outputs for the created observability resources

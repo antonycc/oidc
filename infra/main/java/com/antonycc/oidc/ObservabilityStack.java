@@ -85,7 +85,13 @@ public class ObservabilityStack extends Stack {
             .logGroup(this.trailLogGroup)
             .metricNamespace("OIDC/Security")
             .metricName("AuthenticationFailures")
-            .filterPattern(FilterPattern.allTerms("\"invalid_client\"", "\"invalid_grant\"", "\"invalid_request\""))
+            .filterPattern(
+                FilterPattern.any(
+                    FilterPattern.stringValue("$.error", "invalid_client"),
+                    FilterPattern.stringValue("$.error", "invalid_grant"),
+                    FilterPattern.stringValue("$.error", "invalid_request")
+                )
+            )
             .metricValue("1")
             .build();
 

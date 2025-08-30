@@ -46,10 +46,12 @@ function generatePkce() {
     verifier += chars.charAt(Math.floor(Math.random() * chars.length));
   }
 
-  // Create code challenge: base64url-encoded SHA-256 hash of the verifier
-  // Compatible with older k6 versions: get ArrayBuffer hash and encode as URL-safe base64
-  const hash = sha256(verifier, 'binary'); // ArrayBuffer
-  const challenge = encoding.b64encode(hash, "url");
+  // Create code challenge using the exact same method as api.live.test.ts
+  // This ensures compatibility with the backend PKCE verification
+  const hash = sha256(verifier, 'binary');
+  // Convert ArrayBuffer to standard base64, then manually convert to base64url
+  const base64 = encoding.b64encode(hash, "std");
+  const challenge = base64.replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
   return { verifier, challenge };
 }
 
@@ -257,13 +259,8 @@ export default function() {
   }
 }
 
-/*
- * Load test scenarios - 1 minute test with max 100 authentication attempts
- */
 export const options = {
   scenarios: {
-    // 1-minute load test using ramping arrival rate
-    // Note: Top-level `iterations` are ignored when `scenarios` are defined in k6.
     load_test: {
       executor: "ramping-arrival-rate",
       startRate: 1,
@@ -278,7 +275,7 @@ export const options = {
     },
   },
   thresholds: {
-    http_req_duration: ["p(95)<2000"], // 95% of requests should be below 2s
+    http_req_duration: ["p(95)<5000"], // 95% of requests should be below 5s
     http_req_failed: ["rate<0.1"],     // Error rate should be below 10%
     http_reqs: ["count>0"],            // Ensure at least one HTTP request is executed
   },

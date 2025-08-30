@@ -1,5 +1,8 @@
-name: destroy
-concurrency: destroy
+name: "destroy-${{ github.ref_name }}"
+concurrency:
+  group: "deploy-${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}"
+  cancel-in-progress: false
+
 on:
   workflow_dispatch:
   # TODO: Work out how to set REF_NAME="${{ github.ref_name }}" to the ref being deleted

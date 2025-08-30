@@ -1,7 +1,7 @@
-name: test-and-deploy
+name: "deploy-${{ github.ref_name }}"
 concurrency:
-    group: "test-and-deploy"
-    cancel-in-progress: false
+  group: "deploy-${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}"
+  cancel-in-progress: false
 
 on:
   workflow_dispatch:

@@ -1,4 +1,7 @@
-name: load-test
+name: "load-test-${{ github.ref_name }}"
+concurrency:
+  group: "load-${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}"
+  cancel-in-progress: true
 
 on:
   # Manual dispatch with optional scenario selection

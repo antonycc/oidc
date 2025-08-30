@@ -45,8 +45,9 @@
         
         // Pre-fill form with OAuth parameters if available
         const clientIdInput = document.querySelector('input[name="client_id"]');
-        if (urlParams.get('client_id') && clientIdInput) {
-          clientIdInput.value = urlParams.get('client_id');
+        const clientIdParam = urlParams.get('client_id');
+        if (clientIdParam && clientIdInput) {
+          clientIdInput.value = clientIdParam;
         }
       }
       

@@ -80,12 +80,6 @@ public class CognitoStack extends Stack {
             .schema(List.of(
                 CfnUserPool.SchemaAttributeProperty.builder()
                     .attributeDataType("String")
-                    .name("email")
-                    .required(true)
-                    .mutable(true)
-                    .build(),
-                CfnUserPool.SchemaAttributeProperty.builder()
-                    .attributeDataType("String")
                     .name("given_name")
                     .required(false)
                     .mutable(true)

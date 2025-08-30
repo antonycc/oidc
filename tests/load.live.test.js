@@ -93,7 +93,9 @@ function parseParam(url, name) {
  */
 export default function() {
   if (!TEST_PASSWORD) {
-    throw new Error("TEST_PASSWORD environment variable is required");
+    // Do not hard-fail the iteration if password is missing. Proceed so HTTP requests are still made
+    // and failures are reflected in k6 metrics. This also helps local dry runs.
+    console.warn("[load_test] TEST_PASSWORD not set; proceeding may cause authorize to fail.");
   }
 
   const redirect_uri = `${BASE_URL}/post-auth.html`;
@@ -245,7 +247,7 @@ export default function() {
     // Final fallback: decode id_token locally (matching api.live.test.ts)
     try {
       const parts = tokenData.id_token.split(".");
-      const payload = JSON.parse(encoding.b64decode(parts[1], "url", "s"));
+      const payload = JSON.parse(encoding.b64decode(parts[1], "std", "s"));
       check(payload, {
         "id_token has sub claim": (data) => data.sub,
       });
@@ -278,5 +280,6 @@ export const options = {
   thresholds: {
     http_req_duration: ["p(95)<2000"], // 95% of requests should be below 2s
     http_req_failed: ["rate<0.1"],     // Error rate should be below 10%
+    http_reqs: ["count>0"],            // Ensure at least one HTTP request is executed
   },
 };

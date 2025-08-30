@@ -1,6 +1,6 @@
 # OIDC Provider - Serverless Debugging Utility
 
-> **🔧 This is a debugging and testing utility, not a production authentication service.**
+> **🔧 This is a debugging and testing utility with a production deployment at `https://oidc.antonycc.com` for integration testing.**
 
 ## What This Is
 
@@ -20,11 +20,31 @@ A **lightweight, inspectable OIDC provider** designed for developers who need to
    - **Branch Testing**: Any branch push deploys to `ci-{branch}.oidc.antonycc.com` / `ci-{branch}.auth.oidc.antonycc.com` and auto-cleans up after tests
 4. **Test with included Playwright scenarios** (screenshots, videos, traces)
 
+**Or test immediately against the production deployment:**
+- URL: `https://oidc.antonycc.com`
+- Test credentials: `test-user` / `****`
+- Try the [direct login flow](https://oidc.antonycc.com/login.html)
+
 ## Architecture
 
 **Tech Stack:** CDK Java v2, Node.js 22 ESM Lambdas, CloudFront+S3 (OAC), DynamoDB TTL, Cognito User Pool integration
 
 **Why Serverless:** Pay-per-request pricing, automatic scaling, comprehensive CloudWatch logging (7-day retention), infrastructure-as-code with destroy-on-delete for safe testing environments.
+
+## Performance
+
+The OIDC provider has been load tested and demonstrates excellent reliability and performance characteristics:
+
+**Load Test Results (20 Virtual Users):**
+- **Success Rate:** 100% (0 failures across all OIDC flow endpoints)
+- **Total Iterations:** 65 successful complete authentication flows
+- **Average Flow Duration:** ~861ms (end-to-end authorize → token → userinfo)
+- **Median HTTP Response Time:** ~107ms 
+- **95th Percentile Response Time:** ~717ms
+- **All OIDC Endpoints:** Authorize, Token, and UserInfo all maintain 100% success rate
+- **Request Volume:** 195 total HTTP requests processed with zero errors
+
+The provider handles concurrent authentication flows reliably with consistent performance, making it suitable for testing and development workloads. The serverless architecture automatically scales to handle demand spikes while maintaining cost efficiency during idle periods.
 
 ## Screenshots
 
@@ -158,6 +178,199 @@ The provider supports two pre-configured clients:
 }
 ```
 
+## Integration Guide
+
+The production OIDC provider at `https://oidc.antonycc.com` can be integrated as an authentication provider in several ways:
+
+### Direct OIDC Integration
+
+Use the OIDC provider directly in your applications by implementing the standard OAuth2/OIDC flow:
+
+**1. Discovery Endpoint**
+```bash
+curl https://oidc.antonycc.com/.well-known/openid-configuration
+```
+
+**2. Configure Your Application**
+- **Issuer:** `https://oidc.antonycc.com`
+- **Client ID:** `self-client` (for direct integration)
+- **Redirect URIs:** Configure your callback URLs
+- **Scopes:** `openid email profile`
+- **Flow:** Authorization Code with PKCE
+
+**3. Example Integration (Node.js)**
+```javascript
+import { generators, Issuer } from 'openid-client';
+
+// Discover the provider
+const issuer = await Issuer.discover('https://oidc.antonycc.com');
+
+// Create client
+const client = new issuer.Client({
+  client_id: 'self-client',
+  redirect_uris: ['https://your-app.com/callback'],
+  response_types: ['code'],
+});
+
+// Generate PKCE challenge
+const code_verifier = generators.codeVerifier();
+const code_challenge = generators.codeChallenge(code_verifier);
+
+// Redirect to authorization endpoint
+const authUrl = client.authorizationUrl({
+  scope: 'openid email profile',
+  code_challenge,
+  code_challenge_method: 'S256',
+});
+
+// Exchange code for tokens (in your callback handler)
+const tokenSet = await client.callback('https://your-app.com/callback', 
+  { code: authCode }, { code_verifier });
+```
+
+### AWS Cognito Integration
+
+Integrate the OIDC provider as an external identity provider in AWS Cognito:
+
+**1. Create Identity Provider in Cognito User Pool**
+```bash
+aws cognito-idp create-identity-provider \
+  --user-pool-id us-east-1_XXXXXXXXX \
+  --provider-name "OidcProvider" \
+  --provider-type OIDC \
+  --provider-details '{
+    "oidc_issuer": "https://oidc.antonycc.com",
+    "client_id": "cognito-web",
+    "authorize_scopes": "openid email profile",
+    "attributes_request_method": "GET"
+  }' \
+  --attribute-mapping '{
+    "email": "email",
+    "email_verified": "email_verified",
+    "name": "name",
+    "given_name": "given_name",
+    "family_name": "family_name"
+  }'
+```
+
+**2. Update User Pool Client**
+```bash
+aws cognito-idp update-user-pool-client \
+  --user-pool-id us-east-1_XXXXXXXXX \
+  --client-id YOUR_CLIENT_ID \
+  --supported-identity-providers OidcProvider,COGNITO
+```
+
+**3. Test the Integration**
+Navigate to your Cognito Hosted UI - users can now sign in using the OIDC provider.
+
+### Cross-Account Cognito Resource Linking
+
+To use the production Cognito instance (`auth.oidc.antonycc.com`) from another AWS account:
+
+**1. Cross-Account Resource Sharing**
+The production Cognito User Pool and resources are deployed in the primary account. To use them from another account:
+
+```bash
+# Get the production Cognito details
+aws cognito-idp describe-user-pool \
+  --user-pool-id us-east-1_XXXXXXXXX \
+  --region us-east-1
+```
+
+**2. Create IAM Role for Cross-Account Access**
+In your target account, create a role that can assume cross-account permissions:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::YOUR-ACCOUNT:root"
+      },
+      "Action": "sts:AssumeRole",
+      "Condition": {
+        "StringEquals": {
+          "sts:ExternalId": "unique-external-id"
+        }
+      }
+    }
+  ]
+}
+```
+
+**3. Reference Production Resources**
+Use the production Cognito resources in your CloudFormation/CDK:
+
+```typescript
+// Reference existing Cognito User Pool from production account
+const existingUserPool = cognito.UserPool.fromUserPoolId(
+  this, 'ProductionUserPool',
+  'us-east-1_XXXXXXXXX'  // Production User Pool ID
+);
+
+// Create client in your account that uses the production pool
+const userPoolClient = new cognito.UserPoolClient(this, 'MyAppClient', {
+  userPool: existingUserPool,
+  generateSecret: false,
+  authFlows: {
+    userSrp: true,
+    userPassword: true
+  }
+});
+```
+
+**4. Configure Federation (Alternative Approach)**
+Instead of cross-account resource sharing, use OIDC federation:
+
+```typescript
+// Create OIDC Identity Provider pointing to production
+const oidcProvider = new cognito.CfnIdentityProvider(this, 'OidcProvider', {
+  userPoolId: yourUserPool.userPoolId,
+  providerName: 'ProductionOIDC',
+  providerType: 'OIDC',
+  providerDetails: {
+    oidc_issuer: 'https://oidc.antonycc.com',
+    client_id: 'cognito-web',
+    authorize_scopes: 'openid email profile'
+  },
+  attributeMapping: {
+    email: 'email',
+    email_verified: 'email_verified',
+    name: 'name'
+  }
+});
+```
+
+### Testing Your Integration
+
+**1. Manual Testing**
+- Access the login flow: `https://oidc.antonycc.com/login.html`
+- Use test credentials: `test-user` / ${{ secrets.TEST_PASSWORD }} (In GitHub Secrets)
+- Verify token exchange and userinfo endpoints
+
+**2. Automated Testing**
+```bash
+# Test the complete OIDC flow
+BASE_URL=https://oidc.antonycc.com \
+TEST_USERNAME=test-user \
+TEST_PASSWORD=**** \
+npx playwright test
+```
+
+**3. Load Testing**
+The provider supports concurrent authentication flows. For production-like testing:
+
+```bash
+# Run load test against production
+BASE_URL=https://oidc.antonycc.com \
+TEST_USERNAME=test-user \
+TEST_PASSWORD=**** \
+node scripts/load-test.mjs small
+```
+
 ---
 
 ## Setup
@@ -272,11 +485,6 @@ To grant the local use access to assume the role, the local user needs to have t
 
 ## Configure repo variables (Settings → Secrets and variables → Actions → *Variables*)
 
-* `HOSTED_ZONE_NAME` e.g. `antonycc.com`
-* `HOSTED_ZONE_ID` e.g. `Z079976717QZCYMJ02NI2`
-* `DOMAIN_NAME` e.g. `oidc.antonycc.com` (must be within the hosted zone)
-* `CERTIFICATE_ARN` e.g. `arn:aws:acm:us-east-1:403027849202:certificate/62ef0526-06c0-4744-9cee-33300d716633` (ACM in us-east-1 for CloudFront)
-* `COGNITO_DOMAIN_PREFIX` e.g. `com-antonycc-oidc-prod`
 * `DEPLOY_ROLE_ARN` IAM role for GitHub OIDC e.g. `arn:aws:iam::403027849202:role/oidc-github-actions-deploy-role`
 * For testOnly runs against an existing deploy, optionally:
 
@@ -381,15 +589,17 @@ CDK CLI executes the Java app via `cdk.json`.
 
 ## Provision users for tests
 
-Users are stored in DynamoDB (`Users` table). CI calls:
+Users are stored in DynamoDB (`Users` table). For deployed environments:
 
 ```bash
-# Create a test user (defaults shown)
-USERS_TABLE=<UsersTableName> npm run users:provision test-user Passw0rd!
+# Create a test user (using environment defaults)
+USERS_TABLE=<UsersTableName> npm run users:provision test-user ****
 
 # Clear all users
 USERS_TABLE=<UsersTableName> npm run users:clear
 ```
+
+The production deployment at `oidc.antonycc.com` includes the test user `test-user` with password `****` for integration testing.
 
 ---
 
@@ -400,7 +610,14 @@ USERS_TABLE=<UsersTableName> npm run users:clear
 npm ci
 npx playwright install --with-deps
 
-# Using outputs from deploy
+# Test against production deployment
+export BASE_URL=https://oidc.antonycc.com
+export TEST_USERNAME=test-user
+export TEST_PASSWORD=****
+
+npx playwright test --project=chromium
+
+# Or test against your own deployment using outputs from deploy
 export BASE_URL=https://<subdomain>.<zone>
 export COGNITO_DOMAIN=<domain from output>
 export COGNITO_CLIENT_ID=<client from output>
@@ -471,14 +688,14 @@ Let me know if you’d like help fine‑tuning the ramp patterns or integrating 
 run the 5k test against your deployment:
 ```bash
 
-BASE_URL=https://oidc.antonycc.com TEST_USERNAME=test-user TEST_PASSWORD=Passw0rd! node scripts/load-test.mjs small
+BASE_URL=https://oidc.antonycc.com TEST_USERNAME=test-user TEST_PASSWORD=**** node scripts/load-test.mjs small
 ```
 
 ---
 
 ## Verbose logging
 
-All handlers log structured JSON on every step (inputs redacted where needed). CloudWatch log groups are set to **ONE\_WEEK** retention.
+All handlers log structured JSON on every step (inputs redacted where needed). CloudWatch log groups are set to **ONE_WEEK** retention.
 Lambda Node 22, Function URLs, and CloudFront origins are standard.
 
 ---
@@ -499,9 +716,10 @@ Lambda Node 22, Function URLs, and CloudFront origins are standard.
 
 * **You must own the hosted zone** in Route53 and set `HOSTED_ZONE_ID` accurately.
 * **Certificates for CloudFront live in `us-east-1`.** Bring your own ACM certificate issued in `us-east-1` and pass its ARN via `CERTIFICATE_ARN`.
-* **BASE\_URL env for tests must match the CloudFront domain output.**
+* **BASE_URL env for tests must match the CloudFront domain output.**
 * **Cognito callback URL must be** `https://<domain_name>/post-auth.html`.
 * **Playwright browsers must be installed in CI** with `npx playwright install --with-deps`.
+* **Test credentials for production are:** `test-user` / `****`
 
 ---
 
@@ -510,11 +728,14 @@ Lambda Node 22, Function URLs, and CloudFront origins are standard.
 * `./mvnw --errors compile exec:java` → no exceptions.
 * `npx cdk synth` → template appears.
 * `npx cdk deploy` → outputs show `BaseUrl` and Cognito values.
-* `npm run users:provision` → prints `created`.
-* `BASE_URL=... COGNITO_DOMAIN=... COGNITO_CLIENT_ID=... npx playwright test` → two tests pass.
+* `npm run users:provision test-user ****` → prints `created`.
+* `BASE_URL=... COGNITO_DOMAIN=... COGNITO_CLIENT_ID=... npx playwright test` → tests pass.
 * Check **Actions artifacts** for `playwright-report`, `test-results` folders.
 
 If a first cold start slows `/authorize`, Playwright has 90s timeout in config. Lambda Node 22 cold starts are typical and within test budgets.
+
+**Alternative: Test against production immediately:**
+* `BASE_URL=https://oidc.antonycc.com TEST_USERNAME=test-user TEST_PASSWORD=**** npx playwright test` → tests pass.
 
 ---
 

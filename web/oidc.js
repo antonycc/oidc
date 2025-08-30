@@ -46,6 +46,18 @@
         });
         authSection.appendChild(logoutBtn);
       }
+    } else {
+      const authSection = document.querySelector('.auth-section');
+      if (authSection && !authSection.querySelector('.login-btn')) {
+        const loginBtn = document.createElement('button');
+        loginBtn.textContent = 'Login';
+        loginBtn.className = 'login-btn nav';
+        loginBtn.style.marginLeft = '10px';
+        loginBtn.addEventListener('click', () => {
+          window.location.href = './login.html';
+        });
+        authSection.appendChild(loginBtn);
+      }
     }
   }
 
@@ -94,12 +106,6 @@
     // Divider
     const hr = document.createElement('div');
     hr.className = 'menu-divider';
-
-    // Items
-    const viewPostAuth = document.createElement('a');
-    viewPostAuth.href = '/post-auth.html';
-    viewPostAuth.textContent = 'View post-auth page';
-    viewPostAuth.setAttribute('data-action', 'view-local-storage');
 
     const viewLS = document.createElement('a');
     viewLS.href = '#';

@@ -12,24 +12,23 @@ const TEST_PASSWORD = process.env.TEST_PASSWORD || "";
 // @ts-ignore
 test("Home renders", async ({ page }) => {
     await page.goto(new URL("/", BASE_URL).toString());
-    await expect(page.getByRole("heading", { name: "OIDC Provider" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "OIDC - Home" })).toBeVisible();
 });
 
 // @ts-ignore
 test("Direct login form: failed login shows error", async ({ page }) => {
   await page.goto(new URL("./login.html", BASE_URL).toString());
-  await page.getByRole("heading", { name: "Direct OP Login" }).waitFor();
+  await page.getByRole("heading", { name: "OIDC - Login" }).waitFor();
   await page.getByLabel("Username").fill(TEST_USERNAME);
   await page.getByLabel("Password").fill("wrong");
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.locator("#error")).toBeVisible();
-  await expect(page.locator("#error")).toContainText("Authentication failed. Please check your username and password.");
+  await expect(page.getByText("Invalid username or password")).toBeVisible();
 });
 
 // @ts-ignore
 test("Direct login form: successful login returns tokens and claims", async ({ page }) => {
   await page.goto(new URL("./login.html", BASE_URL).toString());
-  await page.getByRole("heading", { name: "Direct OP Login" }).waitFor();
+  await page.getByRole("heading", { name: "OIDC - Login" }).waitFor();
   await page.getByLabel("Username").fill("test-user");
   await page.getByLabel("Password").fill(TEST_PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();

@@ -17,7 +17,7 @@
       </div>
     </header>
     <main class="container">
-      <h1>Direct OP Login</h1>
+      <h1>OIDC - Login</h1>
       <div class="card">
         <p>
           Use this form to exercise the OP directly without Cognito. It will perform PKCE, post to
@@ -54,7 +54,7 @@
         const username = fd.get("username");
         const password = fd.get("password");
         const client_id = fd.get("client_id");
-        
+
         // Validate required fields
         if (!username || !password || !client_id) {
           const el = document.getElementById("error");
@@ -62,9 +62,9 @@
           el.textContent = "All fields are required.";
           return;
         }
-        
+
         const redirect_uri = new URL("/post-auth.html", location.origin).toString();
-        
+
         // Validate redirect_uri format
         try {
           new URL(redirect_uri);
@@ -74,59 +74,47 @@
           el.textContent = "Invalid redirect URI format.";
           return;
         }
+
         const scope = "openid email profile";
         const state = rand(16);
         const nonce = rand(16);
         const code_verifier = rand(64);
         const code_challenge = await sha256base64url(code_verifier);
-        sessionStorage.setItem("pkce:" + state, JSON.stringify({ code_verifier, client_id, redirect_uri }));
-        const params = new URLSearchParams({
-          client_id,
-          redirect_uri,
-          response_type: "code",
-          scope,
-          state,
-          nonce,
-          code_challenge,
-          code_challenge_method: "S256",
-          username,
-          password,
-        });
-        // Post as application/x-www-form-urlencoded
-        const res = await fetch("/authorize", {
-          method: "POST",
-          headers: { "content-type": "application/x-www-form-urlencoded" },
-          body: params.toString(),
-          redirect: "manual",
-        });
-        if (res.status === 302) {
-          const loc = res.headers.get("Location");
-          location.href = loc;
-        } else {
-          const el = document.getElementById("error");
-          el.style.display = "block";
-          let message;
-          switch (res.status) {
-            case 400:
-              message = "Invalid request. Please check your input.";
-              break;
-            case 401:
-              message = "Authentication failed. Please check your username and password.";
-              break;
-            case 403:
-              message = "You do not have permission to access this resource.";
-              break;
-            case 500:
-              message = "Server error. Please try again later.";
-              break;
-            default:
-              message = "An error occurred (" + res.status + "). Please try again.";
+
+        // Stash PKCE for post-auth token exchange
+        sessionStorage.setItem(
+          "pkce:" + state,
+          JSON.stringify({ code_verifier, client_id, redirect_uri })
+        );
+
+        // Prepare a standard POST so the browser follows redirects (302/303/307/308)
+        form.setAttribute("action", "/authorize");
+        form.setAttribute("method", "POST");
+        form.setAttribute("autocomplete", "on");
+
+        // Ensure hidden inputs for OIDC params are present/updated
+        const ensureHidden = (name, value) => {
+          let input = form.querySelector(`input[name="${name}"]`);
+          if (!input) {
+            input = document.createElement("input");
+            input.type = "hidden";
+            input.name = name;
+            form.appendChild(input);
           }
-          el.textContent = message;
-          // Optionally log the raw error for debugging (not shown to user)
-          const rawText = await res.text();
-          console.debug("Raw error response:", rawText);
-        }
+          input.value = value;
+        };
+
+        ensureHidden("client_id", String(client_id));
+        ensureHidden("redirect_uri", redirect_uri);
+        ensureHidden("response_type", "code");
+        ensureHidden("scope", scope);
+        ensureHidden("state", state);
+        ensureHidden("nonce", nonce);
+        ensureHidden("code_challenge", code_challenge);
+        ensureHidden("code_challenge_method", "S256");
+        // username and password are already in visible inputs with matching names
+        // Submit the form to trigger a real navigation handled by the browser
+        form.submit();
       });
     </script>
     <footer><small>© 2025 <a href="https://github.com/antonycc/oidc">@antonycc/oidc</a></small></footer>

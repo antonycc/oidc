@@ -83,7 +83,7 @@ export const handler = async (event) => {
     }
 
     const row = await get(tables.codes, { code });
-    log("token_request_validation row for code", { codeExists: !!row.Item, clientMatches: row.Item?.client === clientId }, maskSensitive(code));
+    log("token_request_validation row for code", { codeExists: !!row.Item }, maskSensitive(code));
     if (!row.Item) return json(400, { error: "invalid_grant" });
 
     const now = Math.floor(Date.now() / 1000);

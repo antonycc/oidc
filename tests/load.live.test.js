@@ -261,7 +261,7 @@ export default function() {
 export const options = {
   scenarios: {
     // 1-minute load test using ramping arrival rate
-    // Note: Do not set top-level `iterations` when `scenarios` are defined; k6 forbids mixing them.
+    // Note: Top-level `iterations` are ignored when `scenarios` are defined in k6.
     load_test: {
       executor: "ramping-arrival-rate",
       startRate: 1,

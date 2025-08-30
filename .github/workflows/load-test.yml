@@ -19,18 +19,45 @@ on:
   #  - cron: '0 4 * * 0'
   #    timezone: 'Europe/London'
 
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  JAVA_VERSION: '21'
+  NODE_VERSION: '22'
+  DEPLOY_ROLE_ARN: ${{ vars.DEPLOY_ROLE_ARN }}
+  AWS_REGION: us-east-1
+  TEST_USERNAME: test-user
+  TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+
 jobs:
   load-test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Verify Node environment
+        run: |
+          echo "Node version: $(node --version)"
+          echo "NPM version: $(npm --version)"
+          echo "Expected Node version: ${{ env.NODE_VERSION }}"
+
+      - name: Node test
+        run: npm ci && npm test
 
       # Install the k6 binary.  This action downloads and caches
       # Grafana k6 (Go implementation).  Version can be pinned as
       # needed; we use the latest stable release.
       - name: Setup k6
-        uses: grafana/setup-k6@v0.3.0
+        uses: grafana/setup-k6-action@v1
 
       # Determine which scenario to run.  For scheduled runs the
       # scenario defaults to `medium`; for manual runs it reads the
@@ -59,7 +86,7 @@ jobs:
           echo "Running k6 scenario: $SCENARIO"
           echo "BASE_URL: $BASE_URL"
           echo "TEST_USERNAME: $TEST_USERNAME"
-          k6 run tests/load.live.test.js --scenario $SCENARIO --summary-export=summary.json
+          npm run test:load -- --scenario $SCENARIO --summary-export=summary.json
 
       # Optionally upload the k6 summary as an artifact for later
       # analysis.  The summary.json file contains detailed metrics

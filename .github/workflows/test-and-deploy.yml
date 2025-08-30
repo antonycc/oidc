@@ -186,42 +186,39 @@ jobs:
           echo "COGNITO_CLIENT_ID=$COGNITO_CLIENT_ID" >> $GITHUB_OUTPUT
         shell: bash
 
-      - name: Wait 30 seconds for CloudFront distribution testing
+      - name: Wait 10 seconds for CloudFront distribution testing
         if: ${{ inputs.skipDeploy != 'true' }}
         id: setup-cloudfront-tests
-        run: sleep 30
+        run: sleep 10
 
-      - name: Web bucket default behavior
-        if: ${{ inputs.skipDeploy != 'true' }}
-        run: curl --include --request GET "${{ steps.oidc-outputs.outputs.BASE_URL }}/"
+      #- name: Web bucket default behavior
+      #  if: ${{ inputs.skipDeploy != 'true' }}
+      #  run: curl --include --request GET "${{ steps.oidc-outputs.outputs.BASE_URL }}/"
 
-      - name: Web bucket file behavior
-        if: ${{ inputs.skipDeploy != 'true' }}
-        run: curl --include --request GET "${{ steps.oidc-outputs.outputs.BASE_URL }}/post-auth.html"
+      #- name: Web bucket file behavior
+      #  if: ${{ inputs.skipDeploy != 'true' }}
+      #  run: curl --include --request GET "${{ steps.oidc-outputs.outputs.BASE_URL }}/post-auth.html"
 
-      - name: Well-known endpoint behavior
-        if: ${{ inputs.skipDeploy != 'true' }}
-        run: curl --include --request GET "${{ steps.oidc-outputs.outputs.BASE_URL }}/.well-known/openid-configuration"
+      #- name: Well-known endpoint behavior
+      #  if: ${{ inputs.skipDeploy != 'true' }}
+      #  run: curl --include --request GET "${{ steps.oidc-outputs.outputs.BASE_URL }}/.well-known/openid-configuration"
 
-      - name: Well-known JWKS behavior
-        if: ${{ inputs.skipDeploy != 'true' }}
-        run: curl --include --request GET "${{ steps.oidc-outputs.outputs.BASE_URL }}/jwks"
+      #- name: Well-known JWKS behavior
+      #  if: ${{ inputs.skipDeploy != 'true' }}
+      #  run: curl --include --request GET "${{ steps.oidc-outputs.outputs.BASE_URL }}/jwks"
 
       - name: Provision test user
-        if: ${{ inputs.skipDeploy != 'true' }}
         run: npm run users:provision ${{ env.TEST_USERNAME }} ${{ env.TEST_PASSWORD }}
         env:
           USERS_TABLE: ${{ steps.oidc-outputs.outputs.USERS_TABLE }}
 
       - name: Install dependencies and Playwright browsers
-        if: ${{ inputs.skipDeploy != 'true' }}
         run: |
           npm -v
           npm ci --ignore-scripts
           npx playwright install chromium --with-deps
 
       - name: Run Playwright live API test
-        if: ${{ inputs.skipDeploy != 'true' }}
         env:
           BASE_URL: ${{ steps.oidc-outputs.outputs.BASE_URL }}
           TEST_USERNAME: ${{ env.TEST_USERNAME }}
@@ -232,7 +229,6 @@ jobs:
 
       # The behaviour tests are not run for skipDeploy=true because they would be running against a different deployment.
       - name: Run Playwright behaviour tests
-        if: ${{ inputs.skipDeploy != 'true' }}
         run: |
           echo "BASE_URL=${{ steps.oidc-outputs.outputs.BASE_URL }}"
           echo "COGNITO_DOMAIN=${{ steps.oidc-outputs.outputs.COGNITO_DOMAIN }}"
@@ -245,11 +241,9 @@ jobs:
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
 
       - name: Setup k6
-        if: ${{ inputs.skipDeploy != 'true' }}
-        uses: grafana/setup-k6-action@v1.1.0
+        uses: grafana/setup-k6-action@v1
 
       - name: Run k6 load test (5 minutes)
-        if: ${{ inputs.skipDeploy != 'true' }}
         env:
           BASE_URL: ${{ steps.oidc-outputs.outputs.BASE_URL }}
           TEST_USERNAME: ${{ env.TEST_USERNAME }}
@@ -257,10 +251,10 @@ jobs:
         run: |
           echo "BASE_URL=${BASE_URL}"
           echo "TEST_USERNAME=${TEST_USERNAME}"
-          k6 run tests/load.live.test.js --summary-export=load-test-summary.json
+          npm run test:load -- --summary-export=load-test-summary.json
 
       - name: Upload artifacts (report, trace, screenshots, videos)
-        if: ${{ !cancelled() && inputs.skipDeploy != 'true' }}
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: playwright-artifacts

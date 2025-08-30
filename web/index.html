@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>OIDC Provider</title>
+    <title>OIDC - Home</title>
     <link rel="stylesheet" href="./oidc.css" />
   </head>
   <body>
@@ -11,75 +11,23 @@
       <div class="header-nav">
         <div class="hamburger-menu">
           <button class="hamburger-btn">☰</button>
-          <div class="menu-dropdown"><a href="/index.html">Home</a><a href="/post-auth.html">Post Auth</a></div>
+          <div class="menu-dropdown"><div data-utils-target></div></div>
         </div>
         <div class="auth-section">
-          <span class="login-status">Not logged in</span> <a class="nav" href="/login.html">Log in</a>
+          <span class="login-status">Not logged in <a class="nav" href="./login.html">Log in</a></span>
         </div>
       </div>
     </header>
     <main class="container">
-      <h1>OIDC Provider</h1>
+      <h1>OIDC - Home</h1>
       <div class="card">
         <p>Use Cognito Hosted UI to kick off the flow. This site only hosts simple pages and receives callbacks.</p>
         <p>After deploy, your Cognito domain is output as <code>CognitoAuthDomain</code>. Visit:</p>
         <pre><code>https://&lt;cognito-domain&gt;/oauth2/authorize?client_id=&lt;clientId&gt;&amp;response_type=code&amp;scope=openid+email+profile&amp;redirect_uri=https://&lt;your-subdomain&gt;.&lt;zone&gt;/post-auth.html</code></pre>
       </div>
     </main>
-    <script>
-      // Shared login status checking function
-      function checkLoginStatus() {
-        try {
-          const tokenData = localStorage.getItem("oidc_tokens");
-          if (!tokenData) {
-            return { isLoggedIn: false, status: "Not logged in" };
-          }
-          
-          const tokens = JSON.parse(tokenData);
-          if (!tokens.expires_at || Date.now() >= tokens.expires_at) {
-            // Token expired, clear it
-            localStorage.removeItem("oidc_tokens");
-            return { isLoggedIn: false, status: "Not logged in" };
-          }
-          
-          const userDisplay = tokens.userinfo?.name || tokens.claims?.sub || "User";
-          return { 
-            isLoggedIn: true, 
-            status: `Logged in as ${userDisplay}`,
-            tokens: tokens
-          };
-        } catch (e) {
-          console.warn("Error checking login status:", e);
-          localStorage.removeItem("oidc_tokens");
-          return { isLoggedIn: false, status: "Not logged in" };
-        }
-      }
-      
-      // Update login status on page load
-      document.addEventListener("DOMContentLoaded", () => {
-        const loginStatus = checkLoginStatus();
-        const loginElement = document.querySelector(".login-status");
-        if (loginElement) {
-          loginElement.textContent = loginStatus.status;
-        }
-        
-        // Add logout functionality if logged in
-        if (loginStatus.isLoggedIn) {
-          const authSection = document.querySelector(".auth-section");
-          if (authSection && !authSection.querySelector(".logout-btn")) {
-            const logoutBtn = document.createElement("button");
-            logoutBtn.textContent = "Logout";
-            logoutBtn.className = "logout-btn nav";
-            logoutBtn.style.marginLeft = "10px";
-            logoutBtn.addEventListener("click", () => {
-              localStorage.removeItem("oidc_tokens");
-              location.reload();
-            });
-            authSection.appendChild(logoutBtn);
-          }
-        }
-      });
-    </script>
-    <footer><small>© 2025 OIDC Provider</small></footer>
+    <div id="modal-root"></div>
+    <script src="./oidc.js" defer></script>
+    <footer><small>© 2025 <a href="https://github.com/antonycc/oidc">@antonycc/oidc</a></small></footer>
   </body>
 </html>

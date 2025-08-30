@@ -246,7 +246,7 @@ jobs:
 
       - name: Setup k6
         if: ${{ inputs.skipDeploy != 'true' }}
-        uses: grafana/setup-k6@v0.3.0
+        uses: grafana/setup-k6-action@v1.1.0
 
       - name: Run k6 load test (5 minutes)
         if: ${{ inputs.skipDeploy != 'true' }}

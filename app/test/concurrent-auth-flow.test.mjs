@@ -177,11 +177,11 @@ describe("Concurrent auth->token->userinfo flows", () => {
     const results = await Promise.all(promises);
     
     // All should return 400 invalid_client
-    results.forEach(async (res) => {
+    await Promise.all(results.map(async (res) => {
       expect(res.status).toBe(400);
       const text = await res.text();
       expect(text).toBe("invalid_client");
-    });
+    }));
   });
 
   it("handles token reuse attempts", async () => {

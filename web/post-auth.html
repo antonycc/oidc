@@ -79,7 +79,6 @@
         if (res.ok && obj.id_token) {
           const claims = decodeJwtNoVerify(obj.id_token);
           document.getElementById("claims").textContent = JSON.stringify(claims, null, 2);
-          document.querySelector(".login-status").textContent = "Logged in";
           document.getElementById("status").textContent = "Token exchange succeeded";
           
           // Store tokens in localStorage
@@ -91,6 +90,13 @@
             claims: claims
           };
           localStorage.setItem("oidc_tokens", JSON.stringify(tokenData));
+          
+          // Update login status using centralized function from oidc.js
+          if (typeof refreshLoginStatusText === 'function') {
+            refreshLoginStatusText();
+          } else {
+            document.querySelector(".login-status").textContent = "Logged in";
+          }
           
           // Call userinfo endpoint if we have an access token
           if (obj.access_token && typeof obj.access_token === "string" && obj.access_token.trim() !== "") {
@@ -116,13 +122,34 @@
                 tokenData.userinfo = userinfo;
                 localStorage.setItem("oidc_tokens", JSON.stringify(tokenData));
                 document.getElementById("status").textContent = "Token exchange succeeded; userinfo loaded";
+                
+                // Update login status using centralized function from oidc.js
+                if (typeof refreshLoginStatusText === 'function') {
+                  refreshLoginStatusText();
+                } else {
+                  document.querySelector(".login-status").textContent = "Logged in";
+                }
               } else {
                 console.warn("Failed to fetch userinfo:", userinfoRes.status);
                 document.getElementById("status").textContent = "Token exchange succeeded; userinfo unavailable (" + userinfoRes.status + ")";
+                
+                // Update login status using centralized function from oidc.js
+                if (typeof refreshLoginStatusText === 'function') {
+                  refreshLoginStatusText();
+                } else {
+                  document.querySelector(".login-status").textContent = "Logged in";
+                }
               }
             } catch (e) {
               console.warn("Error fetching userinfo:", e);
               document.getElementById("status").textContent = "Token exchange succeeded; userinfo error";
+              
+              // Update login status using centralized function from oidc.js
+              if (typeof refreshLoginStatusText === 'function') {
+                refreshLoginStatusText();
+              } else {
+                document.querySelector(".login-status").textContent = "Logged in";
+              }
             }
           }
         } else {

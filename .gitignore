@@ -23,3 +23,6 @@ cdk.out
 /cdk.out/cdk-outputs.json
 target/
 /.env
+
+# Temporary test files
+/tmp/

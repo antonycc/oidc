@@ -89,5 +89,6 @@ jobs:
         run: ./mvnw --errors clean package
 
       - name: Destroy ephemeral OIDC stack
-        if: ${{ env.DEPLOYMENT_NAME != 'prod' && env.DEPLOYMENT_NAME != 'ci' }}
+        if: ${{ env.DEPLOYMENT_NAME != 'prod' }}
         run: npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk destroy OidcProviderStack-${DEPLOYMENT_NAME} --exclusively --force
+        

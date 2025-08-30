@@ -48,18 +48,19 @@ jobs:
       # credentials here as environment variables.  If your OIDC
       # deployment requires different client IDs or passwords, set
       # appropriate repository or organization secrets and reference
-      # them using the secrets context.
+      # them using the secrets context.  For example:
+      #   --env CLIENT_ID=$OIDC_CLIENT_ID \
+      #   --env PASSWORD=$OIDC_PASSWORD
       - name: Execute k6 load test
         env:
-          BASE_URL: ${{ github.event.inputs.base_url || 'https://oidc.antonycc.com' }}
-          TEST_USERNAME: ${{ github.event.inputs.test_username || 'test-user' }}
-          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          TARGET_URL: https://oidc.antonycc.com
+          CLIENT_ID: demo-client
+          REDIRECT_URI: https://example.com/callback
+          PASSWORD: password
         run: |
           SCENARIO="${{ steps.set-scenario.outputs.scenario }}"
           echo "Running k6 scenario: $SCENARIO"
-          echo "BASE_URL: $BASE_URL"
-          echo "TEST_USERNAME: $TEST_USERNAME"
-          k6 run tests/load.live.test.js --scenario $SCENARIO --summary-export=summary.json
+          k6 run load-tests.js --scenario $SCENARIO --summary-export=summary.json
 
       # Optionally upload the k6 summary as an artifact for later
       # analysis.  The summary.json file contains detailed metrics

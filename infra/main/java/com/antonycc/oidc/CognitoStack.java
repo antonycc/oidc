@@ -92,7 +92,7 @@ public class CognitoStack extends Stack {
                     .build()))
             // MFA configuration for enhanced security
             .mfaConfiguration("OPTIONAL")
-            .enabledMfas(List.of("SOFTWARE_TOKEN_MFA"))
+            .enabledMfas(List.of("TOTP"))
             // Enhanced verification messages
             .emailVerificationMessage("Welcome! Your verification code is {####}. Please enter this code to verify your email address.")
             .emailVerificationSubject("Welcome - Verify your account")

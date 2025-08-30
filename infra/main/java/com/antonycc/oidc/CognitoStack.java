@@ -105,11 +105,7 @@ public class CognitoStack extends Stack {
                     .emailSubjectByLink("Welcome - Verify your account")
                     .smsMessage("Your verification code is {####}")
                     .build())
-            // User pool add-ons for enhanced functionality
-            .userPoolAddOns(
-                CfnUserPool.UserPoolAddOnsProperty.builder()
-                    .advancedSecurityMode("AUDIT")
-                    .build())
+            // User pool add-ons removed for ESSENTIALS tier compatibility
             .build();
 
     this.domain =

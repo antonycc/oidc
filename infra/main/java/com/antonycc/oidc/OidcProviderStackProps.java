@@ -15,6 +15,7 @@ public class OidcProviderStackProps implements StackProps {
   public final String envName;
   public final String deploymentName;
   public final String domainName;
+  public final EdgeStack edgeStack;  // Reference to EdgeStack for certificates, DNS, etc.
   public final Bucket logsBucket;
   public final LogGroup trailLogGroup;
   public final Trail auditTrail;
@@ -36,6 +37,7 @@ public class OidcProviderStackProps implements StackProps {
     this.envName = builder.envName;
     this.deploymentName = builder.deploymentName;
     this.domainName = builder.domainName;
+    this.edgeStack = builder.edgeStack;
     this.logsBucket = builder.logsBucket;
     this.trailLogGroup = builder.trailLogGroup;
     this.auditTrail = builder.auditTrail;
@@ -67,6 +69,7 @@ public class OidcProviderStackProps implements StackProps {
     private String envName;
     private String deploymentName;
     private String domainName;
+    private EdgeStack edgeStack;
     private Bucket logsBucket;
     private LogGroup trailLogGroup;
     private Trail auditTrail;
@@ -100,6 +103,11 @@ public class OidcProviderStackProps implements StackProps {
 
     public Builder domainName(String domainName) {
       this.domainName = domainName;
+      return this;
+    }
+
+    public Builder edgeStack(EdgeStack edgeStack) {
+      this.edgeStack = edgeStack;
       return this;
     }
 

@@ -62,10 +62,11 @@ public class App {
                 .hostedZoneName(hostedZoneName)
                 .hostedZoneId(hostedZoneId)
                 .certificateArn(certificateArn)
+                .authCertificateArn(authCertificateArn)
                 .logsBucket(observabilityStack.logsBucket)
                 .build());
 
-    // Create the OIDC Provider stack (Lambdas, DynamoDB, CloudFront, Route53)
+    // Create the OIDC Provider stack (Lambdas, DynamoDB, calls EdgeStack for distribution)
     OidcProviderStack providerStack =
         new OidcProviderStack(
             app,
@@ -75,6 +76,7 @@ public class App {
                 .envName(envName)
                 .deploymentName(deploymentName)
                 .domainName(domainName)
+                .edgeStack(edgeStack)
                 .logsBucket(observabilityStack.logsBucket)
                 .trailLogGroup(observabilityStack.trailLogGroup)
                 .auditTrail(observabilityStack.auditTrail)
@@ -102,7 +104,7 @@ public class App {
                 .envName(envName)
                 .domainName(domainName)
                 .authDomainName(authDomainName)
-                .authCertificateArn(authCertificateArn)
+                .edgeStack(edgeStack)
                 .hostedZoneName(hostedZoneName)
                 .hostedZoneId(hostedZoneId)
                 .build());

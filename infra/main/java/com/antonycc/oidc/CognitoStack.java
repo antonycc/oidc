@@ -13,8 +13,6 @@ import software.amazon.awscdk.services.route53.ARecord;
 import software.amazon.awscdk.services.route53.ARecordProps;
 import software.amazon.awscdk.services.route53.AaaaRecord;
 import software.amazon.awscdk.services.route53.AaaaRecordProps;
-import software.amazon.awscdk.services.route53.HostedZone;
-import software.amazon.awscdk.services.route53.HostedZoneAttributes;
 import software.amazon.awscdk.services.route53.RecordTarget;
 import software.amazon.awscdk.services.route53.targets.CloudFrontTarget;
 import software.constructs.Construct;
@@ -78,7 +76,9 @@ public class CognitoStack extends Stack {
             .domain(cognitoDomainName)
             .customDomainConfig(
                 CfnUserPoolDomain.CustomDomainConfigTypeProperty.builder()
-                    .certificateArn(props.authCertificateArn)
+                    .certificateArn(props.edgeStack.authCertificate != null 
+                        ? props.edgeStack.authCertificate.getCertificateArn()
+                        : "arn:aws:acm:us-east-1:123456789012:certificate/default-auth")
                     .build())
             .build();
 /*
@@ -113,11 +113,7 @@ public class CognitoStack extends Stack {
         .build();*/
 
       // Create A and AAAA records pointing to the CloudFront distribution
-      var hostedZone = HostedZone.fromHostedZoneAttributes(this, "HostedZone",
-              HostedZoneAttributes.builder()
-                      .hostedZoneId(props.hostedZoneId)
-                      .zoneName(domainName) // e.g. example.com
-                      .build());
+      var hostedZone = props.edgeStack.hostedZone;
       var distributionDomainName = this.domain.getAttrCloudFrontDistribution();
       var distribution = Distribution.fromDistributionAttributes(this, "CognitoDistribution",
               DistributionAttributes.builder()

@@ -11,6 +11,7 @@ public class EdgeStackProps implements StackProps {
   public final String hostedZoneName;
   public final String hostedZoneId;
   public final String certificateArn;
+  public final String authCertificateArn;  // For Cognito custom domain
   public final Bucket logsBucket;
 
   private EdgeStackProps(Builder builder) {
@@ -20,6 +21,7 @@ public class EdgeStackProps implements StackProps {
     this.hostedZoneName = builder.hostedZoneName;
     this.hostedZoneId = builder.hostedZoneId;
     this.certificateArn = builder.certificateArn;
+    this.authCertificateArn = builder.authCertificateArn;
     this.logsBucket = builder.logsBucket;
   }
 
@@ -39,6 +41,7 @@ public class EdgeStackProps implements StackProps {
     private String hostedZoneName;
     private String hostedZoneId;
     private String certificateArn;
+    private String authCertificateArn;
     private Bucket logsBucket;
 
     public Builder env(Environment env) {
@@ -68,6 +71,11 @@ public class EdgeStackProps implements StackProps {
 
     public Builder certificateArn(String certificateArn) {
       this.certificateArn = certificateArn;
+      return this;
+    }
+
+    public Builder authCertificateArn(String authCertificateArn) {
+      this.authCertificateArn = authCertificateArn;
       return this;
     }
 

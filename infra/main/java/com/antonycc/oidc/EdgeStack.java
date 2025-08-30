@@ -8,6 +8,7 @@ import software.amazon.awscdk.Expiration;
 import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.services.certificatemanager.Certificate;
+import software.amazon.awscdk.services.certificatemanager.ICertificate;
 import software.amazon.awscdk.services.cloudfront.AllowedMethods;
 import software.amazon.awscdk.services.cloudfront.BehaviorOptions;
 import software.amazon.awscdk.services.cloudfront.CachePolicy;
@@ -34,6 +35,15 @@ import java.util.List;
 import java.util.Map;
 
 public class EdgeStack extends Stack {
+  // Certificate resources  
+  public final ICertificate certificate;
+  public final ICertificate authCertificate;
+  // DNS resources
+  public final IHostedZone hostedZone;
+  // CloudFront distribution - will be created by OidcProviderStack
+  public final Distribution distribution;
+  public final ARecord aliasRecord;
+  // S3 origin resources
   public final S3OriginBucket webOriginBucket;
   public final S3OriginBucket wellKnownOriginBucket;
   public final Bucket webBucket;
@@ -44,12 +54,38 @@ public class EdgeStack extends Stack {
   public final BehaviorOptions webOriginBehaviorOptions;
   public final BehaviorOptions wellKnownOriginBehaviorOptions;
 
+  // Store for later use in distribution creation
+  private final String domainName;
+  private final String hostedZoneName;
+  private final Bucket logsBucket;
+
   public EdgeStack(final Construct scope, final String id, final EdgeStackProps props) {
     super(scope, id, props);
+
+    // Store values for later use
+    this.domainName = props.domainName;
+    this.hostedZoneName = props.hostedZoneName;
+    this.logsBucket = props.logsBucket;
 
     // Generate predictable resource name prefix based on domain and environment
     String resourceNamePrefix = generateResourceNamePrefix(props.domainName, props.envName);
     String compressedResourceNamePrefix = generateCompressedResourceNamePrefix(props.domainName, props.envName);
+
+    // Create certificates from ARNs - these are stable, environment-scoped resources
+    this.certificate = Certificate.fromCertificateArn(this, resourceNamePrefix + "-Certificate", props.certificateArn);
+    // Auth certificate for Cognito custom domain (if provided)
+    this.authCertificate = props.authCertificateArn != null 
+        ? Certificate.fromCertificateArn(this, resourceNamePrefix + "-AuthCertificate", props.authCertificateArn)
+        : null;
+
+    // Create DNS hosted zone reference - stable, environment-scoped resource
+    this.hostedZone = HostedZone.fromHostedZoneAttributes(
+        this,
+        resourceNamePrefix + "-HostedZone",
+        HostedZoneAttributes.builder()
+            .hostedZoneId(props.hostedZoneId)
+            .zoneName(props.hostedZoneName)
+            .build());
 
     // Web origin bucket
     this.webOriginBucket = new S3OriginBucket(
@@ -83,6 +119,11 @@ public class EdgeStack extends Stack {
     this.wellKnownOriginAccessIdentity = this.wellKnownOriginBucket.originAccessIdentity;
     this.shortTtl = this.wellKnownOriginBucket.cachePolicy;
     this.wellKnownOriginBehaviorOptions = this.wellKnownOriginBucket.behaviorOptions;
+
+    // Distribution will be created by OidcProviderStack using EdgeStack resources
+    // This avoids the circular dependency while still centralizing edge resources
+    this.distribution = null;
+    this.aliasRecord = null;
 
     // Outputs for the created edge resources
     new CfnOutput(
@@ -148,5 +189,22 @@ public class EdgeStack extends Stack {
     }
     sb.append('-').append(envName);
     return sb.toString();
+  }
+
+  /**
+   * Compute the record name for Route53 A record based on domain and hosted zone names.
+   * If domain matches hosted zone, returns null for root record.
+   * If domain is a subdomain of hosted zone, returns the subdomain part.
+   * Otherwise returns the full domain name.
+   */
+  private static String computeRecordName(String domainName, String hostedZoneName) {
+    if (hostedZoneName.equals(domainName)) {
+      return null; // Root record
+    } else if (domainName.endsWith("." + hostedZoneName)) {
+      // Extract subdomain part
+      return domainName.substring(0, domainName.length() - (hostedZoneName.length() + 1));
+    } else {
+      return domainName; // Full domain name
+    }
   }
 }

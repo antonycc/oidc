@@ -8,7 +8,7 @@ public class CognitoStackProps implements StackProps {
   public final String envName;
   public final String domainName;
   public final String authDomainName;
-  public final String authCertificateArn;
+  public final EdgeStack edgeStack;  // Get auth certificate from EdgeStack
   public final String hostedZoneName;
   public final String hostedZoneId;
 
@@ -17,7 +17,7 @@ public class CognitoStackProps implements StackProps {
     this.envName = builder.envName;
     this.domainName = builder.domainName;
     this.authDomainName = builder.authDomainName;
-    this.authCertificateArn = builder.authCertificateArn;
+    this.edgeStack = builder.edgeStack;
     this.hostedZoneName = builder.hostedZoneName;
     this.hostedZoneId = builder.hostedZoneId;
   }
@@ -36,7 +36,7 @@ public class CognitoStackProps implements StackProps {
     private String envName;
     private String domainName;
     private String authDomainName;
-    private String authCertificateArn;
+    private EdgeStack edgeStack;
     private String hostedZoneName;
     private String hostedZoneId;
 
@@ -60,8 +60,8 @@ public class CognitoStackProps implements StackProps {
       return this;
     }
 
-    public Builder authCertificateArn(String authCertificateArn) {
-      this.authCertificateArn = authCertificateArn;
+    public Builder edgeStack(EdgeStack edgeStack) {
+      this.edgeStack = edgeStack;
       return this;
     }
 

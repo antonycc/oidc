@@ -7,7 +7,6 @@ import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.Expiration;
 import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
-import software.amazon.awscdk.services.certificatemanager.Certificate;
 import software.amazon.awscdk.services.cloudfront.AllowedMethods;
 import software.amazon.awscdk.services.cloudfront.BehaviorOptions;
 import software.amazon.awscdk.services.cloudfront.CachePolicy;
@@ -26,9 +25,6 @@ import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.logs.RetentionDays;
 import software.amazon.awscdk.services.route53.ARecord;
 import software.amazon.awscdk.services.route53.ARecordProps;
-import software.amazon.awscdk.services.route53.HostedZone;
-import software.amazon.awscdk.services.route53.HostedZoneAttributes;
-import software.amazon.awscdk.services.route53.IHostedZone;
 import software.amazon.awscdk.services.route53.RecordTarget;
 import software.amazon.awscdk.services.route53.targets.CloudFrontTarget;
 import software.amazon.awscdk.services.s3.Bucket;
@@ -97,33 +93,9 @@ public class OidcProviderStack extends Stack {
     // Add well-known behavior to additional behaviors mapping
     additionalOriginsBehaviourMappings.put("/.well-known/*", props.wellKnownOriginBehaviorOptions);
 
-    // We need the hosted zone and certificate for the distribution and DNS record
-    // These should be passed in props, but for now let's discover them from the deployment name
-    // TODO: Consider moving this to EdgeStack or passing via props
-    String envName = props.envName;
-    String hostedZoneName = System.getenv().getOrDefault("HOSTED_ZONE_NAME", "example.com");
-    String hostedZoneId = System.getenv().getOrDefault("HOSTED_ZONE_ID", "Z000EXAMPLE");
-    String certificateArn = System.getenv().getOrDefault("CERTIFICATE_ARN", "arn:aws:acm:us-east-1:123456789012:certificate/abc");
-
-    // Hosted zone (must exist)
-    IHostedZone zone =
-        HostedZone.fromHostedZoneAttributes(
-            this,
-            resourceNamePrefix + "-Zone",
-            HostedZoneAttributes.builder()
-                .hostedZoneId(hostedZoneId)
-                .zoneName(hostedZoneName)
-                .build());
-    String recordName =
-        hostedZoneName.equals(domainName)
-            ? null
-            : (domainName.endsWith("." + hostedZoneName)
-                ? domainName.substring(
-                    0, domainName.length() - (hostedZoneName.length() + 1))
-                : domainName);
-
-    // TLS certificate from existing ACM (must be in us-east-1 for CloudFront)
-    var cert = Certificate.fromCertificateArn(this, resourceNamePrefix + "-WebCert", certificateArn);
+    // Use certificates and DNS from EdgeStack instead of creating our own
+    var cert = props.edgeStack.certificate;
+    var zone = props.edgeStack.hostedZone;
 
     // DDB tables
     this.usersTable =
@@ -233,20 +205,41 @@ public class OidcProviderStack extends Stack {
     additionalOriginsBehaviourMappings.put("/jwks", this.jwksEndpoint.behaviorOptions);
     this.authCodesTable.grantReadWriteData(this.jwksEndpoint.function);
 
-    // CloudFront with S3 origins (from EdgeStack) and FunctionUrl origins for OIDC endpoints
-    this.distribution =
-        Distribution.Builder.create(this, resourceNamePrefix + "-WebDist")
-            .defaultBehavior(props.webOriginBehaviorOptions)
-            .additionalBehaviors(additionalOriginsBehaviourMappings)
-            .domainNames(List.of(domainName))
-            .certificate(cert)
-            .defaultRootObject("index.html")
-            .enableLogging(true)
-            .logBucket(this.logsBucket)
-            .logFilePrefix("cloudfront/")
-            .enableIpv6(true)
-            .sslSupportMethod(SSLMethod.SNI)
-            .build();
+    // Use EdgeStack's distribution as the base, but we need to modify this approach
+    // Since CDK doesn't allow modifying distributions after creation,
+    // we'll use EdgeStack's certificates and DNS but create our own distribution
+    // that includes Lambda function behaviors
+    
+    // Combine EdgeStack's S3 behaviors with our Lambda function behaviors
+    var allBehaviors = new HashMap<String, BehaviorOptions>();
+    allBehaviors.put("/.well-known/*", props.wellKnownOriginBehaviorOptions);
+    allBehaviors.putAll(additionalOriginsBehaviourMappings);
+
+    // Create CloudFront distribution with all behaviors (S3 + Lambda)
+    this.distribution = Distribution.Builder.create(this, resourceNamePrefix + "-Distribution")
+        .defaultBehavior(props.webOriginBehaviorOptions)
+        .additionalBehaviors(allBehaviors)
+        .domainNames(List.of(domainName))
+        .certificate(cert)
+        .defaultRootObject("index.html")
+        .enableLogging(true)
+        .logBucket(this.logsBucket)
+        .logFilePrefix("cloudfront/")
+        .enableIpv6(true)
+        .sslSupportMethod(SSLMethod.SNI)
+        .comment("OIDC Provider distribution for " + domainName)
+        .build();
+
+    // Create DNS A record using EdgeStack's hosted zone
+    String recordName = computeRecordName(domainName, zone.getZoneName());
+    this.aliasRecord = new ARecord(
+        this,
+        resourceNamePrefix + "-AliasRecord",
+        ARecordProps.builder()
+            .recordName(recordName)
+            .zone(zone)
+            .target(RecordTarget.fromAlias(new CloudFrontTarget(this.distribution)))
+            .build());
 
     // Grant CloudFront access to the origin lambdas with compressed names
     Permission invokeFunctionUrlPermission =
@@ -261,15 +254,7 @@ public class OidcProviderStack extends Stack {
     this.userinfoEndpoint.function.addPermission(compressedResourceNamePrefix + "-cf-userinfo", invokeFunctionUrlPermission);
     this.jwksEndpoint.function.addPermission(compressedResourceNamePrefix + "-cf-jwks", invokeFunctionUrlPermission);
 
-    // A record
-    this.aliasRecord = new ARecord(
-        this,
-        resourceNamePrefix + "-AliasRecord",
-        ARecordProps.builder()
-            .recordName(recordName)
-            .zone(zone)
-            .target(RecordTarget.fromAlias(new CloudFrontTarget(this.distribution)))
-            .build());
+    // The alias record was created by EdgeStack alongside the distribution
 
     // Deploy the web website files to the web website bucket and invalidate distribution
     var deployPostfix = java.util.UUID.randomUUID().toString().substring(0, 8);
@@ -391,5 +376,22 @@ public class OidcProviderStack extends Stack {
         }
         sb.append('-').append(deploymentName);
         return sb.toString();
+    }
+
+    /**
+     * Compute the record name for Route53 A record based on domain and hosted zone names.
+     * If domain matches hosted zone, returns null for root record.
+     * If domain is a subdomain of hosted zone, returns the subdomain part.
+     * Otherwise returns the full domain name.
+     */
+    private static String computeRecordName(String domainName, String hostedZoneName) {
+        if (hostedZoneName.equals(domainName)) {
+            return null; // Root record
+        } else if (domainName.endsWith("." + hostedZoneName)) {
+            // Extract subdomain part
+            return domainName.substring(0, domainName.length() - (hostedZoneName.length() + 1));
+        } else {
+            return domainName; // Full domain name
+        }
     }
 }

@@ -240,7 +240,7 @@ jobs:
           BASE_URL='${{ steps.oidc-outputs.outputs.BASE_URL }}' \
           COGNITO_DOMAIN='${{ steps.oidc-outputs.outputs.COGNITO_DOMAIN }}' \
           COGNITO_CLIENT_ID='${{ steps.oidc-outputs.outputs.COGNITO_CLIENT_ID }}' \
-          npm run test:behaviour --project=chromium
+          npm run test:web --project=chromium
         env:
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
 

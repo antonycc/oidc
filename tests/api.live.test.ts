@@ -39,7 +39,8 @@ function parseParam(url: string, name: string): string | null {
 // 3) GET /userinfo with access token to obtain claims
 
 test("live API: authorize -> token -> userinfo", async ({ page }) => {
-  const BASE_URL = process.env.BASE_URL || "https://oidc.antonycc.com";
+  const DOMAIN_NAME = process.env.DOMAIN_NAME || "oidc.antonycc.com";
+  const BASE_URL = process.env.BASE_URL || `https://${DOMAIN_NAME}`;
   const TEST_USERNAME = process.env.TEST_USERNAME || "test-user";
   const TEST_PASSWORD = process.env.TEST_PASSWORD || "";
 

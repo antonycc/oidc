@@ -1,4 +1,4 @@
-name: "deploy-${{ github.ref_name }}"
+name: deploy
 concurrency:
   group: "deploy-${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}"
   cancel-in-progress: false
@@ -49,8 +49,9 @@ env:
 
 jobs:
 
-  build-deploy-test:
+  deploy:
     runs-on: ubuntu-24.04
+    name: "deploy-${{ github.ref_name }}"
     # If the branch is main, the GitHub environment is prod otherwise the environment is ci
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
     steps:

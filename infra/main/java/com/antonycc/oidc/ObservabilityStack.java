@@ -116,7 +116,13 @@ public class ObservabilityStack extends Stack {
             .logGroup(this.trailLogGroup)
             .metricNamespace("OIDC/Security")
             .metricName("SecurityEvents")
-            .filterPattern(FilterPattern.anyTerm("client_not_found", "redirect_validation.*invalid", "scope_validation.*invalid"))
+            .filterPattern(
+                FilterPattern.any(
+                    FilterPattern.allTerms("client_not_found"),
+                    FilterPattern.allTerms("redirect_validation", "invalid"),
+                    FilterPattern.allTerms("scope_validation", "invalid")
+                )
+            )
             .metricValue("1")
             .build();
 

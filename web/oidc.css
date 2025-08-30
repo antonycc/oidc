@@ -131,3 +131,75 @@ footer {
 .menu-dropdown a:hover {
   background: #f6f8fa;
 }
+
+
+/* Modal components */
+#modal-root {
+  position: fixed;
+  inset: 0;
+  pointer-events: none; /* only overlays inside receive events */
+}
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  pointer-events: auto;
+}
+.modal {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+  max-width: 90vw;
+  width: 720px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+.modal-header,
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #eee;
+}
+.modal-footer {
+  border-top: 1px solid #eee;
+  border-bottom: none;
+  justify-content: flex-end;
+}
+.modal-body {
+  padding: 14px;
+  overflow: auto;
+}
+.modal-close {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px 8px;
+}
+.modal-footer button {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  background: #f6f8fa;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.modal-footer button:hover {
+  background: #eef1f4;
+}
+
+/* Dropdown divider for injected tools */
+.menu-divider {
+  height: 1px;
+  background: #eee;
+  margin: 6px 0;
+}

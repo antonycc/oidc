@@ -1,6 +1,7 @@
 (() => {
   'use strict';
 
+  // -------- Auth status helpers --------
   function checkLoginStatus() {
     try {
       const tokenData = localStorage.getItem('oidc_tokens');
@@ -19,6 +20,12 @@
       localStorage.removeItem('oidc_tokens');
       return { isLoggedIn: false, status: 'Not logged in' };
     }
+  }
+
+  function refreshLoginStatusText() {
+    const loginStatus = checkLoginStatus();
+    const loginElement = document.querySelector('.login-status');
+    if (loginElement) loginElement.textContent = loginStatus.status;
   }
 
   function initAuthStatus() {
@@ -42,6 +49,7 @@
     }
   }
 
+  // -------- Hamburger menu helpers --------
   function closeAllMenus(except) {
     document.querySelectorAll('.hamburger-menu').forEach((menu) => {
       if (menu !== except) {
@@ -62,7 +70,6 @@
       menu.classList.add('open');
       if (btn) btn.setAttribute('aria-expanded', 'true');
       if (dropdown) dropdown.setAttribute('aria-hidden', 'false');
-      // Position safety: ensure within viewport (basic)
       if (dropdown) {
         const rect = dropdown.getBoundingClientRect();
         if (rect.right > window.innerWidth) {
@@ -77,6 +84,39 @@
     }
   }
 
+  function ensureMenuUtilityItems(dropdown) {
+    // Avoid duplicate injection
+    if (dropdown.querySelector('[data-action="view-source"]')) return;
+
+    // Prefer explicit target container if present
+    const target = dropdown.querySelector('[data-utils-target]') || dropdown;
+
+    // Divider
+    const hr = document.createElement('div');
+    hr.className = 'menu-divider';
+
+    // Items
+    const viewSource = document.createElement('a');
+    viewSource.href = '#';
+    viewSource.textContent = 'View page source';
+    viewSource.setAttribute('data-action', 'view-source');
+
+    const viewLS = document.createElement('a');
+    viewLS.href = '#';
+    viewLS.textContent = 'View local storage';
+    viewLS.setAttribute('data-action', 'view-local-storage');
+
+    const clearLS = document.createElement('a');
+    clearLS.href = '#';
+    clearLS.textContent = 'Clear local storage';
+    clearLS.setAttribute('data-action', 'clear-local-storage');
+
+    target.appendChild(hr);
+    target.appendChild(viewSource);
+    target.appendChild(viewLS);
+    target.appendChild(clearLS);
+  }
+
   function initHamburgers() {
     const menus = document.querySelectorAll('.hamburger-menu');
     menus.forEach((menu) => {
@@ -87,6 +127,9 @@
       btn.setAttribute('aria-expanded', 'false');
       dropdown.setAttribute('aria-hidden', 'true');
 
+      // Inject utility items
+      ensureMenuUtilityItems(dropdown);
+
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const willOpen = !menu.classList.contains('open');
@@ -94,21 +137,175 @@
         toggleMenu(menu, willOpen);
       });
 
-      // Prevent clicks inside dropdown from closing it immediately
       dropdown.addEventListener('click', (e) => {
+        const target = e.target;
+        if (!(target instanceof Element)) return;
+        const action = target.getAttribute('data-action');
+        if (!action) return; // allow normal links to bubble/close
+        e.preventDefault();
         e.stopPropagation();
+        if (action === 'view-source') showViewSourceModal();
+        if (action === 'view-local-storage') showLocalStorageModal();
+        if (action === 'clear-local-storage') clearLocalStorageAction();
+        // keep menu open while modal is open, otherwise close
+        closeAllMenus();
       });
     });
 
-    // Click-away
     document.addEventListener('click', () => closeAllMenus());
-
-    // Escape key closes any open menu
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') closeAllMenus();
     });
   }
 
+  // -------- Modal helpers --------
+  function ensureModalRoot() {
+    let root = document.getElementById('modal-root');
+    if (!root) {
+      root = document.createElement('div');
+      root.id = 'modal-root';
+      document.body.appendChild(root);
+    }
+    return root;
+  }
+
+  function openModal(title, contentNode, actions = []) {
+    const root = ensureModalRoot();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+
+    const header = document.createElement('div');
+    header.className = 'modal-header';
+    const h = document.createElement('h2');
+    h.textContent = title;
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'modal-close';
+    closeBtn.setAttribute('aria-label', 'Close');
+    closeBtn.textContent = '×';
+    closeBtn.addEventListener('click', () => root.removeChild(overlay));
+
+    header.appendChild(h);
+    header.appendChild(closeBtn);
+
+    const body = document.createElement('div');
+    body.className = 'modal-body';
+    body.appendChild(contentNode);
+
+    const footer = document.createElement('div');
+    footer.className = 'modal-footer';
+    actions.forEach((a) => footer.appendChild(a));
+
+    modal.appendChild(header);
+    modal.appendChild(body);
+    modal.appendChild(footer);
+
+    overlay.appendChild(modal);
+    root.appendChild(overlay);
+
+    const onKey = (e) => { if (e.key === 'Escape') { cleanup(); } };
+    const onClickAway = (e) => { if (e.target === overlay) { cleanup(); } };
+    function cleanup() {
+      document.removeEventListener('keydown', onKey);
+      overlay.removeEventListener('click', onClickAway);
+      if (overlay.parentElement === root) root.removeChild(overlay);
+    }
+    document.addEventListener('keydown', onKey);
+    overlay.addEventListener('click', onClickAway);
+  }
+
+  function makeButton(text, onClick) {
+    const btn = document.createElement('button');
+    btn.textContent = text;
+    btn.addEventListener('click', onClick);
+    return btn;
+  }
+
+  function escapeHtml(str) {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  // -------- View Source --------
+  function getPageSource() {
+    const doc = document;
+    const doctype = doc.doctype ? `<!DOCTYPE ${doc.doctype.name}${doc.doctype.publicId ? ' PUBLIC "' + doc.doctype.publicId + '"' : ''}${doc.doctype.systemId ? ' "' + doc.doctype.systemId + '"' : ''}>\n` : '<!doctype html>\n';
+    const html = doc.documentElement.outerHTML;
+    return doctype + html;
+  }
+
+  async function showViewSourceModal() {
+    const src = getPageSource();
+    const pre = document.createElement('pre');
+    pre.className = 'code';
+    pre.style.maxHeight = '60vh';
+    pre.style.overflow = 'auto';
+    pre.innerHTML = escapeHtml(src);
+
+    const copyBtn = makeButton('Copy', async () => {
+      try { await navigator.clipboard.writeText(src); copyBtn.textContent = 'Copied'; setTimeout(() => copyBtn.textContent = 'Copy', 1500); } catch {}
+    });
+
+    openModal('Page source', pre, [copyBtn]);
+  }
+
+  // -------- Local Storage Viewer/Clear --------
+  function getLocalStorageDump() {
+    const out = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      try {
+        const v = localStorage.getItem(k);
+        try { out[k] = JSON.parse(v); } catch { out[k] = v; }
+      } catch (e) {
+        out[k] = '[unreadable]';
+      }
+    }
+    return out;
+  }
+
+  function showLocalStorageModal() {
+    const dump = getLocalStorageDump();
+    const txt = JSON.stringify(dump, null, 2);
+    const pre = document.createElement('pre');
+    pre.className = 'code';
+    pre.style.maxHeight = '60vh';
+    pre.style.overflow = 'auto';
+    pre.textContent = txt;
+
+    const copyBtn = makeButton('Copy', async () => {
+      try { await navigator.clipboard.writeText(txt); copyBtn.textContent = 'Copied'; setTimeout(() => copyBtn.textContent = 'Copy', 1500); } catch {}
+    });
+
+    openModal('Local storage', pre, [copyBtn]);
+  }
+
+  function clearLocalStorageAction() {
+    const content = document.createElement('div');
+    content.innerHTML = '<p>Are you sure you want to clear local storage?</p>';
+
+    const cancelBtn = makeButton('Cancel', () => {
+      const overlay = content.closest('.modal-overlay');
+      if (overlay && overlay.parentElement) overlay.parentElement.removeChild(overlay);
+    });
+    const clearBtn = makeButton('Clear', () => {
+      try {
+        localStorage.clear();
+      } finally {
+        refreshLoginStatusText();
+        location.reload();
+      }
+    });
+
+    openModal('Confirm', content, [cancelBtn, clearBtn]);
+  }
+
+  // -------- Init --------
   document.addEventListener('DOMContentLoaded', () => {
     initHamburgers();
     initAuthStatus();

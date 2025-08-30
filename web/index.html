@@ -11,7 +11,7 @@
       <div class="header-nav">
         <div class="hamburger-menu">
           <button class="hamburger-btn">☰</button>
-          <div class="menu-dropdown"><a href="./index.html">Home</a><a href="./post-auth.html">Post Auth</a></div>
+          <div class="menu-dropdown"><a href="./index.html">Home</a><a href="./post-auth.html">Post Auth</a><div data-utils-target></div></div>
         </div>
         <div class="auth-section">
           <span class="login-status">Not logged in</span> <a class="nav" href="./login.html">Log in</a>
@@ -26,6 +26,7 @@
         <pre><code>https://&lt;cognito-domain&gt;/oauth2/authorize?client_id=&lt;clientId&gt;&amp;response_type=code&amp;scope=openid+email+profile&amp;redirect_uri=https://&lt;your-subdomain&gt;.&lt;zone&gt;/post-auth.html</code></pre>
       </div>
     </main>
+    <div id="modal-root"></div>
     <script src="./oidc.js" defer></script>
     <footer><small>© 2025 OIDC Provider</small></footer>
   </body>

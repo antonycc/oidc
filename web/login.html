@@ -11,7 +11,7 @@
       <div class="header-nav">
         <div class="hamburger-menu">
           <button class="hamburger-btn">☰</button>
-          <div class="menu-dropdown"><a href="./index.html">Home</a></div>
+          <div class="menu-dropdown"><a href="./index.html">Home</a><div data-utils-target></div></div>
         </div>
         <div class="auth-section"><span class="login-status">Not logged in</span></div>
       </div>
@@ -32,6 +32,7 @@
         <div id="error" class="error" style="display: none"></div>
       </div>
     </main>
+    <div id="modal-root"></div>
     <script src="./oidc.js" defer></script>
     <script>
       // Minimal PKCE helpers

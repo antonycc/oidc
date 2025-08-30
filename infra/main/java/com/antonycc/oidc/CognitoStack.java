@@ -9,6 +9,7 @@ import software.amazon.awscdk.services.cognito.CfnUserPool;
 import software.amazon.awscdk.services.cognito.CfnUserPoolClient;
 import software.amazon.awscdk.services.cognito.CfnUserPoolDomain;
 import software.amazon.awscdk.services.cognito.CfnUserPoolIdentityProvider;
+import software.amazon.awscdk.services.cognito.CfnUserPoolUICustomizationAttachment;
 import software.amazon.awscdk.services.route53.ARecord;
 import software.amazon.awscdk.services.route53.ARecordProps;
 import software.amazon.awscdk.services.route53.AaaaRecord;
@@ -60,15 +61,61 @@ public class CognitoStack extends Stack {
                 CfnUserPool.AdminCreateUserConfigProperty.builder()
                     .allowAdminCreateUserOnly(true)
                     .build())
-            .emailVerificationMessage("The verification code to your new account is {####}")
-            .emailVerificationSubject("Verify your new account")
-            .smsVerificationMessage("The verification code to your new account is {####}")
+            // Enhanced password policy for better frontend UX
+            .policies(
+                CfnUserPool.PoliciesProperty.builder()
+                    .passwordPolicy(
+                        CfnUserPool.PasswordPolicyProperty.builder()
+                            .minimumLength(8)
+                            .requireLowercase(true)
+                            .requireNumbers(true)
+                            .requireSymbols(false)
+                            .requireUppercase(true)
+                            .temporaryPasswordValidityDays(7)
+                            .build())
+                    .build())
+            // User attributes for enhanced profile management
+            .aliasAttributes(List.of("email"))
+            .autoVerifiedAttributes(List.of("email"))
+            .schema(List.of(
+                CfnUserPool.SchemaAttributeProperty.builder()
+                    .attributeDataType("String")
+                    .name("email")
+                    .required(true)
+                    .mutable(true)
+                    .build(),
+                CfnUserPool.SchemaAttributeProperty.builder()
+                    .attributeDataType("String")
+                    .name("given_name")
+                    .required(false)
+                    .mutable(true)
+                    .build(),
+                CfnUserPool.SchemaAttributeProperty.builder()
+                    .attributeDataType("String")
+                    .name("family_name")
+                    .required(false)
+                    .mutable(true)
+                    .build()))
+            // MFA configuration for enhanced security
+            .mfaConfiguration("OPTIONAL")
+            .enabledMfas(List.of("SOFTWARE_TOKEN_MFA"))
+            // Enhanced verification messages
+            .emailVerificationMessage("Welcome! Your verification code is {####}. Please enter this code to verify your email address.")
+            .emailVerificationSubject("Welcome - Verify your account")
+            .smsVerificationMessage("Your verification code is {####}")
             .verificationMessageTemplate(
                 CfnUserPool.VerificationMessageTemplateProperty.builder()
                     .defaultEmailOption("CONFIRM_WITH_CODE")
-                    .emailMessage("The verification code to your new account is {####}")
-                    .emailSubject("Verify your new account")
-                    .smsMessage("The verification code to your new account is {####}")
+                    .emailMessage("Welcome! Your verification code is {####}. Please enter this code to verify your email address.")
+                    .emailSubject("Welcome - Verify your account")
+                    .emailMessageByLink("Welcome! Please click the link below to verify your email address: {##Click Here##}")
+                    .emailSubjectByLink("Welcome - Verify your account")
+                    .smsMessage("Your verification code is {####}")
+                    .build())
+            // User pool add-ons for enhanced functionality
+            .userPoolAddOns(
+                CfnUserPool.UserPoolAddOnsProperty.builder()
+                    .advancedSecurityMode("AUDIT")
                     .build())
             .build();
 
@@ -140,13 +187,114 @@ public class CognitoStack extends Stack {
     this.client =
         CfnUserPoolClient.Builder.create(this, resourceNamePrefix + "-WebClient")
             .userPoolId(this.pool.getRef())
+            .clientName(resourceNamePrefix + "-web-client")
+            // OAuth flow configuration
             .allowedOAuthFlows(List.of("code"))
             .allowedOAuthFlowsUserPoolClient(true)
-            .allowedOAuthScopes(List.of("openid", "email", "profile"))
+            .allowedOAuthScopes(List.of("openid", "email", "profile", "aws.cognito.signin.user.admin"))
             .callbackUrLs(List.of(baseUrl + "/post-auth.html"))
             .logoutUrLs(List.of(baseUrl + "/"))
             .supportedIdentityProviders(List.of("OIDC"))
+            // Enhanced frontend UI settings
+            .generateSecret(false) // For public clients (SPAs, mobile apps)
+            .explicitAuthFlows(List.of(
+                "ALLOW_USER_SRP_AUTH",
+                "ALLOW_REFRESH_TOKEN_AUTH",
+                "ALLOW_USER_PASSWORD_AUTH"))
+            // Token validity configuration for better UX
+            .accessTokenValidity(1) // 1 hour
+            .idTokenValidity(1) // 1 hour  
+            .refreshTokenValidity(30) // 30 days
+            .tokenValidityUnits(
+                CfnUserPoolClient.TokenValidityUnitsProperty.builder()
+                    .accessToken("hours")
+                    .idToken("hours")
+                    .refreshToken("days")
+                    .build())
+            // Prevent user existence errors for better security UX
+            .preventUserExistenceErrors("ENABLED")
+            // Enable refresh token rotation for security
+            .enableTokenRevocation(true)
             .build();
+
+    // Add UI customization for better frontend user experience
+    var uiCustomization = CfnUserPoolUICustomizationAttachment.Builder.create(
+        this, resourceNamePrefix + "-UICustomization")
+        .userPoolId(this.pool.getRef())
+        .clientId(this.client.getRef())
+        // Custom CSS for better branding and UX
+        .css("""
+            .banner-customizable {
+                padding: 25px 0px 25px 0px;
+                background-color: #2196F3;
+            }
+            .label-customizable {
+                font-weight: 400;
+                color: #333;
+            }
+            .textDescription-customizable {
+                padding-top: 10px;
+                padding-bottom: 10px;
+                display: block;
+                font-size: 16px;
+                color: #555;
+            }
+            .submitButton-customizable {
+                font-size: 14px;
+                font-weight: bold;
+                margin: 20px 0px 10px 0px;
+                height: 40px;
+                width: 100%;
+                color: #fff;
+                background-color: #2196F3;
+                border: none;
+                border-radius: 4px;
+            }
+            .submitButton-customizable:hover {
+                background-color: #1976D2;
+            }
+            .errorMessage-customizable {
+                padding: 5px;
+                font-size: 14px;
+                width: 100%;
+                background: #F5F5F5;
+                border: 2px solid #D32F2F;
+                color: #D32F2F;
+            }
+            .inputField-customizable {
+                width: 100%;
+                height: 34px;
+                color: #555;
+                background-color: #fff;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                box-shadow: inset 0 1px 1px rgba(0,0,0,.075);
+                box-sizing: border-box;
+                padding: 6px 12px;
+            }
+            .inputField-customizable:focus {
+                border-color: #2196F3;
+                box-shadow: inset 0 1px 1px rgba(0,0,0,.075), 0 0 0 3px rgba(33, 150, 243, .1);
+            }
+            .idpButton-customizable {
+                height: 40px;
+                width: 100%;
+                text-align: center;
+                margin-bottom: 15px;
+                color: #fff;
+                background-color: #5bc0de;
+                border: 1px solid #46b8da;
+                border-radius: 4px;
+            }
+            .idpButton-customizable:hover {
+                background-color: #31b0d5;
+            }
+            """)
+        .build();
+
+    // Ensure UI customization is created after both pool and client
+    uiCustomization.getNode().addDependency(this.pool);
+    uiCustomization.getNode().addDependency(this.client);
 
     // OIDC IdP pointing to our issuer endpoints
     this.oidcIdp =

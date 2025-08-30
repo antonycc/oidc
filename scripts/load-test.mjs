@@ -39,7 +39,7 @@ const SCENARIOS = {
   small: { targetUsers: 5000, durationMs: 60000, maxConcurrency: 50 },
   medium: { targetUsers: 10000, durationMs: 120000, maxConcurrency: 100 },
   large: { targetUsers: 100000, durationMs: 300000, maxConcurrency: 500 },
-  xlarge: { targetUsers: 1000000, durationMs: 600000, maxConcurrency: 1000 }
+  xlarge: { targetUsers: 1000000, durationMs: 600000, maxConcurrency: 1000 },
 };
 
 // Test metrics
@@ -49,13 +49,13 @@ let stats = {
   failed: 0,
   errors: [],
   durations: [],
-  startTime: Date.now()
+  startTime: Date.now(),
 };
 
 // Single test execution (extracted from api.live.test.ts)
 async function runSingleTest() {
   const startTime = Date.now();
-  
+
   try {
     const DOMAIN_NAME = process.env.DOMAIN_NAME || "oidc.antonycc.com";
     const BASE_URL = process.env.BASE_URL || `https://${DOMAIN_NAME}`;
@@ -91,7 +91,7 @@ async function runSingleTest() {
     const body = new URLSearchParams({ username: TEST_USERNAME, password: TEST_PASSWORD }).toString();
     const authorizeRes = await ctx.fetch(authorizeUrl.toString(), {
       method: "POST",
-      headers: {"content-type": "application/x-www-form-urlencoded"},
+      headers: { "content-type": "application/x-www-form-urlencoded" },
       data: body,
     });
 
@@ -103,7 +103,7 @@ async function runSingleTest() {
     const location = authorizeRes.headers()["location"];
     const finalUrl = location || authorizeRes.url();
     const code = parseParam(finalUrl, "code");
-    
+
     if (!code) {
       throw new Error("No authorization code received");
     }
@@ -141,27 +141,26 @@ async function runSingleTest() {
         method: "GET",
         headers: { authorization: `Bearer ${tokenJson.id_token}` },
       });
-      
+
       if (altRes.status() !== 200) {
         throw new Error(`Userinfo failed with both access and id tokens`);
       }
     }
 
     await ctx.dispose();
-    
+
     const duration = Date.now() - startTime;
     stats.total++;
     stats.success++;
     stats.durations.push(duration);
-    
+
     return { success: true, duration };
-    
   } catch (error) {
     const duration = Date.now() - startTime;
     stats.total++;
     stats.failed++;
     stats.errors.push(error.message);
-    
+
     return { success: false, duration, error: error.message };
   }
 }
@@ -170,11 +169,13 @@ async function runSingleTest() {
 async function runLoadTest(scenario) {
   const config = SCENARIOS[scenario];
   if (!config) {
-    throw new Error(`Unknown scenario: ${scenario}. Available: ${Object.keys(SCENARIOS).join(', ')}`);
+    throw new Error(`Unknown scenario: ${scenario}. Available: ${Object.keys(SCENARIOS).join(", ")}`);
   }
 
   console.log(`Starting load test scenario: ${scenario}`);
-  console.log(`Target users: ${config.targetUsers}, Duration: ${config.durationMs}ms, Max concurrency: ${config.maxConcurrency}`);
+  console.log(
+    `Target users: ${config.targetUsers}, Duration: ${config.durationMs}ms, Max concurrency: ${config.maxConcurrency}`,
+  );
 
   stats.startTime = Date.now();
   const endTime = stats.startTime + config.durationMs;
@@ -191,7 +192,7 @@ async function runLoadTest(scenario) {
     if (activeRequests < config.maxConcurrency) {
       activeRequests++;
       totalStarted++;
-      
+
       const promise = runSingleTest().finally(() => {
         activeRequests--;
       });
@@ -201,33 +202,34 @@ async function runLoadTest(scenario) {
       const elapsed = Date.now() - stats.startTime;
       const expectedCount = Math.floor(elapsed * targetRatePerMs);
       if (totalStarted > expectedCount) {
-        await new Promise(resolve => setTimeout(resolve, 1));
+        await new Promise((resolve) => setTimeout(resolve, 1));
       }
     } else {
       // Wait a bit if at max concurrency
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
     }
 
     // Log progress
     if (totalStarted % Math.max(1, Math.floor(config.targetUsers / 10)) === 0) {
       const elapsed = Date.now() - stats.startTime;
-      const rate = stats.total > 0 ? (stats.total / elapsed * 1000).toFixed(2) : 0;
+      const rate = stats.total > 0 ? ((stats.total / elapsed) * 1000).toFixed(2) : 0;
       console.log(`Progress: ${totalStarted}/${config.targetUsers} started, ${stats.total} completed, ${rate} req/s`);
     }
   }
 
   // Wait for all requests to complete
-  console.log('Waiting for all requests to complete...');
+  console.log("Waiting for all requests to complete...");
   await Promise.all(promises);
 
   // Generate final report
   const totalDuration = Date.now() - stats.startTime;
-  const avgDuration = stats.durations.length > 0 ? stats.durations.reduce((a, b) => a + b, 0) / stats.durations.length : 0;
+  const avgDuration =
+    stats.durations.length > 0 ? stats.durations.reduce((a, b) => a + b, 0) / stats.durations.length : 0;
   const sortedDurations = stats.durations.sort((a, b) => a - b);
   const p95Duration = sortedDurations.length > 0 ? sortedDurations[Math.floor(sortedDurations.length * 0.95)] : 0;
   const p99Duration = sortedDurations.length > 0 ? sortedDurations[Math.floor(sortedDurations.length * 0.99)] : 0;
-  const successRate = stats.total > 0 ? (stats.success / stats.total * 100).toFixed(2) : 0;
-  const avgRate = (stats.total / totalDuration * 1000).toFixed(2);
+  const successRate = stats.total > 0 ? ((stats.success / stats.total) * 100).toFixed(2) : 0;
+  const avgRate = ((stats.total / totalDuration) * 1000).toFixed(2);
 
   const report = {
     scenario,
@@ -239,11 +241,11 @@ async function runLoadTest(scenario) {
       p95Duration: Math.round(p95Duration),
       p99Duration: Math.round(p99Duration),
       successRate: parseFloat(successRate),
-      avgRate: parseFloat(avgRate)
-    }
+      avgRate: parseFloat(avgRate),
+    },
   };
 
-  console.log('\n=== Load Test Results ===');
+  console.log("\n=== Load Test Results ===");
   console.log(`Scenario: ${scenario}`);
   console.log(`Total requests: ${stats.total}`);
   console.log(`Successful: ${stats.success}`);
@@ -256,9 +258,9 @@ async function runLoadTest(scenario) {
   console.log(`Total duration: ${totalDuration}ms`);
 
   if (stats.errors.length > 0) {
-    console.log('\n=== Errors ===');
+    console.log("\n=== Errors ===");
     const errorCounts = {};
-    stats.errors.forEach(error => {
+    stats.errors.forEach((error) => {
       errorCounts[error] = (errorCounts[error] || 0) + 1;
     });
     Object.entries(errorCounts).forEach(([error, count]) => {
@@ -267,16 +269,16 @@ async function runLoadTest(scenario) {
   }
 
   // Save detailed results to file
-  await import('fs').then(fs => {
-    fs.writeFileSync('load-test-results.json', JSON.stringify(report, null, 2));
+  await import("fs").then((fs) => {
+    fs.writeFileSync("load-test-results.json", JSON.stringify(report, null, 2));
   });
 
   return report;
 }
 
 // CLI entry point
-const scenario = process.argv[2] || 'test';
-runLoadTest(scenario).catch(error => {
-  console.error('Load test failed:', error);
+const scenario = process.argv[2] || "test";
+runLoadTest(scenario).catch((error) => {
+  console.error("Load test failed:", error);
   process.exit(1);
 });

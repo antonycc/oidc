@@ -46,10 +46,12 @@ function generatePkce() {
     verifier += chars.charAt(Math.floor(Math.random() * chars.length));
   }
 
-  // Create code challenge: base64url-encoded SHA-256 hash of the verifier
-  // Compatible with older k6 versions: get ArrayBuffer hash and encode as URL-safe base64
-  const hash = sha256(verifier, 'binary'); // ArrayBuffer
-  const challenge = encoding.b64encode(hash, "url");
+  // Create code challenge using the exact same method as api.live.test.ts
+  // This ensures compatibility with the backend PKCE verification
+  const hash = sha256(verifier, 'binary');
+  // Convert ArrayBuffer to standard base64, then manually convert to base64url
+  const base64 = encoding.b64encode(hash, "std");
+  const challenge = base64.replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
   return { verifier, challenge };
 }
 

@@ -48,7 +48,7 @@ function generatePkce() {
 
   // Create code challenge: base64url-encoded SHA-256 hash of the verifier
   // Compatible with older k6 versions: get ArrayBuffer hash and encode as URL-safe base64
-  const hash = sha256(verifier); // ArrayBuffer
+  const hash = sha256(verifier, 'binary'); // ArrayBuffer
   const challenge = encoding.b64encode(hash, "url");
   return { verifier, challenge };
 }

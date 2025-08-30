@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Direct OP Login</title>
+    <title>OIDC - Login</title>
     <link rel="stylesheet" href="./oidc.css" />
   </head>
   <body>
@@ -11,13 +11,13 @@
       <div class="header-nav">
         <div class="hamburger-menu">
           <button class="hamburger-btn">☰</button>
-          <div class="menu-dropdown"><a href="/index.html">Home</a></div>
+          <div class="menu-dropdown"><a href="./index.html">Home</a><div data-utils-target></div></div>
         </div>
         <div class="auth-section"><span class="login-status">Not logged in</span></div>
       </div>
     </header>
     <main class="container">
-      <h1>Direct OP Login</h1>
+      <h1>OIDC - Login</h1>
       <div class="card">
         <p>
           Use this form to exercise the OP directly without Cognito. It will perform PKCE, post to
@@ -32,60 +32,9 @@
         <div id="error" class="error" style="display: none"></div>
       </div>
     </main>
+    <div id="modal-root"></div>
+    <script src="./oidc.js" defer></script>
     <script>
-      // Shared login status checking function
-      function checkLoginStatus() {
-        try {
-          const tokenData = localStorage.getItem("oidc_tokens");
-          if (!tokenData) {
-            return { isLoggedIn: false, status: "Not logged in" };
-          }
-          
-          const tokens = JSON.parse(tokenData);
-          if (!tokens.expires_at || Date.now() >= tokens.expires_at) {
-            // Token expired, clear it
-            localStorage.removeItem("oidc_tokens");
-            return { isLoggedIn: false, status: "Not logged in" };
-          }
-          
-          const userDisplay = tokens.userinfo?.name || tokens.claims?.sub || "User";
-          return { 
-            isLoggedIn: true, 
-            status: `Logged in as ${userDisplay}`,
-            tokens: tokens
-          };
-        } catch (e) {
-          console.warn("Error checking login status:", e);
-          localStorage.removeItem("oidc_tokens");
-          return { isLoggedIn: false, status: "Not logged in" };
-        }
-      }
-      
-      // Update login status on page load
-      document.addEventListener("DOMContentLoaded", () => {
-        const loginStatus = checkLoginStatus();
-        const loginElement = document.querySelector(".login-status");
-        if (loginElement) {
-          loginElement.textContent = loginStatus.status;
-        }
-        
-        // Add logout functionality if logged in
-        if (loginStatus.isLoggedIn) {
-          const authSection = document.querySelector(".auth-section");
-          if (authSection && !authSection.querySelector(".logout-btn")) {
-            const logoutBtn = document.createElement("button");
-            logoutBtn.textContent = "Logout";
-            logoutBtn.className = "logout-btn nav";
-            logoutBtn.style.marginLeft = "10px";
-            logoutBtn.addEventListener("click", () => {
-              localStorage.removeItem("oidc_tokens");
-              location.reload();
-            });
-            authSection.appendChild(logoutBtn);
-          }
-        }
-      });
-      
       // Minimal PKCE helpers
       const rand = (len = 32) =>
         crypto.getRandomValues(new Uint8Array(len)).reduce((s, b) => s + ("0" + (b % 36).toString(36)).slice(-1), "");
@@ -105,7 +54,7 @@
         const username = fd.get("username");
         const password = fd.get("password");
         const client_id = fd.get("client_id");
-        
+
         // Validate required fields
         if (!username || !password || !client_id) {
           const el = document.getElementById("error");
@@ -113,9 +62,9 @@
           el.textContent = "All fields are required.";
           return;
         }
-        
+
         const redirect_uri = new URL("/post-auth.html", location.origin).toString();
-        
+
         // Validate redirect_uri format
         try {
           new URL(redirect_uri);
@@ -125,61 +74,49 @@
           el.textContent = "Invalid redirect URI format.";
           return;
         }
+
         const scope = "openid email profile";
         const state = rand(16);
         const nonce = rand(16);
         const code_verifier = rand(64);
         const code_challenge = await sha256base64url(code_verifier);
-        sessionStorage.setItem("pkce:" + state, JSON.stringify({ code_verifier, client_id, redirect_uri }));
-        const params = new URLSearchParams({
-          client_id,
-          redirect_uri,
-          response_type: "code",
-          scope,
-          state,
-          nonce,
-          code_challenge,
-          code_challenge_method: "S256",
-          username,
-          password,
-        });
-        // Post as application/x-www-form-urlencoded
-        const res = await fetch("/authorize", {
-          method: "POST",
-          headers: { "content-type": "application/x-www-form-urlencoded" },
-          body: params.toString(),
-          redirect: "manual",
-        });
-        if (res.status === 302) {
-          const loc = res.headers.get("Location");
-          location.href = loc;
-        } else {
-          const el = document.getElementById("error");
-          el.style.display = "block";
-          let message;
-          switch (res.status) {
-            case 400:
-              message = "Invalid request. Please check your input.";
-              break;
-            case 401:
-              message = "Authentication failed. Please check your username and password.";
-              break;
-            case 403:
-              message = "You do not have permission to access this resource.";
-              break;
-            case 500:
-              message = "Server error. Please try again later.";
-              break;
-            default:
-              message = "An error occurred (" + res.status + "). Please try again.";
+
+        // Stash PKCE for post-auth token exchange
+        sessionStorage.setItem(
+          "pkce:" + state,
+          JSON.stringify({ code_verifier, client_id, redirect_uri })
+        );
+
+        // Prepare a standard POST so the browser follows redirects (302/303/307/308)
+        form.setAttribute("action", "/authorize");
+        form.setAttribute("method", "POST");
+        form.setAttribute("autocomplete", "on");
+
+        // Ensure hidden inputs for OIDC params are present/updated
+        const ensureHidden = (name, value) => {
+          let input = form.querySelector(`input[name="${name}"]`);
+          if (!input) {
+            input = document.createElement("input");
+            input.type = "hidden";
+            input.name = name;
+            form.appendChild(input);
           }
-          el.textContent = message;
-          // Optionally log the raw error for debugging (not shown to user)
-          const rawText = await res.text();
-          console.debug("Raw error response:", rawText);
-        }
+          input.value = value;
+        };
+
+        ensureHidden("client_id", String(client_id));
+        ensureHidden("redirect_uri", redirect_uri);
+        ensureHidden("response_type", "code");
+        ensureHidden("scope", scope);
+        ensureHidden("state", state);
+        ensureHidden("nonce", nonce);
+        ensureHidden("code_challenge", code_challenge);
+        ensureHidden("code_challenge_method", "S256");
+        // username and password are already in visible inputs with matching names
+        // Submit the form to trigger a real navigation handled by the browser
+        form.submit();
       });
     </script>
-    <footer><small>© 2025 OIDC Provider</small></footer>
+    <footer><small>© 2025 <a href="https://github.com/antonycc/oidc">@antonycc/oidc</a></small></footer>
   </body>
 </html>

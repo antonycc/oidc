@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Post Auth</title>
+    <title>OIDC - Post-auth</title>
     <link rel="stylesheet" href="./oidc.css" />
   </head>
   <body>
@@ -11,73 +11,22 @@
       <div class="header-nav">
         <div class="hamburger-menu">
           <button class="hamburger-btn">☰</button>
-          <div class="menu-dropdown"><a href="/index.html">Home</a></div>
+          <div class="menu-dropdown"><a href="./index.html">Home</a><div data-utils-target></div></div>
         </div>
         <div class="auth-section"><span class="login-status">Checking…</span></div>
       </div>
     </header>
     <main class="container">
-      <h1>Post Auth</h1>
+      <h1>OIDC - Post-auth</h1>
       <div class="card">
         <p id="status">Looking for authorization code in URL…</p>
         <pre id="result" class="code"></pre>
         <pre id="claims" class="code"></pre>
       </div>
     </main>
+    <div id="modal-root"></div>
+    <script src="./oidc.js" defer></script>
     <script>
-      // Shared login status checking function
-      function checkLoginStatus() {
-        try {
-          const tokenData = localStorage.getItem("oidc_tokens");
-          if (!tokenData) {
-            return { isLoggedIn: false, status: "Not logged in" };
-          }
-          
-          const tokens = JSON.parse(tokenData);
-          if (!tokens.expires_at || Date.now() >= tokens.expires_at) {
-            // Token expired, clear it
-            localStorage.removeItem("oidc_tokens");
-            return { isLoggedIn: false, status: "Not logged in" };
-          }
-          
-          const userDisplay = tokens.userinfo?.name || tokens.claims?.sub || "User";
-          return { 
-            isLoggedIn: true, 
-            status: `Logged in as ${userDisplay}`,
-            tokens: tokens
-          };
-        } catch (e) {
-          console.warn("Error checking login status:", e);
-          localStorage.removeItem("oidc_tokens");
-          return { isLoggedIn: false, status: "Not logged in" };
-        }
-      }
-      
-      // Update login status on page load
-      document.addEventListener("DOMContentLoaded", () => {
-        const loginStatus = checkLoginStatus();
-        const loginElement = document.querySelector(".login-status");
-        if (loginElement) {
-          loginElement.textContent = loginStatus.status;
-        }
-        
-        // Add logout functionality if logged in
-        if (loginStatus.isLoggedIn) {
-          const authSection = document.querySelector(".auth-section");
-          if (authSection && !authSection.querySelector(".logout-btn")) {
-            const logoutBtn = document.createElement("button");
-            logoutBtn.textContent = "Logout";
-            logoutBtn.className = "logout-btn nav";
-            logoutBtn.style.marginLeft = "10px";
-            logoutBtn.addEventListener("click", () => {
-              localStorage.removeItem("oidc_tokens");
-              location.reload();
-            });
-            authSection.appendChild(logoutBtn);
-          }
-        }
-      });
-      
       function decodeJwtNoVerify(jwt) {
         try {
           const [, payload] = jwt.split(".");
@@ -144,30 +93,36 @@
           localStorage.setItem("oidc_tokens", JSON.stringify(tokenData));
           
           // Call userinfo endpoint if we have an access token
-          if (obj.access_token) {
+          if (obj.access_token && typeof obj.access_token === "string" && obj.access_token.trim() !== "") {
             try {
-              // Validate access token format
-              if (typeof obj.access_token !== "string" || obj.access_token.trim() === "") {
-                console.warn("Invalid access token format");
-                return;
-              }
-              
-              const userinfoRes = await fetch("/userinfo", {
-                headers: { "authorization": "Bearer " + obj.access_token }
+              let userinfoRes = await fetch("/userinfo", {
+                headers: { authorization: "Bearer " + obj.access_token }
               });
+              let usedFallback = false;
+              if (userinfoRes.status === 401) {
+                // Fallback to id_token like the working API test
+                usedFallback = true;
+                userinfoRes = await fetch("/userinfo", {
+                  headers: { authorization: "Bearer " + obj.id_token }
+                });
+              }
               if (userinfoRes.ok) {
                 const userinfo = await userinfoRes.json();
-                document.getElementById("claims").textContent = 
-                  JSON.stringify(claims, null, 2) + "\n\nUserinfo:\n" + JSON.stringify(userinfo, null, 2);
+                const header = usedFallback ? "Userinfo (via id_token fallback):" : "Userinfo:";
+                document.getElementById("claims").textContent =
+                  JSON.stringify(claims, null, 2) + "\n\n" + header + "\n" + JSON.stringify(userinfo, null, 2);
                 
                 // Store userinfo in localStorage
                 tokenData.userinfo = userinfo;
                 localStorage.setItem("oidc_tokens", JSON.stringify(tokenData));
+                document.getElementById("status").textContent = "Token exchange succeeded; userinfo loaded";
               } else {
                 console.warn("Failed to fetch userinfo:", userinfoRes.status);
+                document.getElementById("status").textContent = "Token exchange succeeded; userinfo unavailable (" + userinfoRes.status + ")";
               }
             } catch (e) {
               console.warn("Error fetching userinfo:", e);
+              document.getElementById("status").textContent = "Token exchange succeeded; userinfo error";
             }
           }
         } else {
@@ -196,6 +151,6 @@
         document.querySelector(".login-status").textContent = "Not logged in";
       }
     </script>
-    <footer><small>© 2025 OIDC Provider</small></footer>
+    <footer><small>© 2025 <a href="https://github.com/antonycc/oidc">@antonycc/oidc</a></small></footer>
   </body>
 </html>

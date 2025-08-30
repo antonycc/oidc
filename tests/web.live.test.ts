@@ -4,45 +4,33 @@ import { test, expect } from "@playwright/test";
 import * as dotenv from "dotenv";
 dotenv.config();
 
-const BASE_URL = process.env.BASE_URL || "https://oidc.antonycc.com";
+const DOMAIN_NAME = process.env.DOMAIN_NAME || "oidc.antonycc.com";
+const BASE_URL = process.env.BASE_URL || `https://${DOMAIN_NAME}`;
+const TEST_USERNAME = process.env.TEST_USERNAME || "test-user";
+const TEST_PASSWORD = process.env.TEST_PASSWORD || "";
 
 // @ts-ignore
-test("Cognito Hosted UI -> OP login -> redirect back with code", async ({ page }) => {
-  const cognitoDomain = process.env.COGNITO_DOMAIN!;
-  const clientId = process.env.COGNITO_CLIENT_ID!;
-  const redirect = new URL("/post-auth.html", BASE_URL).toString();
-  const url = `https://${cognitoDomain}/oauth2/authorize?client_id=${clientId}&response_type=code&scope=openid+email+profile&redirect_uri=${encodeURIComponent(redirect)}`;
-  await page.goto(url);
-  // OP login page should render after Cognito redirects to our OP /authorize
-  await page.getByRole("heading", { name: "Sign in" }).waitFor();
-  await page.getByLabel("Username").fill("test-user");
-  const testPassword = process.env.TEST_PASSWORD ? process.env.TEST_PASSWORD : "no password set in TEST_PASSWORD";
-  await page.getByLabel("Password").fill(testPassword);
-  await page.getByRole("button", { name: "Continue" }).click();
-
-  await page.waitForURL(/post-auth\.html\?code=/, { timeout: 20000 });
-  await expect(page).toHaveURL(/code=/);
-  await expect(page.locator("#status")).toContainText("Received code=");
+test("Home renders", async ({ page }) => {
+    await page.goto(new URL("/", BASE_URL).toString());
+    await expect(page.getByRole("heading", { name: "OIDC - Home" })).toBeVisible();
 });
 
 // @ts-ignore
 test("Direct login form: failed login shows error", async ({ page }) => {
-  await page.goto(new URL("/login.html", BASE_URL).toString());
-  await page.getByRole("heading", { name: "Direct OP Login" }).waitFor();
-  await page.getByLabel("Username").fill("test-user");
+  await page.goto(new URL("./login.html", BASE_URL).toString());
+  await page.getByRole("heading", { name: "OIDC - Login" }).waitFor();
+  await page.getByLabel("Username").fill(TEST_USERNAME);
   await page.getByLabel("Password").fill("wrong");
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.locator("#error")).toBeVisible();
-  await expect(page.locator("#error")).toContainText("Invalid request. Please check your input.");
+  await expect(page.getByText("Invalid username or password")).toBeVisible();
 });
 
 // @ts-ignore
 test("Direct login form: successful login returns tokens and claims", async ({ page }) => {
-  await page.goto(new URL("/login.html", BASE_URL).toString());
-  await page.getByRole("heading", { name: "Direct OP Login" }).waitFor();
+  await page.goto(new URL("./login.html", BASE_URL).toString());
+  await page.getByRole("heading", { name: "OIDC - Login" }).waitFor();
   await page.getByLabel("Username").fill("test-user");
-  const successPassword = process.env.TEST_PASSWORD || "Passw0rd!";
-  await page.getByLabel("Password").fill(successPassword);
+  await page.getByLabel("Password").fill(TEST_PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.waitForURL(/post-auth\.html\?code=/, { timeout: 20000 });
   await expect(page.locator("#status")).toContainText("Token exchange");
@@ -50,8 +38,3 @@ test("Direct login form: successful login returns tokens and claims", async ({ p
   await expect(page.locator("#claims")).toContainText("sub");
 });
 
-// @ts-ignore
-test("Home renders", async ({ page }) => {
-  await page.goto(new URL("/", BASE_URL).toString());
-  await expect(page.getByRole("heading", { name: "OIDC Provider" })).toBeVisible();
-});

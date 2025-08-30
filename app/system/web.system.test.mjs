@@ -7,11 +7,23 @@ function loadHtmlAndScripts(filePath) {
   const html = readFileSync(filePath, "utf8");
   // Set document HTML without executing scripts automatically
   document.documentElement.innerHTML = html;
-  // Extract inline <script> tags and evaluate their content in this context
+  // Extract <script> tags and evaluate them (including external src)
   const scripts = Array.from(document.querySelectorAll("script"));
   for (const s of scripts) {
-    if (s.src) continue; // not loading external
-    const code = s.textContent || "";
+    let code = s.textContent || "";
+    if (s.src) {
+      // Resolve relative to the HTML file's directory without require (ESM-safe)
+      const baseDir = filePath.includes("/") ? filePath.slice(0, filePath.lastIndexOf("/")) : process.cwd();
+      const srcAttr = s.getAttribute("src") || "";
+      const isAbsolute = srcAttr.startsWith("/") || /^[a-zA-Z]:\\\\/.test(srcAttr);
+      const resolved = isAbsolute ? srcAttr : baseDir + "/" + srcAttr.replace(/^\.\//, "");
+      try {
+        code = readFileSync(resolved, "utf8");
+      } catch (e) {
+        // If file cannot be read, skip
+        continue;
+      }
+    }
     if (code.trim()) {
       // Execute script in window context
       // eslint-disable-next-line no-new-func

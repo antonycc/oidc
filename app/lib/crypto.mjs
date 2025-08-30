@@ -88,6 +88,23 @@ let remoteJwksUrl; // cached URL string used to build RemoteJWKSet
  */
 export async function verifyJwt(token) {
   const issuer = process.env.ISSUER;
+
+  // Enforce canonical base64url encoding of the compact JWS signature segment.
+  // Some base64url variants can decode to the same bytes even if the last character differs
+  // (unused bits in the final sextet). We reject non-canonical encodings to prevent
+  // acceptance of cosmetically modified tokens.
+  function isCanonicalJwsSignature(compact) {
+    try {
+      const parts = String(compact).split(".");
+      if (parts.length !== 3) return false;
+      const sigBytes = Buffer.from(parts[2], "base64url");
+      const canonical = sigBytes.toString("base64url").replace(/=+$/, "");
+      return parts[2] === canonical;
+    } catch {
+      return false;
+    }
+  }
+
   try {
     // Attempt local key verification first (no key generation in verifier)
     const haveKeys = await ensureKeys(false);
@@ -97,6 +114,7 @@ export async function verifyJwt(token) {
         issuer,
         algorithms: ["RS256"],
       });
+      if (!isCanonicalJwsSignature(token)) return null;
       return payload;
     }
   } catch (e) {
@@ -116,6 +134,7 @@ export async function verifyJwt(token) {
       issuer,
       algorithms: ["RS256"],
     });
+    if (!isCanonicalJwsSignature(token)) return null;
     return payload;
   } catch (error) {
     console.error("jwt_verification_failed", error.message || String(error));

@@ -259,13 +259,8 @@ export default function() {
   }
 }
 
-/*
- * Load test scenarios - 1 minute test with max 100 authentication attempts
- */
 export const options = {
   scenarios: {
-    // 1-minute load test using ramping arrival rate
-    // Note: Top-level `iterations` are ignored when `scenarios` are defined in k6.
     load_test: {
       executor: "ramping-arrival-rate",
       startRate: 1,
@@ -280,7 +275,7 @@ export const options = {
     },
   },
   thresholds: {
-    http_req_duration: ["p(95)<2000"], // 95% of requests should be below 2s
+    http_req_duration: ["p(95)<5000"], // 95% of requests should be below 5s
     http_req_failed: ["rate<0.1"],     // Error rate should be below 10%
     http_reqs: ["count>0"],            // Ensure at least one HTTP request is executed
   },

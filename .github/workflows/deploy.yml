@@ -19,7 +19,7 @@ on:
       - '**'
       - '!gh_pages'
     paths:
-      - '.github/deploy.yml'
+      - '.github/workflows/deploy.yml'
       - 'app/**'
       - 'infra/**'
       - 'tests/**'

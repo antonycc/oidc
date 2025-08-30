@@ -700,7 +700,7 @@ BASE_URL=https://oidc.antonycc.com TEST_USERNAME=test-user TEST_PASSWORD=c810fb3
 
 ## Verbose logging
 
-All handlers log structured JSON on every step (inputs redacted where needed). CloudWatch log groups are set to **ONE\_WEEK** retention.
+All handlers log structured JSON on every step (inputs redacted where needed). CloudWatch log groups are set to **ONE_WEEK** retention.
 Lambda Node 22, Function URLs, and CloudFront origins are standard.
 
 ---
@@ -721,9 +721,10 @@ Lambda Node 22, Function URLs, and CloudFront origins are standard.
 
 * **You must own the hosted zone** in Route53 and set `HOSTED_ZONE_ID` accurately.
 * **Certificates for CloudFront live in `us-east-1`.** Bring your own ACM certificate issued in `us-east-1` and pass its ARN via `CERTIFICATE_ARN`.
-* **BASE\_URL env for tests must match the CloudFront domain output.**
+* **BASE_URL env for tests must match the CloudFront domain output.**
 * **Cognito callback URL must be** `https://<domain_name>/post-auth.html`.
 * **Playwright browsers must be installed in CI** with `npx playwright install --with-deps`.
+* **Test credentials for production are:** `test-user` / `c810fb39-86a9-4d2f-8107-119ade9605f8`
 
 ---
 
@@ -732,11 +733,14 @@ Lambda Node 22, Function URLs, and CloudFront origins are standard.
 * `./mvnw --errors compile exec:java` → no exceptions.
 * `npx cdk synth` → template appears.
 * `npx cdk deploy` → outputs show `BaseUrl` and Cognito values.
-* `npm run users:provision` → prints `created`.
-* `BASE_URL=... COGNITO_DOMAIN=... COGNITO_CLIENT_ID=... npx playwright test` → two tests pass.
+* `npm run users:provision test-user c810fb39-86a9-4d2f-8107-119ade9605f8` → prints `created`.
+* `BASE_URL=... COGNITO_DOMAIN=... COGNITO_CLIENT_ID=... npx playwright test` → tests pass.
 * Check **Actions artifacts** for `playwright-report`, `test-results` folders.
 
 If a first cold start slows `/authorize`, Playwright has 90s timeout in config. Lambda Node 22 cold starts are typical and within test budgets.
+
+**Alternative: Test against production immediately:**
+* `BASE_URL=https://oidc.antonycc.com TEST_USERNAME=test-user TEST_PASSWORD=c810fb39-86a9-4d2f-8107-119ade9605f8 npx playwright test` → tests pass.
 
 ---
 

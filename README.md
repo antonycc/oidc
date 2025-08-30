@@ -427,7 +427,7 @@ Below is a proposed approach for running the authentication load tests against `
 
 ### Mechanism overview
 
-* **Load generation** – A [k6](https://k6.io/) JavaScript script drives the OpenID Connect code‑exchange flow.  Each virtual user:
+* **Load generation** – A Node.js script uses Playwright's request API to drive the OpenID Connect code‑exchange flow. Each virtual user:
 
     1. Generates a unique username and PKCE code verifier/challenge.
     2. Sends a GET request to `/authorize` with the required query parameters (including `code_challenge`, username and password).
@@ -452,13 +452,13 @@ Below is a proposed approach for running the authentication load tests against `
 
   You can override `CLIENT_ID`, `REDIRECT_URI`, `PASSWORD` and `USERNAME_PREFIX` via `--env` parameters as needed.
 
-* **GitHub Actions** – A workflow (`.github/workflows/load-test.yml`) installs k6 in the CI environment, then runs the chosen scenario.  It exposes a `workflow_dispatch` input to run any scenario on demand and schedules the 10 k test weekly at 04:00 on Sundays (Europe/London timezone).  Test results (summary JSON) are saved as an artifact.
+* **GitHub Actions** – A workflow (`.github/workflows/load-test.yml`) installs Node.js and Playwright in the CI environment, then runs the chosen scenario.  It exposes a `workflow_dispatch` input to run any scenario on demand and schedules the 10 k test weekly at 04:00 on Sundays (Europe/London timezone).  Test results (summary JSON) are saved as an artifact.
 
 ### Files
 
-* **k6 load‑test script** – Defines the four scenarios and the test flow:
+* **Playwright load‑test script** – Defines the four scenarios and implements the test flow using the same logic as `tests/api.live.test.ts`:
 
-`load-tests.js`
+`scripts/load-test.mjs`
 
 * **GitHub Actions workflow** – Runs the tests and schedules the weekly 10 k test:
 
@@ -471,7 +471,7 @@ Let me know if you’d like help fine‑tuning the ramp patterns or integrating 
 run the 5k test against your deployment:
 ```bash
 
-k6 run load-tests.js --scenario small --env TARGET_URL=https://oidc.antonycc.com
+BASE_URL=https://oidc.antonycc.com TEST_USERNAME=test-user TEST_PASSWORD=Passw0rd! node scripts/load-test.mjs small
 ```
 
 ---

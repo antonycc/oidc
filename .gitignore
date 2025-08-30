@@ -10,6 +10,9 @@ test-results
 playwright-report
 playwright/.cache
 
+# Load test results
+load-test-results.json
+
 # Java/Maven
 infra/target
 infra/.classpath
@@ -23,3 +26,6 @@ cdk.out
 /cdk.out/cdk-outputs.json
 target/
 /.env
+
+# Temporary test files
+/tmp/

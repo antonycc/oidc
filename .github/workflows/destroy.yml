@@ -4,6 +4,16 @@ on:
   workflow_dispatch:
   delete:
 
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  JAVA_VERSION: '21'
+  NODE_VERSION: '22'
+  DEPLOY_ROLE_ARN: ${{ vars.DEPLOY_ROLE_ARN }}
+  AWS_REGION: us-east-1
+
 jobs:
   cleanup:
     if: ${{ github.event.ref_type == 'branch' }} # only for branch deletions
@@ -79,5 +89,6 @@ jobs:
         run: ./mvnw --errors clean package
 
       - name: Destroy ephemeral OIDC stack
-        if: ${{ env.DEPLOYMENT_NAME != 'prod' && env.DEPLOYMENT_NAME != 'ci' }}
+        if: ${{ env.DEPLOYMENT_NAME != 'prod' }}
         run: npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk destroy OidcProviderStack-${DEPLOYMENT_NAME} --exclusively --force
+        

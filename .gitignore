@@ -10,6 +10,9 @@ test-results
 playwright-report
 playwright/.cache
 
+# Load test results
+load-test-results.json
+
 # Java/Maven
 infra/target
 infra/.classpath

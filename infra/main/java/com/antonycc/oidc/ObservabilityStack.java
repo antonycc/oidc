@@ -86,11 +86,7 @@ public class ObservabilityStack extends Stack {
             .metricNamespace("OIDC/Security")
             .metricName("AuthenticationFailures")
             .filterPattern(
-                FilterPattern.any(
-                    FilterPattern.stringValue("$.error", "invalid_client"),
-                    FilterPattern.stringValue("$.error", "invalid_grant"),
-                    FilterPattern.stringValue("$.error", "invalid_request")
-                )
+                FilterPattern.anyTerm("invalid_client", "invalid_grant", "invalid_request")
             )
             .metricValue("1")
             .build();
@@ -117,11 +113,7 @@ public class ObservabilityStack extends Stack {
             .metricNamespace("OIDC/Security")
             .metricName("SecurityEvents")
             .filterPattern(
-                FilterPattern.any(
-                    FilterPattern.allTerms("client_not_found"),
-                    FilterPattern.allTerms("redirect_validation", "invalid"),
-                    FilterPattern.allTerms("scope_validation", "invalid")
-                )
+                FilterPattern.anyTerm("client_not_found", "redirect_validation", "scope_validation")
             )
             .metricValue("1")
             .build();

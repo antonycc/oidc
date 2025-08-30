@@ -4,6 +4,8 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests",
+  testMatch: /.*\.live\.test\.(ts|js)$/,
+  testIgnore: /.*load\.live\.test\.js$/,
   timeout: 90_000,
   expect: { timeout: 10_000 },
   use: {

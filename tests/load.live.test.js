@@ -246,28 +246,29 @@ export default function() {
 }
 
 /*
- * Load test scenarios matching the original k6 configuration
- * but running for 5 minutes total as requested
+ * Load test scenarios - 1 minute test with max 100 authentication attempts
  */
 export const options = {
   scenarios: {
-    // 5-minute load test with moderate load
+    // 1-minute load test with limited authentication attempts
     load_test: {
       executor: "ramping-arrival-rate",
       startRate: 1,
       timeUnit: "1s",
       preAllocatedVUs: 10,
-      maxVUs: 50,
+      maxVUs: 20,
       stages: [
-        { duration: "1m", target: 5 },   // Ramp up to 5 RPS
-        { duration: "2m", target: 10 },  // Increase to 10 RPS  
-        { duration: "1m", target: 10 },  // Hold at 10 RPS
-        { duration: "1m", target: 0 },   // Ramp down
+        { duration: "15s", target: 2 },   // Ramp up to 2 RPS
+        { duration: "30s", target: 3 },   // Increase to 3 RPS  
+        { duration: "15s", target: 0 },   // Ramp down
       ],
     },
   },
+  // Limit total iterations to ensure max 100 authentication attempts
+  iterations: 100,
   thresholds: {
     http_req_duration: ["p(95)<2000"], // 95% of requests should be below 2s
     http_req_failed: ["rate<0.1"],     // Error rate should be below 10%
+    iterations: ["count<=100"],        // Ensure we don't exceed 100 iterations
   },
 };

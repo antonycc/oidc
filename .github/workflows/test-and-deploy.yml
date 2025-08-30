@@ -244,6 +244,21 @@ jobs:
         env:
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
 
+      - name: Setup k6
+        if: ${{ inputs.skipDeploy != 'true' }}
+        uses: grafana/setup-k6@v0.3.0
+
+      - name: Run k6 load test (5 minutes)
+        if: ${{ inputs.skipDeploy != 'true' }}
+        env:
+          BASE_URL: ${{ steps.oidc-outputs.outputs.BASE_URL }}
+          TEST_USERNAME: ${{ env.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ env.TEST_PASSWORD }}
+        run: |
+          echo "BASE_URL=${BASE_URL}"
+          echo "TEST_USERNAME=${TEST_USERNAME}"
+          k6 run tests/load.live.test.js --summary-export=load-test-summary.json
+
       - name: Upload artifacts (report, trace, screenshots, videos)
         if: ${{ !cancelled() && inputs.skipDeploy != 'true' }}
         uses: actions/upload-artifact@v4
@@ -252,3 +267,4 @@ jobs:
           path: |
             playwright-report
             test-results
+            load-test-summary.json

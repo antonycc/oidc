@@ -14,17 +14,7 @@ on:
           - medium
           - large
           - xlarge
-      base_url:
-        description: 'Base URL of the OIDC service'
-        required: false
-        default: 'https://oidc.antonycc.com'
-        type: string
-      test_username:
-        description: 'Test username for authentication'
-        required: false
-        default: 'test-user'
-        type: string
-  # Scheduled execution of the 10 000 user test every Sunday at 04:00
+  # Scheduled execution of the 10 000 user test every Sunday at 04:00
   #schedule:
   #  - cron: '0 4 * * 0'
   #    timezone: 'Europe/London'
@@ -36,22 +26,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Set up Node.js 22 as required by the project
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
+      # Install the k6 binary.  This action downloads and caches
+      # Grafana k6 (Go implementation).  Version can be pinned as
+      # needed; we use the latest stable release.
+      - name: Setup k6
+        uses: grafana/setup-k6@v0.3.0
 
-      # Install dependencies including Playwright
-      - name: Install dependencies
-        run: npm ci
-
-      # Install Playwright browsers
-      - name: Install Playwright browsers
-        run: npx playwright install chromium --with-deps
-
-      # Determine which scenario to run. For scheduled runs the
+      # Determine which scenario to run.  For scheduled runs the
       # scenario defaults to `medium`; for manual runs it reads the
       # input from the workflow dispatch.
       - name: Set scenario
@@ -63,30 +44,29 @@ jobs:
             echo "scenario=${{ github.event.inputs.scenario }}" >> $GITHUB_OUTPUT
           fi
 
-      # Run the selected scenario using the Playwright-based load test script.
-      # This script replicates the same OIDC flow as tests/api.live.test.ts
-      # but runs it efficiently with controlled concurrency for load testing.
-      - name: Execute Playwright load test
+      # Run the selected scenario.  Override the TARGET_URL and client
+      # credentials here as environment variables.  If your OIDC
+      # deployment requires different client IDs or passwords, set
+      # appropriate repository or organization secrets and reference
+      # them using the secrets context.
+      - name: Execute k6 load test
         env:
           BASE_URL: ${{ github.event.inputs.base_url || 'https://oidc.antonycc.com' }}
           TEST_USERNAME: ${{ github.event.inputs.test_username || 'test-user' }}
-          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD || 'Passw0rd!' }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
         run: |
           SCENARIO="${{ steps.set-scenario.outputs.scenario }}"
-          echo "Running Playwright load test scenario: $SCENARIO"
-          echo "Base URL: $BASE_URL"
-          echo "Test Username: $TEST_USERNAME"
-          
-          # Run the load test script with the selected scenario
-          node scripts/load-test.mjs $SCENARIO
+          echo "Running k6 scenario: $SCENARIO"
+          echo "BASE_URL: $BASE_URL"
+          echo "TEST_USERNAME: $TEST_USERNAME"
+          k6 run tests/load.live.test.js --scenario $SCENARIO --summary-export=summary.json
 
-      # Upload the load test results as an artifact for later analysis.
-      # The results.json file contains detailed metrics similar to k6
-      # (success rates, latency percentiles, error counts, etc.).
-      - name: Upload load test results
-        if: always()
+      # Optionally upload the k6 summary as an artifact for later
+      # analysis.  The summary.json file contains detailed metrics
+      # produced by k6 (latency percentiles, error counts, etc.).
+      - name: Upload k6 summary
         uses: actions/upload-artifact@v4
         with:
-          name: load-test-results-${{ steps.set-scenario.outputs.scenario }}
-          path: load-test-results.json
+          name: k6-summary
+          path: summary.json
           if-no-files-found: ignore

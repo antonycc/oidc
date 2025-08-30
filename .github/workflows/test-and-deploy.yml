@@ -152,6 +152,11 @@ jobs:
         run: |
           npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk deploy ObservabilityStack-${ENV_NAME} --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-observability.json
 
+      - name: Deploy OIDC Edge Stack (CDK)
+        if: ${{ inputs.skipDeploy != 'true' }}
+        run: |
+          npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk deploy EdgeStack-${ENV_NAME} --exclusively --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-edge.json
+
       - name: Deploy OIDC Provider Stack (CDK)
         if: ${{ inputs.skipDeploy != 'true' }}
         run: |

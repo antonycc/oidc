@@ -339,11 +339,21 @@ CDK build:
 npm run build
 ```
 
+Deploy Edge Stack (S3 buckets and CloudFront prep):
+```bash
+
+npx dotenv -e .env.prod -- \
+  npx cdk deploy EdgeStack-$ENV_NAME \
+    --require-approval never \
+    --outputs-file cdk.out/cdk-outputs-edge.json \
+    ;
+```
+
 Deploy Oidc Provider:
 ```bash
 
 npx dotenv -e .env.prod -- \
-  npx npx cdk deploy OidcProviderStack-$ENV_NAME \
+  npx cdk deploy OidcProviderStack-$ENV_NAME \
     --require-approval never \
     --outputs-file cdk.out/cdk-outputs-oidc-provider.json \
     ;
@@ -365,7 +375,7 @@ Deploy Cognito Client:
 ```bash
 
 npx dotenv -e .env.prod -- \
-  npx npx cdk deploy CognitoStack-$ENV_NAME \
+  npx cdk deploy CognitoStack-$ENV_NAME \
     --exclusively \
     --require-approval never \
     --outputs-file cdk.out/cdk-outputs-cognito.json \

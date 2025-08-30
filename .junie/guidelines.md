@@ -44,11 +44,19 @@ Build and configuration
   export CERTIFICATE_ARN=arn:aws:acm:...
   export COGNITO_DOMAIN_PREFIX=oidc-dev-xyz
   npx cdk bootstrap
-  npx cdk deploy OidcProviderStack-${ENV_NAME} --require-approval never --outputs-file cdk.out/cdk-outputs.json
+  npx cdk deploy ObservabilityStack-${ENV_NAME} --require-approval never --outputs-file cdk.out/cdk-outputs-observability.json
+  npx cdk deploy EdgeStack-${ENV_NAME} --require-approval never --outputs-file cdk.out/cdk-outputs-edge.json
+  npx cdk deploy OidcProviderStack-${DEPLOYMENT_NAME} --require-approval never --outputs-file cdk.out/cdk-outputs-oidc-provider.json
+  npx cdk deploy CognitoStack-${ENV_NAME} --require-approval never --outputs-file cdk.out/cdk-outputs-cognito.json
 - CDK outputs consumed by tests:
   - From OidcProviderStack: BaseUrl → Playwright BASE_URL
   - From CognitoStack: CognitoAuthDomain → Playwright COGNITO_DOMAIN
   - From CognitoStack: UserPoolClientId → Playwright COGNITO_CLIENT_ID
+- Stack architecture:
+  - ObservabilityStack-${ENV_NAME}: Logging, monitoring (stable, env-based naming)
+  - EdgeStack-${ENV_NAME}: S3 buckets, edge resources (stable, env-based naming)
+  - OidcProviderStack-${DEPLOYMENT_NAME}: Lambda functions, CloudFront, DNS (deployment-based naming)
+  - CognitoStack-${ENV_NAME}: User pools, auth domain (stable, env-based naming)
 
 Testing
 A) Unit tests (Vitest)

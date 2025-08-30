@@ -10,6 +10,24 @@ A **lightweight, inspectable OIDC provider** designed for developers who need to
 - **Learn OIDC implementations** by examining working code
 - **Clone and customize** for specific testing scenarios
 
+## Authentication Methods
+
+The provider supports two authentication methods:
+
+### 1. Cognito Hosted UI (Recommended)
+Professional, AWS-hosted login screens that provide:
+- Enterprise-grade security and compliance
+- Customizable branding and styling  
+- Multi-factor authentication support
+- Password policies and user management
+- **[Setup Guide](docs/COGNITO_HOSTED_UI.md)**
+
+### 2. Direct OIDC Provider Login
+Simple form for testing and development:
+- Direct interaction with OIDC endpoints
+- PKCE flow demonstration
+- Useful for debugging and learning
+
 ## Quick Start: Fork → Configure → Deploy → Test
 
 1. **Fork this repository** to your GitHub account

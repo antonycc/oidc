@@ -485,11 +485,6 @@ To grant the local use access to assume the role, the local user needs to have t
 
 ## Configure repo variables (Settings → Secrets and variables → Actions → *Variables*)
 
-* `HOSTED_ZONE_NAME` e.g. `antonycc.com`
-* `HOSTED_ZONE_ID` e.g. `Z079976717QZCYMJ02NI2`
-* `DOMAIN_NAME` e.g. `oidc.antonycc.com` (must be within the hosted zone)
-* `CERTIFICATE_ARN` e.g. `arn:aws:acm:us-east-1:403027849202:certificate/62ef0526-06c0-4744-9cee-33300d716633` (ACM in us-east-1 for CloudFront)
-* `COGNITO_DOMAIN_PREFIX` e.g. `com-antonycc-oidc-prod`
 * `DEPLOY_ROLE_ARN` IAM role for GitHub OIDC e.g. `arn:aws:iam::403027849202:role/oidc-github-actions-deploy-role`
 * For testOnly runs against an existing deploy, optionally:
 

@@ -93,30 +93,36 @@
           localStorage.setItem("oidc_tokens", JSON.stringify(tokenData));
           
           // Call userinfo endpoint if we have an access token
-          if (obj.access_token) {
+          if (obj.access_token && typeof obj.access_token === "string" && obj.access_token.trim() !== "") {
             try {
-              // Validate access token format
-              if (typeof obj.access_token !== "string" || obj.access_token.trim() === "") {
-                console.warn("Invalid access token format");
-                return;
-              }
-              
-              const userinfoRes = await fetch("/userinfo", {
-                headers: { "authorization": "Bearer " + obj.access_token }
+              let userinfoRes = await fetch("/userinfo", {
+                headers: { authorization: "Bearer " + obj.access_token }
               });
+              let usedFallback = false;
+              if (userinfoRes.status === 401) {
+                // Fallback to id_token like the working API test
+                usedFallback = true;
+                userinfoRes = await fetch("/userinfo", {
+                  headers: { authorization: "Bearer " + obj.id_token }
+                });
+              }
               if (userinfoRes.ok) {
                 const userinfo = await userinfoRes.json();
-                document.getElementById("claims").textContent = 
-                  JSON.stringify(claims, null, 2) + "\n\nUserinfo:\n" + JSON.stringify(userinfo, null, 2);
+                const header = usedFallback ? "Userinfo (via id_token fallback):" : "Userinfo:";
+                document.getElementById("claims").textContent =
+                  JSON.stringify(claims, null, 2) + "\n\n" + header + "\n" + JSON.stringify(userinfo, null, 2);
                 
                 // Store userinfo in localStorage
                 tokenData.userinfo = userinfo;
                 localStorage.setItem("oidc_tokens", JSON.stringify(tokenData));
+                document.getElementById("status").textContent = "Token exchange succeeded; userinfo loaded";
               } else {
                 console.warn("Failed to fetch userinfo:", userinfoRes.status);
+                document.getElementById("status").textContent = "Token exchange succeeded; userinfo unavailable (" + userinfoRes.status + ")";
               }
             } catch (e) {
               console.warn("Error fetching userinfo:", e);
+              document.getElementById("status").textContent = "Token exchange succeeded; userinfo error";
             }
           }
         } else {

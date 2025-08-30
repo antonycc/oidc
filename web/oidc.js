@@ -96,11 +96,6 @@
     hr.className = 'menu-divider';
 
     // Items
-    const viewSource = document.createElement('a');
-    viewSource.href = '#';
-    viewSource.textContent = 'View page source';
-    viewSource.setAttribute('data-action', 'view-source');
-
     const viewLS = document.createElement('a');
     viewLS.href = '#';
     viewLS.textContent = 'View local storage';
@@ -112,7 +107,6 @@
     clearLS.setAttribute('data-action', 'clear-local-storage');
 
     target.appendChild(hr);
-    target.appendChild(viewSource);
     target.appendChild(viewLS);
     target.appendChild(clearLS);
   }
@@ -222,36 +216,6 @@
     btn.textContent = text;
     btn.addEventListener('click', onClick);
     return btn;
-  }
-
-  function escapeHtml(str) {
-    return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-  }
-
-  // -------- View Source --------
-  function getPageSource() {
-    const doc = document;
-    const doctype = doc.doctype ? `<!DOCTYPE ${doc.doctype.name}${doc.doctype.publicId ? ' PUBLIC "' + doc.doctype.publicId + '"' : ''}${doc.doctype.systemId ? ' "' + doc.doctype.systemId + '"' : ''}>\n` : '<!doctype html>\n';
-    const html = doc.documentElement.outerHTML;
-    return doctype + html;
-  }
-
-  async function showViewSourceModal() {
-    const src = getPageSource();
-    const pre = document.createElement('pre');
-    pre.className = 'code';
-    pre.style.maxHeight = '60vh';
-    pre.style.overflow = 'auto';
-    pre.innerHTML = escapeHtml(src);
-
-    const copyBtn = makeButton('Copy', async () => {
-      try { await navigator.clipboard.writeText(src); copyBtn.textContent = 'Copied'; setTimeout(() => copyBtn.textContent = 'Copy', 1500); } catch {}
-    });
-
-    openModal('Page source', pre, [copyBtn]);
   }
 
   // -------- Local Storage Viewer/Clear --------

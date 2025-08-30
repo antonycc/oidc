@@ -23,6 +23,21 @@ class SynthTest {
                 .domainName("oidc.example.com")
                 .build());
 
+    // Create the Edge stack 
+    EdgeStack edgeStack =
+        new EdgeStack(
+            app,
+            "TestEdgeStack",
+            EdgeStackProps.builder()
+                .env(env)
+                .envName("test")
+                .domainName("oidc.example.com")
+                .hostedZoneName("example.com")
+                .hostedZoneId("Z000EXAMPLE")
+                .certificateArn("arn:aws:acm:us-east-1:123456789012:certificate/abc")
+                .logsBucket(observabilityStack.logsBucket)
+                .build());
+
     // Create the OIDC Provider stack
     OidcProviderStack providerStack =
         new OidcProviderStack(
@@ -32,14 +47,22 @@ class SynthTest {
                 .env(env)
                 .envName("test")
                 .deploymentName("test")
-                .hostedZoneName("example.com")
-                .hostedZoneId("Z000EXAMPLE")
                 .domainName("oidc.example.com")
-                .certificateArn("arn:aws:acm:us-east-1:123456789012:certificate/abc")
                 .logsBucket(observabilityStack.logsBucket)
                 .trailLogGroup(observabilityStack.trailLogGroup)
                 .auditTrail(observabilityStack.auditTrail)
                 .xrayGroup(observabilityStack.xrayGroup)
+                .bucketDeploymentLogGroup(observabilityStack.trailLogGroup)
+                // Edge resources from EdgeStack
+                .webOriginBucket(edgeStack.webOriginBucket)
+                .wellKnownOriginBucket(edgeStack.wellKnownOriginBucket)
+                .webBucket(edgeStack.webBucket)
+                .webOriginAccessIdentity(edgeStack.webOriginAccessIdentity)
+                .wellKnownBucket(edgeStack.wellKnownBucket)
+                .wellKnownOriginAccessIdentity(edgeStack.wellKnownOriginAccessIdentity)
+                .shortTtl(edgeStack.shortTtl)
+                .webOriginBehaviorOptions(edgeStack.webOriginBehaviorOptions)
+                .wellKnownOriginBehaviorOptions(edgeStack.wellKnownOriginBehaviorOptions)
                 .build());
 
     // Create the Cognito stack (independent of provider stack)

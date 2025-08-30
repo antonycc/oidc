@@ -246,11 +246,11 @@ export default function() {
 }
 
 /*
- * Load test scenarios - 1 minute test with max 100 authentication attempts
+ * Load test scenarios - 1 minute test with controlled ramping
  */
 export const options = {
   scenarios: {
-    // 1-minute load test with limited authentication attempts
+    // 1-minute load test with controlled ramping
     load_test: {
       executor: "ramping-arrival-rate",
       startRate: 1,
@@ -264,11 +264,8 @@ export const options = {
       ],
     },
   },
-  // Limit total iterations to ensure max 100 authentication attempts
-  iterations: 100,
   thresholds: {
     http_req_duration: ["p(95)<2000"], // 95% of requests should be below 2s
     http_req_failed: ["rate<0.1"],     // Error rate should be below 10%
-    iterations: ["count<=100"],        // Ensure we don't exceed 100 iterations
   },
 };

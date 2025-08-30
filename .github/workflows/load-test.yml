@@ -1,4 +1,4 @@
-name: "load-test-${{ github.ref_name }}"
+name: load-test
 concurrency:
   group: "load-${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}"
   cancel-in-progress: true
@@ -36,6 +36,7 @@ env:
 
 jobs:
   load-test:
+    name: "load-test-${{ github.ref_name }}"
     runs-on: ubuntu-latest
     # If the branch is main, the GitHub environment is prod otherwise the environment is ci
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}

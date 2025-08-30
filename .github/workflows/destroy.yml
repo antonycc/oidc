@@ -2,7 +2,9 @@ name: destroy
 concurrency: destroy
 on:
   workflow_dispatch:
-  delete:
+  # TODO: Work out how to set REF_NAME="${{ github.ref_name }}" to the ref being deleted
+  # (We need to check out main because the branch has been deleted but we don't wan't to delete main's target deployment environment.)
+  # delete:
 
 permissions:
   id-token: write

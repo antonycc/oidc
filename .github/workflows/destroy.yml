@@ -20,6 +20,8 @@ jobs:
   cleanup:
     if: ${{ github.event.ref_type == 'branch' }} # only for branch deletions
     runs-on: ubuntu-latest
+    # If the branch is main, the GitHub environment is prod otherwise the environment is ci
+    environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
     steps:
       - name: Checkout default branch
         uses: actions/checkout@v5

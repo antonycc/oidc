@@ -51,6 +51,8 @@ jobs:
 
   build-deploy-test:
     runs-on: ubuntu-24.04
+    # If the branch is main, the GitHub environment is prod otherwise the environment is ci
+    environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5

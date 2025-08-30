@@ -125,7 +125,7 @@ public class EdgeStack extends Stack {
     this.distribution = null;
     this.aliasRecord = null;
 
-    // Outputs for the created edge resources
+    // Outputs for cross-stack references
     new CfnOutput(
         this,
         "WebBucketName",
@@ -134,6 +134,18 @@ public class EdgeStack extends Stack {
         this,
         "WellKnownBucketName",
         CfnOutputProps.builder().value(this.wellKnownBucket.getBucketName()).build());
+    new CfnOutput(
+        this,
+        "CertificateArn", 
+        CfnOutputProps.builder().value(this.certificate.getCertificateArn()).build());
+    new CfnOutput(
+        this,
+        "HostedZoneId",
+        CfnOutputProps.builder().value(this.hostedZone.getHostedZoneId()).build());
+    new CfnOutput(
+        this,
+        "HostedZoneName",
+        CfnOutputProps.builder().value(this.hostedZone.getZoneName()).build());
   }
 
 

@@ -35,6 +35,7 @@ class SynthTest {
                 .hostedZoneName("example.com")
                 .hostedZoneId("Z000EXAMPLE")
                 .certificateArn("arn:aws:acm:us-east-1:123456789012:certificate/abc")
+                .authCertificateArn("arn:aws:acm:us-east-1:123456789012:certificate/xyz")
                 .logsBucket(observabilityStack.logsBucket)
                 .build());
 
@@ -48,6 +49,7 @@ class SynthTest {
                 .envName("test")
                 .deploymentName("test")
                 .domainName("oidc.example.com")
+                .edgeStack(edgeStack)
                 .logsBucket(observabilityStack.logsBucket)
                 .trailLogGroup(observabilityStack.trailLogGroup)
                 .auditTrail(observabilityStack.auditTrail)
@@ -75,7 +77,7 @@ class SynthTest {
                 .envName("test")
                 .domainName("oidc.example.com")
                 .authDomainName("auth.oidc.example.com")
-                .authCertificateArn("arn:aws:acm:us-east-1:123456789012:certificate/xyz")
+                .edgeStack(edgeStack)
                 .hostedZoneName("example.com")
                 .hostedZoneId("Z000EXAMPLE")
                 .build());

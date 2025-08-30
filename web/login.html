@@ -35,6 +35,21 @@
     <div id="modal-root"></div>
     <script src="./oidc.js" defer></script>
     <script>
+      // Check for error parameter in URL and display it
+      const urlParams = new URLSearchParams(window.location.search);
+      const errorMsg = urlParams.get('error');
+      if (errorMsg) {
+        const errorEl = document.getElementById('error');
+        errorEl.textContent = errorMsg;
+        errorEl.style.display = 'block';
+        
+        // Pre-fill form with OAuth parameters if available
+        const clientIdInput = document.querySelector('input[name="client_id"]');
+        if (urlParams.get('client_id') && clientIdInput) {
+          clientIdInput.value = urlParams.get('client_id');
+        }
+      }
+      
       // Minimal PKCE helpers
       const rand = (len = 32) =>
         crypto.getRandomValues(new Uint8Array(len)).reduce((s, b) => s + ("0" + (b % 36).toString(36)).slice(-1), "");

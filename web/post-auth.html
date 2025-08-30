@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Post Auth</title>
     <link rel="stylesheet" href="./oidc.css" />
+    <script src="./config.js"></script>
   </head>
   <body>
     <header>
@@ -20,8 +21,18 @@
       <h1>Post Auth</h1>
       <div class="card">
         <p id="status">Looking for authorization code in URL…</p>
+        <div id="flow-type" style="margin: 10px 0; padding: 10px; background-color: #f5f5f5; border-radius: 4px; font-size: 14px; color: #666;"></div>
         <pre id="result" class="code"></pre>
         <pre id="claims" class="code"></pre>
+        <div id="next-steps" style="margin-top: 20px; padding: 15px; background-color: #e8f4fd; border-radius: 4px; display: none;">
+          <h3 style="margin-top: 0; color: #0073bb;">Success! What's Next?</h3>
+          <p>You've successfully authenticated. Here are some things you can do:</p>
+          <ul>
+            <li><a href="/index.html">Return to Home Page</a></li>
+            <li>Check your browser's developer console for detailed token information</li>
+            <li>Your tokens are stored in localStorage and will be used for future requests</li>
+          </ul>
+        </div>
       </div>
     </main>
     <script>
@@ -143,6 +154,9 @@
           };
           localStorage.setItem("oidc_tokens", JSON.stringify(tokenData));
           
+          // Show success section
+          document.getElementById("next-steps").style.display = "block";
+          
           // Call userinfo endpoint if we have an access token
           if (obj.access_token) {
             try {
@@ -173,27 +187,85 @@
         } else {
           document.querySelector(".login-status").textContent = "Login failed";
           document.getElementById("status").textContent = "Token exchange failed (" + res.status + ")";
+          
+          // Update flow type indicator
+          const flowTypeEl = document.getElementById("flow-type");
+          if (flowTypeEl) {
+            flowTypeEl.textContent = "❌ Token exchange failed";
+            flowTypeEl.style.backgroundColor = "#ffe6e6";
+            flowTypeEl.style.color = "#cc0000";
+          }
         }
         sessionStorage.removeItem(key);
       }
       const qs = new URL(location.href).searchParams;
       const code = qs.get("code");
       const state = qs.get("state");
+      const error = qs.get("error");
+      const errorDescription = qs.get("error_description");
+      
+      // Determine flow type
+      const flowTypeEl = document.getElementById("flow-type");
+      const pkceKey = "pkce:" + state;
+      const hasPkceData = sessionStorage.getItem(pkceKey);
+      
+      if (error) {
+        document.getElementById("status").textContent = `Authentication error: ${error}`;
+        if (errorDescription) {
+          document.getElementById("result").textContent = `Error details: ${errorDescription}`;
+        }
+        document.querySelector(".login-status").textContent = "Login failed";
+        flowTypeEl.textContent = "⚠️ Authentication failed";
+        flowTypeEl.style.backgroundColor = "#ffe6e6";
+        flowTypeEl.style.color = "#cc0000";
+        return;
+      }
+      
       if (code) {
-        document.getElementById("status").textContent = "Received code=" + code;
-        const key = "pkce:" + state;
-        if (sessionStorage.getItem(key)) {
+        document.getElementById("status").textContent = "Received authorization code: " + code.substring(0, 20) + "...";
+        
+        if (hasPkceData) {
+          // Direct OIDC provider flow with PKCE
+          flowTypeEl.textContent = "🔐 Direct OIDC Provider Authentication (with PKCE)";
+          flowTypeEl.style.backgroundColor = "#e6f7ff";
+          flowTypeEl.style.color = "#0073bb";
+          
           exchange(code, state).catch((e) => {
             document.getElementById("status").textContent = "Error: " + e.message;
             document.querySelector(".login-status").textContent = "Login failed";
+            flowTypeEl.textContent = "❌ Token exchange failed";
+            flowTypeEl.style.backgroundColor = "#ffe6e6";
+            flowTypeEl.style.color = "#cc0000";
           });
         } else {
-          // Likely came from Cognito Hosted UI; show code only
+          // Likely came from Cognito Hosted UI
+          flowTypeEl.textContent = "🏢 Cognito Hosted UI Authentication";
+          flowTypeEl.style.backgroundColor = "#f0f8e6";
+          flowTypeEl.style.color = "#4a6741";
+          
           document.querySelector(".login-status").textContent = "Logged in (via Cognito+OIDC)";
+          document.getElementById("status").textContent = "Successfully authenticated via Cognito Hosted UI";
+          document.getElementById("result").textContent = "Authorization code received from Cognito.\n\nThis indicates that:\n" +
+            "1. You authenticated with Cognito's hosted login\n" +
+            "2. Cognito successfully validated your credentials with the OIDC provider\n" +
+            "3. The complete OAuth2 flow worked correctly\n\n" +
+            "Code: " + code;
+          
+          // Show success section
+          document.getElementById("next-steps").style.display = "block";
         }
       } else {
-        document.getElementById("status").textContent = "No code present";
+        document.getElementById("status").textContent = "No authorization code found in URL";
         document.querySelector(".login-status").textContent = "Not logged in";
+        flowTypeEl.textContent = "ℹ️ No authentication data found";
+        flowTypeEl.style.backgroundColor = "#f5f5f5";
+        flowTypeEl.style.color = "#666";
+        
+        // Provide helpful guidance
+        document.getElementById("result").textContent = "This page expects to receive an authorization code from either:\n\n" +
+          "1. Cognito Hosted UI (recommended)\n" +
+          "2. Direct OIDC provider authentication\n\n" +
+          "Please start the authentication flow from the home page.";
       }
     </script>
     <footer><small>© 2025 OIDC Provider</small></footer>

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>OIDC Provider</title>
     <link rel="stylesheet" href="./oidc.css" />
+    <script src="./config.js"></script>
   </head>
   <body>
     <header>
@@ -21,9 +22,30 @@
     <main class="container">
       <h1>OIDC Provider</h1>
       <div class="card">
-        <p>Use Cognito Hosted UI to kick off the flow. This site only hosts simple pages and receives callbacks.</p>
-        <p>After deploy, your Cognito domain is output as <code>CognitoAuthDomain</code>. Visit:</p>
-        <pre><code>https://&lt;cognito-domain&gt;/oauth2/authorize?client_id=&lt;clientId&gt;&amp;response_type=code&amp;scope=openid+email+profile&amp;redirect_uri=https://&lt;your-subdomain&gt;.&lt;zone&gt;/post-auth.html</code></pre>
+        <h2>Login with Cognito Hosted UI</h2>
+        <p>Use Cognito's hosted login screens to authenticate. This provides a professional, secure login experience.</p>
+        <div id="cognito-login" style="margin: 20px 0;">
+          <button id="cognito-login-btn" class="primary-btn" style="font-size: 16px; padding: 12px 24px; background-color: #ff9900; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">
+            Login with Cognito
+          </button>
+          <span id="cognito-info" style="color: #666; font-size: 14px;">
+            Loading Cognito configuration...
+          </span>
+        </div>
+        <details style="margin-top: 20px;">
+          <summary style="cursor: pointer; color: #0073bb;">Advanced: Manual URL Construction</summary>
+          <p style="margin-top: 10px;">After deploy, your Cognito domain is output as <code>CognitoAuthDomain</code>. Visit:</p>
+          <pre style="font-size: 12px; overflow-x: auto;"><code>https://&lt;cognito-domain&gt;/oauth2/authorize?client_id=&lt;clientId&gt;&amp;response_type=code&amp;scope=openid+email+profile&amp;redirect_uri=https://&lt;your-subdomain&gt;.&lt;zone&gt;/post-auth.html</code></pre>
+        </details>
+      </div>
+      <div class="card" style="margin-top: 20px;">
+        <h2>Alternative: Direct OIDC Provider Login</h2>
+        <p>For testing and development, you can also authenticate directly with the OIDC provider.</p>
+        <a href="/login.html" class="nav" style="text-decoration: none;">
+          <button class="secondary-btn" style="font-size: 14px; padding: 8px 16px; background-color: #f0f0f0; color: #333; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;">
+            Direct Login Form
+          </button>
+        </a>
       </div>
     </main>
     <script>
@@ -76,6 +98,40 @@
               location.reload();
             });
             authSection.appendChild(logoutBtn);
+          }
+        }
+        
+        // Cognito login functionality
+        const cognitoBtn = document.getElementById("cognito-login-btn");
+        const cognitoInfo = document.getElementById("cognito-info");
+        
+        if (cognitoBtn && cognitoInfo && window.OidcConfig) {
+          const config = window.OidcConfig;
+          
+          if (config.isConfigured()) {
+            cognitoInfo.textContent = `Ready to login with ${config.cognitoDomain}`;
+            cognitoBtn.onclick = () => {
+              const authUrl = config.getCognitoAuthUrl();
+              if (authUrl) {
+                window.location.href = authUrl;
+              } else {
+                alert('Failed to generate Cognito authorization URL');
+              }
+            };
+          } else {
+            const missingItems = [];
+            if (!config.cognitoDomain || config.cognitoDomain === 'YOUR_COGNITO_DOMAIN.auth.us-east-1.amazoncognito.com') {
+              missingItems.push('Cognito domain');
+            }
+            if (!config.cognitoClientId || config.cognitoClientId === 'YOUR_CLIENT_ID') {
+              missingItems.push('Client ID');
+            }
+            
+            cognitoInfo.textContent = `Configuration needed: ${missingItems.join(', ')}`;
+            cognitoInfo.style.color = '#cc6600';
+            cognitoBtn.onclick = () => {
+              alert('Cognito configuration incomplete. Please deploy the CognitoStack and update config.js with the actual client ID.');
+            };
           }
         }
       });

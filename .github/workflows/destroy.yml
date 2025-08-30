@@ -1,4 +1,4 @@
-name: "destroy-${{ github.ref_name }}"
+name: destroy
 concurrency:
   group: "deploy-${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}"
   cancel-in-progress: false
@@ -20,8 +20,9 @@ env:
   AWS_REGION: us-east-1
 
 jobs:
-  cleanup:
+  destroy:
     if: ${{ github.event.ref_type == 'branch' }} # only for branch deletions
+    name: "destroy-${{ github.ref_name }}"
     runs-on: ubuntu-latest
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
     steps:

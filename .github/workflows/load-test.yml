@@ -1,4 +1,4 @@
-name: "load-test-${{ github.ref_name }}"
+name: load-test
 concurrency:
   group: "load-${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}"
   cancel-in-progress: true
@@ -22,6 +22,7 @@ env:
 
 jobs:
   load-test:
+    name: "load-test-${{ github.ref_name }}"
     runs-on: ubuntu-latest
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
     steps:

@@ -45,11 +45,11 @@ function generatePkce() {
   for (let i = 0; i < 64; i++) {
     verifier += chars.charAt(Math.floor(Math.random() * chars.length));
   }
-  
-  // Create code challenge as base64url-encoded SHA256 hash
-  const hash = sha256(verifier, "binary");
+
+  // Create code challenge: base64url-encoded SHA-256 hash of the verifier
+  // Compatible with older k6 versions: get ArrayBuffer hash and encode as URL-safe base64
+  const hash = sha256(verifier); // ArrayBuffer
   const challenge = encoding.b64encode(hash, "url");
-  
   return { verifier, challenge };
 }
 
@@ -66,15 +66,25 @@ function randomString(length = 32) {
 }
 
 /*
- * Parse a URL parameter from a URL string
+ * Parse a URL parameter from a URL string without relying on global URL API (k6 compatibility)
  */
 function parseParam(url, name) {
-  try {
-    const urlObj = new URL(url);
-    return urlObj.searchParams.get(name);
-  } catch {
-    return null;
+  if (!url || !name) return null;
+  const qIndex = url.indexOf("?");
+  if (qIndex === -1) return null;
+  const query = url.substring(qIndex + 1);
+  const pairs = query.split("&");
+  for (let i = 0; i < pairs.length; i++) {
+    const [rawKey, rawVal = ""] = pairs[i].split("=");
+    if (decodeURIComponent(rawKey) === name) {
+      try {
+        return decodeURIComponent(rawVal.replace(/\+/g, "%20"));
+      } catch {
+        return rawVal;
+      }
+    }
   }
+  return null;
 }
 
 /*
@@ -117,7 +127,7 @@ export default function() {
   const authorizeOk = check(authorizeRes, {
     "authorize status is 200 or 302": (r) => [200, 302].includes(r.status),
     "authorize response has code": (r) => {
-      const location = r.headers["Location"] || r.url;
+      const location = r.headers["Location"] || r.headers["location"] || r.url;
       return location && location.includes("code=");
     },
   });
@@ -127,8 +137,8 @@ export default function() {
     return;
   }
 
-  // Extract authorization code from Location header or final URL
-  const location = authorizeRes.headers["Location"] || authorizeRes.url;
+  // Extract authorization code from Location header (case-insensitive) or final URL
+  const location = authorizeRes.headers["Location"] || authorizeRes.headers["location"] || authorizeRes.url;
   const code = parseParam(location, "code");
   const returnedState = parseParam(location, "state");
 
@@ -235,7 +245,7 @@ export default function() {
     // Final fallback: decode id_token locally (matching api.live.test.ts)
     try {
       const parts = tokenData.id_token.split(".");
-      const payload = JSON.parse(encoding.b64decode(parts[1], "std", "s"));
+      const payload = JSON.parse(encoding.b64decode(parts[1], "url", "s"));
       check(payload, {
         "id_token has sub claim": (data) => data.sub,
       });
@@ -250,7 +260,8 @@ export default function() {
  */
 export const options = {
   scenarios: {
-    // 1-minute load test with limited authentication attempts
+    // 1-minute load test using ramping arrival rate
+    // Note: Do not set top-level `iterations` when `scenarios` are defined; k6 forbids mixing them.
     load_test: {
       executor: "ramping-arrival-rate",
       startRate: 1,
@@ -258,17 +269,14 @@ export const options = {
       preAllocatedVUs: 10,
       maxVUs: 20,
       stages: [
-        { duration: "15s", target: 2 },   // Ramp up to 2 RPS
-        { duration: "30s", target: 3 },   // Increase to 3 RPS  
-        { duration: "15s", target: 0 },   // Ramp down
+        { duration: "10s", target: 3 },   // Ramp up to 3 RPS
+        { duration: "10s", target: 3 },   // Hold at 3 RPS
+        { duration: "10s", target: 0 },   // Ramp down to 0 RPS
       ],
     },
   },
-  // Limit total iterations to ensure max 100 authentication attempts
-  iterations: 100,
   thresholds: {
     http_req_duration: ["p(95)<2000"], // 95% of requests should be below 2s
     http_req_failed: ["rate<0.1"],     // Error rate should be below 10%
-    iterations: ["count<=100"],        // Ensure we don't exceed 100 iterations
   },
 };

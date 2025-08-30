@@ -51,7 +51,6 @@ jobs:
 
   build-deploy-test:
     runs-on: ubuntu-24.04
-    # If the branch is main, the GitHub environment is prod otherwise the environment is ci
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
     steps:
       - name: Checkout
@@ -193,6 +192,7 @@ jobs:
         id: setup-cloudfront-tests
         run: sleep 10
 
+      # Individual tests of endpoints, uncomment to debug
       #- name: Web bucket default behavior
       #  if: ${{ inputs.skipDeploy != 'true' }}
       #  run: curl --include --request GET "${{ steps.oidc-outputs.outputs.BASE_URL }}/"
@@ -229,7 +229,6 @@ jobs:
           echo "BASE_URL=${BASE_URL}"
           npm run test:api
 
-      # The behaviour tests are not run for skipDeploy=true because they would be running against a different deployment.
       - name: Run Playwright behaviour tests
         run: |
           echo "BASE_URL=${{ steps.oidc-outputs.outputs.BASE_URL }}"

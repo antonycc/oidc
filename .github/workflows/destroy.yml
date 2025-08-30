@@ -20,7 +20,6 @@ env:
 jobs:
   destroy:
     if: ${{ github.event_name != 'delete' || github.event.ref_type == 'branch' }} # skip non-branch deletions
-    name: "destroy-${{ github.event_name == 'delete' && github.event.ref && github.event.ref.replace('refs/heads/', '') || github.ref_name }}"
     runs-on: ubuntu-latest
     environment: ${{ (github.event_name == 'delete' && github.event.ref == 'refs/heads/main') || (github.event_name != 'delete' && github.ref == 'refs/heads/main') && 'prod' || 'ci' }}
     steps:

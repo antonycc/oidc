@@ -94,53 +94,84 @@
           // Try to get client ID from various sources
           let clientId = null;
           let configCognitoDomain = null;
+          let configSource = null;
           
           // 1. Try to fetch from config.json first (deployed by CDK)
           try {
+            document.getElementById('status').textContent = 'Loading configuration...';
             const configResponse = await fetch('/config.json');
             if (configResponse.ok) {
               const config = await configResponse.json();
+              console.log('Loaded config.json:', { ...config, cognitoClientId: config.cognitoClientId ? '***' : undefined });
               clientId = config.cognitoClientId;
               if (config.cognitoDomain) {
                 configCognitoDomain = config.cognitoDomain;
               }
+              configSource = 'config.json';
+            } else {
+              console.log('config.json not found or inaccessible:', configResponse.status);
             }
           } catch (e) {
-            console.log('No config.json found, using fallback methods');
+            console.log('Failed to fetch config.json:', e.message);
           }
           
           // 2. Check if injected globally by deployment
           if (!clientId && window.COGNITO_CLIENT_ID) {
             clientId = window.COGNITO_CLIENT_ID;
+            configSource = 'window.COGNITO_CLIENT_ID';
+            console.log('Using client ID from global variable');
           }
           
           // 3. Check URL parameters (for testing)
           const urlParams = new URLSearchParams(window.location.search);
           if (!clientId && urlParams.get('client_id')) {
             clientId = urlParams.get('client_id');
+            configSource = 'URL parameter';
+            console.log('Using client ID from URL parameter');
           }
           
           // 4. Use environment variable if available (would be injected during build)
           if (!clientId && window.location.search.includes('auto=true')) {
             // This would be the automatic mode for testing
             clientId = 'test-client-id';
+            configSource = 'auto test mode';
+            console.log('Using test client ID for auto mode');
           }
           
           // Use config domain if available, otherwise compute it
           const finalCognitoDomain = configCognitoDomain || cognitoDomain;
           
+          console.log('Final configuration:', {
+            clientId: clientId ? '***' : 'none',
+            cognitoDomain: finalCognitoDomain,
+            source: configSource
+          });
+          
           if (!clientId) {
-            // Show configuration instructions instead of error
+            // Show configuration instructions with better formatting and guidance
             const errorEl = document.getElementById('error');
             errorEl.style.display = 'block';
             errorEl.innerHTML = 
-              '<strong>Cognito Configuration Required</strong><br><br>' +
-              'This page requires a Cognito Client ID to function. You can:<br><br>' +
-              '1. Add <code>?client_id=YOUR_CLIENT_ID</code> to the URL for testing<br>' +
-              '2. Deploy with proper CDK configuration to inject the client ID<br>' +
-              '3. Set <code>window.COGNITO_CLIENT_ID</code> globally<br><br>' +
-              '<a href="./index.html">Return to home page</a>';
-            document.getElementById('status').textContent = 'Configuration required';
+              '<div style="text-align: left; background: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px solid #e9ecef;">' +
+              '<h4 style="margin-top: 0; color: #495057;">🔧 Configuration Required</h4>' +
+              '<p style="margin-bottom: 15px;">This page requires a Cognito Client ID to function properly.</p>' +
+              
+              '<h5 style="color: #6c757d; margin-bottom: 10px;">For Local Testing:</h5>' +
+              '<p style="margin-bottom: 10px;">Add the client ID as a URL parameter:</p>' +
+              '<code style="background: #e9ecef; padding: 4px 8px; border-radius: 4px; display: block; margin-bottom: 15px;">' +
+              window.location.href.split('?')[0] + '?client_id=YOUR_CLIENT_ID</code>' +
+              
+              '<h5 style="color: #6c757d; margin-bottom: 10px;">For Deployed Environments:</h5>' +
+              '<p style="margin-bottom: 5px;">• CDK automatically deploys <code>config.json</code> with the correct values</p>' +
+              '<p style="margin-bottom: 5px;">• Alternatively, set <code>window.COGNITO_CLIENT_ID</code> globally</p>' +
+              '<p style="margin-bottom: 15px;">• Check if <a href="/config.json" target="_blank">config.json</a> is accessible</p>' +
+              
+              '<div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #dee2e6;">' +
+              '<a href="./login.html" style="background: #6c757d; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; margin-right: 10px;">← Back to Login Options</a>' +
+              '<a href="./index.html" style="background: #007bff; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px;">🏠 Home</a>' +
+              '</div>' +
+              '</div>';
+            document.getElementById('status').innerHTML = '<strong>Configuration required</strong> - See details below';
             return;
           }
           
@@ -159,7 +190,8 @@
           const cognitoUrl = `https://${finalCognitoDomain}/oauth2/authorize?${cognitoParams.toString()}`;
           
           document.getElementById('status').innerHTML = 
-            `Redirecting to Cognito at <strong>${finalCognitoDomain}</strong>...<br><br>` +
+            `Redirecting to Cognito at <strong>${finalCognitoDomain}</strong>...<br>` +
+            `<small>Configuration loaded from: ${configSource}</small><br>` +
             `<small>If not redirected automatically, <a href="${cognitoUrl}">click here</a></small>`;
           
           // Wait a moment for user to see the message, then redirect

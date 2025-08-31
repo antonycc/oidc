@@ -12,12 +12,20 @@ const TEST_USERNAME = process.env.TEST_USERNAME || "test-user";
 const TEST_PASSWORD = process.env.TEST_PASSWORD || "";
 
 // @ts-ignore
-test("Home page shows Cognito login option", async ({ page }) => {
+test("Home page shows login entry point", async ({ page }) => {
     await page.goto(new URL("/", BASE_URL).toString());
     await expect(page.getByRole("heading", { name: "OIDC - Home" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Login with Cognito" })).toBeVisible();
-    // Use more specific selector to avoid conflict with content links
+    // Check that home page has single login entry point
     await expect(page.locator('.login-links a[href="./login.html"]')).toBeVisible();
+    await expect(page.getByRole("link", { name: "Login" })).toBeVisible();
+});
+
+// @ts-ignore
+test("Login page shows both authentication options", async ({ page }) => {
+    await page.goto(new URL("/login.html", BASE_URL).toString());
+    await expect(page.getByRole("heading", { name: "OIDC - Login" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Direct Login" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Login with Cognito" })).toBeVisible();
 });
 
 // @ts-ignore

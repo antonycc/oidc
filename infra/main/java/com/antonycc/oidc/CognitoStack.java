@@ -179,7 +179,7 @@ public class CognitoStack extends Stack {
             .allowedOAuthFlows(List.of("code"))
             .allowedOAuthFlowsUserPoolClient(true)
             .allowedOAuthScopes(List.of("openid", "email", "profile", "aws.cognito.signin.user.admin"))
-            .callbackUrLs(List.of(baseUrl + "/post-auth.html"))
+            .callbackUrLs(List.of(baseUrl + "/post-auth.html", baseUrl + "/post-authCognito.html"))
             .logoutUrLs(List.of(baseUrl + "/"))
             .supportedIdentityProviders(List.of("OIDC"))
             // Enhanced frontend UI settings

@@ -16,8 +16,7 @@
         <div class="auth-section">
           <span class="login-status">Not logged in</span>
           <div class="login-links" style="margin-top: 5px;">
-            <a class="nav" href="./login.html">Direct Login</a> | 
-            <a class="nav" href="./loginCognito.html">Login with Cognito</a>
+            <a class="nav" href="./login.html">Login</a>
           </div>
         </div>
       </div>
@@ -25,16 +24,27 @@
     <main class="container">
       <h1>OIDC - Home</h1>
       <div class="card">
-        <h2>Choose Your Login Method</h2>
-        <h3>Direct OIDC Login</h3>
-        <p>Use the <a href="./login.html">direct login form</a> to exercise the OIDC Provider directly without Cognito. This performs PKCE authentication and returns to the standard post-auth page.</p>
+        <h2>Welcome to the OIDC Provider</h2>
+        <p>This repository provides a comprehensive OIDC (OpenID Connect) Provider implementation with two authentication methods:</p>
         
-        <h3>Cognito Hosted UI Login</h3>
-        <p>Use <a href="./loginCognito.html">Cognito login</a> for a fully-managed authentication experience. This redirects to AWS Cognito's hosted UI which federates to this OIDC provider.</p>
+        <h3>Getting Started</h3>
+        <p>Click <a href="./login.html">Login</a> to choose your preferred authentication method.</p>
         
-        <h3>Manual Cognito URL (Advanced)</h3>
-        <p>For testing, your Cognito domain is output as <code>CognitoAuthDomain</code>. Visit:</p>
-        <pre><code>https://&lt;cognito-domain&gt;/oauth2/authorize?client_id=&lt;clientId&gt;&amp;response_type=code&amp;scope=openid+email+profile&amp;redirect_uri=https://&lt;your-subdomain&gt;.&lt;zone&gt;/post-authCognito.html</code></pre>
+        <h3>Authentication Options</h3>
+        <ul>
+          <li><strong>Direct OIDC Login:</strong> Exercise the OIDC Provider directly with a login form</li>
+          <li><strong>Cognito Hosted UI:</strong> Use AWS Cognito's managed authentication that federates to this provider</li>
+        </ul>
+        
+        <h3>For Developers</h3>
+        <p>This implementation demonstrates:</p>
+        <ul>
+          <li>PKCE (Proof Key for Code Exchange) flow</li>
+          <li>JWT token handling and validation</li>
+          <li>AWS Cognito federation</li>
+          <li>Dynamic configuration deployment</li>
+          <li>Comprehensive testing with Playwright and K6</li>
+        </ul>
       </div>
     </main>
     <div id="modal-root"></div>

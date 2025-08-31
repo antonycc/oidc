@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OIDC - Direct Login</title>
+    <link rel="stylesheet" href="./oidc.css" />
+  </head>
+  <body>
+    <header>
+      <div class="header-nav">
+        <div class="hamburger-menu">
+          <button class="hamburger-btn">☰</button>
+          <div class="menu-dropdown"><a href="./index.html">Home</a><a href="./login.html">Login</a><div data-utils-target></div></div>
+        </div>
+        <div class="auth-section"><span class="login-status">Not logged in</span></div>
+      </div>
+    </header>
+    <main class="container">
+      <h1>OIDC - Direct Login</h1>
+      <div class="card">
+        <p>
+          Use this form to exercise the OP directly without Cognito. It will perform PKCE, post to
+          <code>/authorize</code>, and redirect back to Post Auth.
+        </p>
+        <p><a href="./login.html">← Back to login options</a></p>
+        <form id="loginForm" class="form-card">
+          <label>Username <input type="text" name="username" required minlength="1" /></label>
+          <label>Password <input type="password" name="password" required minlength="1" /></label>
+          <label>Client ID <input type="text" name="client_id" value="self-client" required title="OIDC client identifier" /></label>
+          <button type="submit">Sign in</button>
+        </form>
+        <div id="error" class="error" style="display: none"></div>
+      </div>
+    </main>
+    <div id="modal-root"></div>
+    <script src="./oidc.js" defer></script>
+    <script>
+      // Check for error parameter in URL and display it
+      const urlParams = new URLSearchParams(window.location.search);
+      const errorMsg = urlParams.get('error');
+      if (errorMsg) {
+        const errorEl = document.getElementById('error');
+        errorEl.textContent = errorMsg;
+        errorEl.style.display = 'block';
+        
+        // Pre-fill form with OAuth parameters if available
+        const clientIdInput = document.querySelector('input[name="client_id"]');
+        const clientIdParam = urlParams.get('client_id');
+        if (clientIdParam && clientIdInput) {
+          clientIdInput.value = clientIdParam;
+        }
+      }
+      
+      // Minimal PKCE helpers
+      const rand = (len = 32) =>
+        crypto.getRandomValues(new Uint8Array(len)).reduce((s, b) => s + ("0" + (b % 36).toString(36)).slice(-1), "");
+      async function sha256base64url(input) {
+        const data = new TextEncoder().encode(input);
+        const hash = await crypto.subtle.digest("SHA-256", data);
+        const b = btoa(String.fromCharCode(...new Uint8Array(hash)))
+          .replace(/\+/g, "-")
+          .replace(/\//g, "_")
+          .replace(/=+$/, "");
+        return b;
+      }
+      const form = document.getElementById("loginForm");
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const fd = new FormData(form);
+        const username = fd.get("username");
+        const password = fd.get("password");
+        const client_id = fd.get("client_id");
+
+        // Validate required fields
+        if (!username || !password || !client_id) {
+          const el = document.getElementById("error");
+          el.style.display = "block";
+          el.textContent = "All fields are required.";
+          return;
+        }
+
+        const redirect_uri = new URL("/post-auth.html", location.origin).toString();
+
+        // Validate redirect_uri format
+        try {
+          new URL(redirect_uri);
+        } catch (e) {
+          const el = document.getElementById("error");
+          el.style.display = "block";
+          el.textContent = "Invalid redirect URI format.";
+          return;
+        }
+
+        const scope = "openid email profile";
+        const state = rand(16);
+        const nonce = rand(16);
+        const code_verifier = rand(64);
+        const code_challenge = await sha256base64url(code_verifier);
+
+        // Stash PKCE for post-auth token exchange
+        sessionStorage.setItem(
+          "pkce:" + state,
+          JSON.stringify({ code_verifier, client_id, redirect_uri })
+        );
+
+        // Prepare a standard POST so the browser follows redirects (302/303/307/308)
+        form.setAttribute("action", "/authorize");
+        form.setAttribute("method", "POST");
+        form.setAttribute("autocomplete", "on");
+
+        // Ensure hidden inputs for OIDC params are present/updated
+        const ensureHidden = (name, value) => {
+          let input = form.querySelector(`input[name="${name}"]`);
+          if (!input) {
+            input = document.createElement("input");
+            input.type = "hidden";
+            input.name = name;
+            form.appendChild(input);
+          }
+          input.value = value;
+        };
+
+        ensureHidden("client_id", String(client_id));
+        ensureHidden("redirect_uri", redirect_uri);
+        ensureHidden("response_type", "code");
+        ensureHidden("scope", scope);
+        ensureHidden("state", state);
+        ensureHidden("nonce", nonce);
+        ensureHidden("code_challenge", code_challenge);
+        ensureHidden("code_challenge_method", "S256");
+        // username and password are already in visible inputs with matching names
+        // Submit the form to trigger a real navigation handled by the browser
+        form.submit();
+      });
+    </script>
+    <footer><small>© 2025 <a href="https://github.com/antonycc/oidc">@antonycc/oidc</a></small></footer>
+  </body>
+</html>

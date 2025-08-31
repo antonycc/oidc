@@ -144,7 +144,48 @@ export default function () {
     "post-auth no params page contains fallback": (r) => r.body.includes("Try Cognito login again"),
   });
 
-  // Test 6: Verify static assets load correctly
+  // Test 6: Test configuration endpoint if available
+  console.log(`Testing configuration endpoint`);
+  
+  let configResponse = http.get(`${BASE_URL}/config.json`);
+  check(configResponse, {
+    "config endpoint accessible": (r) => r.status === 200 || r.status === 404, // 404 is OK if not deployed
+    "config is valid JSON if present": (r) => {
+      if (r.status === 200) {
+        try {
+          JSON.parse(r.body);
+          return true;
+        } catch (e) {
+          return false;
+        }
+      }
+      return true; // Skip check if not found
+    },
+  });
+
+  if (configResponse.status === 200) {
+    let config = JSON.parse(configResponse.body);
+    check(config, {
+      "config contains cognito domain": (c) => c.cognitoDomain && c.cognitoDomain.length > 0,
+      "config contains cognito client id": (c) => c.cognitoClientId && c.cognitoClientId.length > 0,
+    });
+  }
+
+  // Test 7: Test token exchange functionality (simulated)
+  console.log(`Testing token exchange behavior`);
+  
+  // This tests the client-side behavior when token exchange is attempted
+  // Since we can't actually authenticate with Cognito in a load test,
+  // we test the error handling and configuration requirements
+  let tokenExchangeUrl = `${BASE_URL}/post-authCognito.html?code=load-test-code&state=${oauthParams.state}`;
+  let tokenResponse = http.get(tokenExchangeUrl);
+  check(tokenResponse, {
+    "token exchange page loads": (r) => r.status === 200,
+    "token exchange contains fetch logic": (r) => r.body.includes("oauth2/token"),
+    "token exchange contains error handling": (r) => r.body.includes("Token exchange failed") || r.body.includes("Missing required configuration"),
+  });
+
+  // Test 8: Verify static assets load correctly
   console.log(`Testing static assets`);
   
   let cssResponse = http.get(`${BASE_URL}/oidc.css`);

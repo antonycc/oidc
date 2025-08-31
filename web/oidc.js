@@ -4,20 +4,35 @@
   // -------- Auth status helpers --------
   function checkLoginStatus() {
     try {
+      // Check for direct OIDC tokens
       const tokenData = localStorage.getItem('oidc_tokens');
-      if (!tokenData) {
-        return { isLoggedIn: false, status: 'Not logged in' };
+      if (tokenData) {
+        const tokens = JSON.parse(tokenData);
+        if (tokens.expires_at && Date.now() < tokens.expires_at) {
+          const userDisplay = tokens.userinfo?.name || tokens.claims?.sub || 'User';
+          return { isLoggedIn: true, status: `Logged in as ${userDisplay}`, tokens, method: 'direct' };
+        } else {
+          localStorage.removeItem('oidc_tokens');
+        }
       }
-      const tokens = JSON.parse(tokenData);
-      if (!tokens.expires_at || Date.now() >= tokens.expires_at) {
-        localStorage.removeItem('oidc_tokens');
-        return { isLoggedIn: false, status: 'Not logged in' };
+      
+      // Check for Cognito authentication
+      const cognitoAuth = localStorage.getItem('cognito_auth');
+      if (cognitoAuth) {
+        const cognitoData = JSON.parse(cognitoAuth);
+        // Cognito auth is considered valid for a session (could add timestamp check here)
+        if (cognitoData.code && cognitoData.flow === 'cognito') {
+          return { isLoggedIn: true, status: 'Logged in (via Cognito)', cognitoData, method: 'cognito' };
+        } else {
+          localStorage.removeItem('cognito_auth');
+        }
       }
-      const userDisplay = tokens.userinfo?.name || tokens.claims?.sub || 'User';
-      return { isLoggedIn: true, status: `Logged in as ${userDisplay}`, tokens };
+      
+      return { isLoggedIn: false, status: 'Not logged in' };
     } catch (e) {
       console.warn('Error checking login status:', e);
       localStorage.removeItem('oidc_tokens');
+      localStorage.removeItem('cognito_auth');
       return { isLoggedIn: false, status: 'Not logged in' };
     }
   }
@@ -25,15 +40,38 @@
   function refreshLoginStatusText() {
     const loginStatus = checkLoginStatus();
     const loginElement = document.querySelector('.login-status');
-    if (loginElement) loginElement.textContent = loginStatus.status;
+    const loginLinksElement = document.querySelector('.login-links');
+    
+    if (loginElement) {
+      loginElement.textContent = loginStatus.status;
+    }
+    
+    // Show/hide login links based on authentication status
+    if (loginLinksElement) {
+      if (loginStatus.isLoggedIn) {
+        loginLinksElement.style.display = 'none';
+      } else {
+        loginLinksElement.style.display = 'block';
+      }
+    }
   }
 
   function initAuthStatus() {
     const loginStatus = checkLoginStatus();
     const loginElement = document.querySelector('.login-status');
-    if (loginElement) loginElement.textContent = loginStatus.status;
+    const loginLinksElement = document.querySelector('.login-links');
+    
+    if (loginElement) {
+      loginElement.textContent = loginStatus.status;
+    }
 
     if (loginStatus.isLoggedIn) {
+      // Hide login links when authenticated
+      if (loginLinksElement) {
+        loginLinksElement.style.display = 'none';
+      }
+      
+      // Add logout button if not already present
       const authSection = document.querySelector('.auth-section');
       if (authSection && !authSection.querySelector('.logout-btn')) {
         const logoutBtn = document.createElement('button');
@@ -41,7 +79,9 @@
         logoutBtn.className = 'logout-btn nav';
         logoutBtn.style.marginLeft = '10px';
         logoutBtn.addEventListener('click', () => {
+          // Clear both types of authentication
           localStorage.removeItem('oidc_tokens');
+          localStorage.removeItem('cognito_auth');
           location.reload();
         });
         authSection.appendChild(logoutBtn);

@@ -103,47 +103,50 @@
 
       // Handle URL parameters on page load
       document.addEventListener('DOMContentLoaded', () => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const code = urlParams.get("code");
-        const state = urlParams.get("state");
-        const error = urlParams.get("error");
-        const error_description = urlParams.get("error_description");
+        // Wait a bit for oidc.js to load and initialize
+        setTimeout(() => {
+          const urlParams = new URLSearchParams(window.location.search);
+          const code = urlParams.get("code");
+          const state = urlParams.get("state");
+          const error = urlParams.get("error");
+          const error_description = urlParams.get("error_description");
 
-        if (error) {
-          // Handle OAuth/Cognito errors
-          document.getElementById("status").textContent = `Authentication error: ${error}`;
-          if (error_description) {
-            document.getElementById("result").textContent = `Error details: ${error_description}`;
-          }
-          document.querySelector(".login-status").textContent = "Login failed";
-          return;
-        }
-
-        if (code && state) {
-          // Handle successful authorization code response
-          exchangeCognitoCode(code, state).catch((error) => {
-            console.error("Code exchange failed:", error);
-            document.getElementById("status").textContent = "Code exchange failed: " + error.message;
+          if (error) {
+            // Handle OAuth/Cognito errors
+            document.getElementById("status").textContent = `Authentication error: ${error}`;
+            if (error_description) {
+              document.getElementById("result").textContent = `Error details: ${error_description}`;
+            }
             document.querySelector(".login-status").textContent = "Login failed";
-          });
-        } else if (code) {
-          // Handle code without state (fallback)
-          document.getElementById("status").textContent = "Received authorization code (no state parameter)";
-          document.getElementById("result").textContent = JSON.stringify({
-            authorization_code: code,
-            note: "Code received without state parameter"
-          }, null, 2);
-          document.querySelector(".login-status").textContent = "Logged in (via Cognito, partial)";
-        } else {
-          // No code present
-          document.getElementById("status").textContent = "No authorization code found in URL";
-          document.querySelector(".login-status").textContent = "Login required";
-          
-          // Provide link back to Cognito login
-          document.getElementById("result").innerHTML = 
-            '<a href="./loginCognito.html">Try Cognito login again</a><br><br>' +
-            '<a href="./index.html">Return to home page</a>';
-        }
+            return;
+          }
+
+          if (code && state) {
+            // Handle successful authorization code response
+            exchangeCognitoCode(code, state).catch((error) => {
+              console.error("Code exchange failed:", error);
+              document.getElementById("status").textContent = "Code exchange failed: " + error.message;
+              document.querySelector(".login-status").textContent = "Login failed";
+            });
+          } else if (code) {
+            // Handle code without state (fallback)
+            document.getElementById("status").textContent = "Received authorization code (no state parameter)";
+            document.getElementById("result").textContent = JSON.stringify({
+              authorization_code: code,
+              note: "Code received without state parameter"
+            }, null, 2);
+            document.querySelector(".login-status").textContent = "Logged in (via Cognito, partial)";
+          } else {
+            // No code present
+            document.getElementById("status").textContent = "No authorization code found in URL";
+            document.querySelector(".login-status").textContent = "Login required";
+            
+            // Provide link back to Cognito login
+            document.getElementById("result").innerHTML = 
+              '<a href="./loginCognito.html">Try Cognito login again</a><br><br>' +
+              '<a href="./index.html">Return to home page</a>';
+          }
+        }, 100); // Small delay to ensure oidc.js has loaded
       });
     </script>
     <footer><small>© 2025 <a href="https://github.com/antonycc/oidc">@antonycc/oidc</a></small></footer>

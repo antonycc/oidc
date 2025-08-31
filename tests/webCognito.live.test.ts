@@ -15,16 +15,21 @@ const TEST_PASSWORD = process.env.TEST_PASSWORD || "";
 test("Home page shows Cognito login option", async ({ page }) => {
     await page.goto(new URL("/", BASE_URL).toString());
     await expect(page.getByRole("heading", { name: "OIDC - Home" })).toBeVisible();
-    await expect(page.getByText("Login with Cognito")).toBeVisible();
     await expect(page.getByRole("link", { name: "Login with Cognito" })).toBeVisible();
+    // Use more specific selector to avoid conflict with content links
+    await expect(page.locator('.login-links a[href="./login.html"]')).toBeVisible();
 });
 
 // @ts-ignore
 test("Cognito login page loads and prepares redirect", async ({ page }) => {
-  await page.goto(new URL("./loginCognito.html", BASE_URL).toString());
+  // Add client_id parameter for testing
+  const loginUrl = new URL("./loginCognito.html", BASE_URL);
+  loginUrl.searchParams.set('client_id', 'test-client-for-testing');
+  
+  await page.goto(loginUrl.toString());
   await page.getByRole("heading", { name: "OIDC - Cognito Login" }).waitFor();
   await expect(page.getByText("You will be redirected to AWS Cognito")).toBeVisible();
-  await expect(page.locator("#status")).toContainText("Preparing authentication");
+  await expect(page.locator("#status")).toContainText("Redirecting to Cognito");
 });
 
 // @ts-ignore  

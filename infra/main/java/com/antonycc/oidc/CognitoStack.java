@@ -24,6 +24,15 @@ import software.amazon.awscdk.services.s3.deployment.BucketDeployment;
 import software.amazon.awscdk.services.s3.deployment.Source;
 import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.logs.RetentionDays;
+import software.amazon.awscdk.services.lambda.Function;
+import software.amazon.awscdk.services.lambda.Runtime;
+import software.amazon.awscdk.services.lambda.Code;
+import software.amazon.awscdk.services.iam.PolicyStatement;
+import software.amazon.awscdk.services.iam.Effect;
+import software.amazon.awscdk.customresources.AwsCustomResource;
+import software.amazon.awscdk.customresources.AwsCustomResourcePolicy;
+import software.amazon.awscdk.customresources.PhysicalResourceId;
+import software.amazon.awscdk.customresources.AwsSdkCall;
 import software.constructs.Construct;
 
 import java.util.List;
@@ -320,10 +329,8 @@ public class CognitoStack extends Stack {
     // Ensure the OIDC identity provider is created before the client that references it
     this.client.getNode().addDependency(this.oidcIdp);
 
-    // Create and deploy config.json with Cognito configuration
-    if (props.webBucket != null && props.distribution != null) {
-      deployConfiguration(resourceNamePrefix, props);
-    }
+    // Create configuration outputs for frontend consumption
+    deployConfiguration(resourceNamePrefix, props);
 
     // Outputs
     new CfnOutput(
@@ -339,53 +346,111 @@ public class CognitoStack extends Stack {
    * Deploy configuration file with Cognito settings to the web bucket
    */
   private void deployConfiguration(String resourceNamePrefix, CognitoStackProps props) {
-    try {
-      // Create temporary directory for config file
-      Path tempDir = Files.createTempDirectory("cognito-config");
-      Path configFile = tempDir.resolve("config.json");
-      
-      // Generate config.json content
-      String configJson = String.format("""
-        {
-          "cognitoDomain": "%s",
-          "cognitoClientId": "%s",
-          "cognitoUserPoolId": "%s",
-          "environment": "%s",
-          "timestamp": "%s"
-        }
-        """, 
-        props.authDomainName,
-        this.client.getRef(),
-        this.pool.getRef(),
-        props.envName,
-        java.time.Instant.now().toString()
-      );
-      
-      // Write config file
-      Files.write(configFile, configJson.getBytes());
-      
-      // Create deployment
-      var configDeploymentLogGroup = LogGroup.Builder.create(this, resourceNamePrefix + "-ConfigDeploymentLogGroup")
-        .logGroupName("/deployment/" + resourceNamePrefix + "-config-deployment")
-        .retention(RetentionDays.ONE_DAY)
-        .removalPolicy(RemovalPolicy.DESTROY)
+    // Create configuration outputs for frontend consumption
+    new CfnOutput(this, "CognitoConfigDomain", 
+        CfnOutputProps.builder()
+            .value(props.authDomainName)
+            .description("Cognito domain for frontend configuration")
+            .exportName(resourceNamePrefix + "-CognitoDomain")
+            .build());
+            
+    new CfnOutput(this, "CognitoConfigClientId", 
+        CfnOutputProps.builder()
+            .value(this.client.getRef())
+            .description("Cognito client ID for frontend configuration")
+            .exportName(resourceNamePrefix + "-CognitoClientId")
+            .build());
+            
+    // Create config.json file if we have bucket and distribution
+    if (props.webBucket != null && props.distribution != null) {
+      createConfigFileDeployment(resourceNamePrefix, props);
+    }
+  }
+  
+  /**
+   * Create a Lambda-backed custom resource to generate and deploy config.json with resolved values
+   */
+  private void createConfigFileDeployment(String resourceNamePrefix, CognitoStackProps props) {
+    // Create a custom resource that generates config.json with actual resolved values
+    // This works around the CloudFormation token limitation by executing at deployment time
+    
+    var configGeneratorCall = AwsSdkCall.builder()
+        .service("S3")
+        .action("putObject")
+        .parameters(Map.of(
+            "Bucket", props.webBucket.getBucketName(),
+            "Key", "config.json",
+            "Body", String.format("""
+                {
+                  "cognitoDomain": "%s",
+                  "cognitoClientId": "%s",
+                  "cognitoUserPoolId": "%s",
+                  "environment": "%s",
+                  "timestamp": "%s"
+                }
+                """, 
+                props.authDomainName,
+                this.client.getRef(),
+                this.pool.getRef(),
+                props.envName,
+                java.time.Instant.now().toString()
+            ),
+            "ContentType", "application/json",
+            "CacheControl", "no-cache"
+        ))
+        .physicalResourceId(PhysicalResourceId.of("cognito-config-" + resourceNamePrefix))
         .build();
-
-      var configDeployment = BucketDeployment.Builder.create(this, resourceNamePrefix + "-ConfigDeployment")
-        .sources(List.of(Source.asset(tempDir.toString())))
-        .destinationBucket(props.webBucket)
-        .distribution(props.distribution)
-        .distributionPaths(List.of("/config.json"))
-        .logGroup(configDeploymentLogGroup)
-        .retainOnDelete(false)
+        
+    var configCustomResource = AwsCustomResource.Builder.create(this, resourceNamePrefix + "-ConfigGenerator")
+        .onCreate(configGeneratorCall)
+        .onUpdate(configGeneratorCall)
+        .policy(AwsCustomResourcePolicy.fromStatements(List.of(
+            PolicyStatement.Builder.create()
+                .effect(Effect.ALLOW)
+                .actions(List.of("s3:PutObject"))
+                .resources(List.of(props.webBucket.getBucketArn() + "/config.json"))
+                .build()
+        )))
+        .logRetention(RetentionDays.ONE_DAY)
         .build();
-
-      // Ensure config deployment happens after Cognito resources are created
-      configDeployment.getNode().addDependency(this.client);
-      configDeployment.getNode().addDependency(this.domain);
-      
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to create Cognito configuration file", e);
+        
+    // Ensure the custom resource runs after Cognito resources are created
+    configCustomResource.getNode().addDependency(this.client);
+    configCustomResource.getNode().addDependency(this.domain);
+    
+    // Invalidate CloudFront after config.json is uploaded
+    if (props.distribution != null) {
+      var invalidationCall = AwsSdkCall.builder()
+          .service("CloudFront")
+          .action("createInvalidation")
+          .parameters(Map.of(
+              "DistributionId", props.distribution.getDistributionId(),
+              "InvalidationBatch", Map.of(
+                  "CallerReference", "cognito-config-" + java.time.Instant.now().toEpochMilli(),
+                  "Paths", Map.of(
+                      "Quantity", 1,
+                      "Items", List.of("/config.json")
+                  )
+              )
+          ))
+          .physicalResourceId(PhysicalResourceId.of("cognito-config-invalidation-" + resourceNamePrefix))
+          .build();
+          
+      var invalidationCustomResource = AwsCustomResource.Builder.create(this, resourceNamePrefix + "-ConfigInvalidation")
+          .onCreate(invalidationCall)
+          .onUpdate(invalidationCall)
+          .policy(AwsCustomResourcePolicy.fromStatements(List.of(
+              PolicyStatement.Builder.create()
+                  .effect(Effect.ALLOW)
+                  .actions(List.of("cloudfront:CreateInvalidation"))
+                  .resources(List.of("*"))
+                  .build()
+          )))
+          .logRetention(RetentionDays.ONE_DAY)
+          .build();
+          
+      // Ensure invalidation happens after config upload
+      invalidationCustomResource.getNode().addDependency(configCustomResource);
     }
   }
 

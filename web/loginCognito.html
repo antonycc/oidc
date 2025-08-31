@@ -162,9 +162,18 @@
               window.location.href.split('?')[0] + '?client_id=YOUR_CLIENT_ID</code>' +
               
               '<h5 style="color: #6c757d; margin-bottom: 10px;">For Deployed Environments:</h5>' +
-              '<p style="margin-bottom: 5px;">• CDK automatically deploys <code>config.json</code> with the correct values</p>' +
+              '<p style="margin-bottom: 5px;">• Configuration should be automatically loaded from deployment</p>' +
+              '<p style="margin-bottom: 5px;">• CDK deployment creates CloudFormation exports with the values</p>' +
               '<p style="margin-bottom: 5px;">• Alternatively, set <code>window.COGNITO_CLIENT_ID</code> globally</p>' +
               '<p style="margin-bottom: 15px;">• Check if <a href="/config.json" target="_blank">config.json</a> is accessible</p>' +
+              
+              '<h5 style="color: #6c757d; margin-bottom: 10px;">Configuration Sources Checked:</h5>' +
+              '<ul style="margin-bottom: 15px; padding-left: 20px;">' +
+              '<li>❌ <code>/config.json</code> endpoint - ' + (configSource === 'config.json' ? 'Found but missing client ID' : 'Not found or failed to load') + '</li>' +
+              '<li>❌ <code>window.COGNITO_CLIENT_ID</code> global variable - Not set</li>' +
+              '<li>❌ <code>?client_id=</code> URL parameter - Not provided</li>' +
+              '<li>❌ Auto test mode - Not enabled (use <code>?auto=true</code> for testing)</li>' +
+              '</ul>' +
               
               '<div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #dee2e6;">' +
               '<a href="./login.html" style="background: #6c757d; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; margin-right: 10px;">← Back to Login Options</a>' +

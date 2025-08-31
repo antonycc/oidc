@@ -168,7 +168,7 @@ public class CognitoStack extends Stack {
       var hostedZone = HostedZone.fromHostedZoneAttributes(this, "HostedZone",
               HostedZoneAttributes.builder()
                       .hostedZoneId(props.hostedZoneId)
-                      .zoneName(domainName) // e.g. example.com
+                      .zoneName(props.hostedZoneName) // e.g. antonycc.com
                       .build());
       var distributionDomainName = this.domain.getAttrCloudFrontDistribution();
       var distribution = Distribution.fromDistributionAttributes(this, "CognitoDistribution",
@@ -179,13 +179,13 @@ public class CognitoStack extends Stack {
       new ARecord(this, "CognitoARecord",
               ARecordProps.builder()
                       .zone(hostedZone)
-                      .recordName(cognitoDomainName + ".")
+                      .recordName(cognitoDomainName)
                       .target(RecordTarget.fromAlias(new CloudFrontTarget(distribution)))
                       .build());
       new AaaaRecord(this, "CognitoAaaaRecord",
               AaaaRecordProps.builder()
                       .zone(hostedZone)
-                      .recordName(cognitoDomainName + ".")
+                      .recordName(cognitoDomainName)
                       .target(RecordTarget.fromAlias(new CloudFrontTarget(distribution)))
                       .build());
 

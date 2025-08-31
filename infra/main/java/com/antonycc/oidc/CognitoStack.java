@@ -2,6 +2,8 @@ package com.antonycc.oidc;
 
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
+import software.amazon.awscdk.Duration;
+import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.services.cloudfront.Distribution;
 import software.amazon.awscdk.services.cloudfront.DistributionAttributes;
@@ -18,10 +20,17 @@ import software.amazon.awscdk.services.route53.HostedZone;
 import software.amazon.awscdk.services.route53.HostedZoneAttributes;
 import software.amazon.awscdk.services.route53.RecordTarget;
 import software.amazon.awscdk.services.route53.targets.CloudFrontTarget;
+import software.amazon.awscdk.services.s3.deployment.BucketDeployment;
+import software.amazon.awscdk.services.s3.deployment.Source;
+import software.amazon.awscdk.services.logs.LogGroup;
+import software.amazon.awscdk.services.logs.RetentionDays;
 import software.constructs.Construct;
 
 import java.util.List;
 import java.util.Map;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 public class CognitoStack extends Stack {
   public final CfnUserPool pool;
@@ -311,6 +320,11 @@ public class CognitoStack extends Stack {
     // Ensure the OIDC identity provider is created before the client that references it
     this.client.getNode().addDependency(this.oidcIdp);
 
+    // Create and deploy config.json with Cognito configuration
+    if (props.webBucket != null && props.distribution != null) {
+      deployConfiguration(resourceNamePrefix, props);
+    }
+
     // Outputs
     new CfnOutput(
         this, "CognitoAuthDomain", CfnOutputProps.builder().value(this.domain.getRef()).build());
@@ -319,6 +333,60 @@ public class CognitoStack extends Stack {
         this,
         "UserPoolClientId",
         CfnOutputProps.builder().value(this.client.getRef()).build());
+  }
+
+  /**
+   * Deploy configuration file with Cognito settings to the web bucket
+   */
+  private void deployConfiguration(String resourceNamePrefix, CognitoStackProps props) {
+    try {
+      // Create temporary directory for config file
+      Path tempDir = Files.createTempDirectory("cognito-config");
+      Path configFile = tempDir.resolve("config.json");
+      
+      // Generate config.json content
+      String configJson = String.format("""
+        {
+          "cognitoDomain": "%s",
+          "cognitoClientId": "%s",
+          "cognitoUserPoolId": "%s",
+          "environment": "%s",
+          "timestamp": "%s"
+        }
+        """, 
+        props.authDomainName,
+        this.client.getRef(),
+        this.pool.getRef(),
+        props.envName,
+        java.time.Instant.now().toString()
+      );
+      
+      // Write config file
+      Files.write(configFile, configJson.getBytes());
+      
+      // Create deployment
+      var configDeploymentLogGroup = LogGroup.Builder.create(this, resourceNamePrefix + "-ConfigDeploymentLogGroup")
+        .logGroupName("/deployment/" + resourceNamePrefix + "-config-deployment")
+        .retention(RetentionDays.ONE_DAY)
+        .removalPolicy(RemovalPolicy.DESTROY)
+        .build();
+
+      var configDeployment = BucketDeployment.Builder.create(this, resourceNamePrefix + "-ConfigDeployment")
+        .sources(List.of(Source.asset(tempDir.toString())))
+        .destinationBucket(props.webBucket)
+        .distribution(props.distribution)
+        .distributionPaths(List.of("/config.json"))
+        .logGroup(configDeploymentLogGroup)
+        .retainOnDelete(false)
+        .build();
+
+      // Ensure config deployment happens after Cognito resources are created
+      configDeployment.getNode().addDependency(this.client);
+      configDeployment.getNode().addDependency(this.domain);
+      
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to create Cognito configuration file", e);
+    }
   }
 
   /**

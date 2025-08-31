@@ -16,12 +16,25 @@
         }
       }
       
-      // Check for Cognito authentication
+      // Check for Cognito tokens (new token-based authentication)
+      const cognitoTokenData = localStorage.getItem('cognito_tokens');
+      if (cognitoTokenData) {
+        const tokens = JSON.parse(cognitoTokenData);
+        if (tokens.expires_at && Date.now() < tokens.expires_at) {
+          const userDisplay = tokens.userinfo?.name || tokens.userinfo?.email || tokens.claims?.name || tokens.claims?.email || tokens.claims?.sub || 'User';
+          return { isLoggedIn: true, status: `Logged in as ${userDisplay} (via Cognito)`, tokens, method: 'cognito' };
+        } else {
+          localStorage.removeItem('cognito_tokens');
+        }
+      }
+      
+      // Check for legacy Cognito authentication (fallback for code-only flow)
       const cognitoAuth = localStorage.getItem('cognito_auth');
       if (cognitoAuth) {
         const cognitoData = JSON.parse(cognitoAuth);
-        // Cognito auth is considered valid for a session (could add timestamp check here)
-        if (cognitoData.code && cognitoData.flow === 'cognito') {
+        // Only consider valid if it has tokens or is recent
+        if (cognitoData.code && cognitoData.flow === 'cognito' && 
+            (cognitoData.has_tokens || (Date.now() - cognitoData.timestamp < 3600000))) { // 1 hour
           return { isLoggedIn: true, status: 'Logged in (via Cognito)', cognitoData, method: 'cognito' };
         } else {
           localStorage.removeItem('cognito_auth');
@@ -32,6 +45,7 @@
     } catch (e) {
       console.warn('Error checking login status:', e);
       localStorage.removeItem('oidc_tokens');
+      localStorage.removeItem('cognito_tokens');
       localStorage.removeItem('cognito_auth');
       return { isLoggedIn: false, status: 'Not logged in' };
     }
@@ -79,8 +93,9 @@
         logoutBtn.className = 'logout-btn nav';
         logoutBtn.style.marginLeft = '10px';
         logoutBtn.addEventListener('click', () => {
-          // Clear both types of authentication
+          // Clear all types of authentication
           localStorage.removeItem('oidc_tokens');
+          localStorage.removeItem('cognito_tokens');
           localStorage.removeItem('cognito_auth');
           location.reload();
         });

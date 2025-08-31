@@ -73,30 +73,60 @@
             JSON.stringify({ code_verifier, state, nonce })
           );
 
-          // Cognito configuration
+          // Cognito configuration with proper domain computation
           const currentDomain = window.location.host;
-          const cognitoDomain = `auth.${currentDomain}`;
+          
+          // Fix domain computation for branch environments
+          // For ci.oidc.example.com -> ci.auth.oidc.example.com
+          // For prod: oidc.example.com -> auth.oidc.example.com  
+          let cognitoDomain;
+          if (currentDomain.includes('.oidc.')) {
+            // Branch environment: insert .auth. before .oidc.
+            cognitoDomain = currentDomain.replace('.oidc.', '.auth.oidc.');
+          } else {
+            // Fallback: prepend auth.
+            cognitoDomain = `auth.${currentDomain}`;
+          }
+          
           const redirectUri = `${window.location.protocol}//${currentDomain}/post-authCognito.html`;
           
           // Try to get client ID from various sources
           let clientId = null;
+          let configCognitoDomain = null;
           
-          // 1. Check if injected globally by deployment
-          if (window.COGNITO_CLIENT_ID) {
+          // 1. Try to fetch from config.json first (deployed by CDK)
+          try {
+            const configResponse = await fetch('/config.json');
+            if (configResponse.ok) {
+              const config = await configResponse.json();
+              clientId = config.cognitoClientId;
+              if (config.cognitoDomain) {
+                configCognitoDomain = config.cognitoDomain;
+              }
+            }
+          } catch (e) {
+            console.log('No config.json found, using fallback methods');
+          }
+          
+          // 2. Check if injected globally by deployment
+          if (!clientId && window.COGNITO_CLIENT_ID) {
             clientId = window.COGNITO_CLIENT_ID;
           }
           
-          // 2. Check URL parameters (for testing)
+          // 3. Check URL parameters (for testing)
           const urlParams = new URLSearchParams(window.location.search);
-          if (urlParams.get('client_id')) {
+          if (!clientId && urlParams.get('client_id')) {
             clientId = urlParams.get('client_id');
           }
           
-          // 3. Use environment variable if available (would be injected during build)
+          // 4. Use environment variable if available (would be injected during build)
           if (!clientId && window.location.search.includes('auto=true')) {
             // This would be the automatic mode for testing
             clientId = 'test-client-id';
           }
+          
+          // Use config domain if available, otherwise compute it
+          const finalCognitoDomain = configCognitoDomain || cognitoDomain;
           
           if (!clientId) {
             // Show configuration instructions instead of error
@@ -125,10 +155,10 @@
             code_challenge_method: 'S256'
           });
 
-          const cognitoUrl = `https://${cognitoDomain}/oauth2/authorize?${cognitoParams.toString()}`;
+          const cognitoUrl = `https://${finalCognitoDomain}/oauth2/authorize?${cognitoParams.toString()}`;
           
           document.getElementById('status').innerHTML = 
-            `Redirecting to Cognito at <strong>${cognitoDomain}</strong>...<br><br>` +
+            `Redirecting to Cognito at <strong>${finalCognitoDomain}</strong>...<br><br>` +
             `<small>If not redirected automatically, <a href="${cognitoUrl}">click here</a></small>`;
           
           // Wait a moment for user to see the message, then redirect

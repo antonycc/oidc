@@ -2,6 +2,8 @@ package com.antonycc.oidc;
 
 import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.StackProps;
+import software.amazon.awscdk.services.s3.Bucket;
+import software.amazon.awscdk.services.cloudfront.Distribution;
 
 public class CognitoStackProps implements StackProps {
   public final Environment env;
@@ -11,6 +13,8 @@ public class CognitoStackProps implements StackProps {
   public final String authCertificateArn;
   public final String hostedZoneName;
   public final String hostedZoneId;
+  public final Bucket webBucket;
+  public final Distribution distribution;
 
   private CognitoStackProps(Builder builder) {
     this.env = builder.env;
@@ -20,6 +24,8 @@ public class CognitoStackProps implements StackProps {
     this.authCertificateArn = builder.authCertificateArn;
     this.hostedZoneName = builder.hostedZoneName;
     this.hostedZoneId = builder.hostedZoneId;
+    this.webBucket = builder.webBucket;
+    this.distribution = builder.distribution;
   }
 
   @Override
@@ -39,6 +45,8 @@ public class CognitoStackProps implements StackProps {
     private String authCertificateArn;
     private String hostedZoneName;
     private String hostedZoneId;
+    private Bucket webBucket;
+    private Distribution distribution;
 
     public Builder env(Environment env) {
       this.env = env;
@@ -72,6 +80,16 @@ public class CognitoStackProps implements StackProps {
 
     public Builder hostedZoneId(String hostedZoneId) {
       this.hostedZoneId = hostedZoneId;
+      return this;
+    }
+
+    public Builder webBucket(Bucket webBucket) {
+      this.webBucket = webBucket;
+      return this;
+    }
+
+    public Builder distribution(Distribution distribution) {
+      this.distribution = distribution;
       return this;
     }
 

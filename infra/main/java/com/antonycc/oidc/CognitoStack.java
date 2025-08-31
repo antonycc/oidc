@@ -386,17 +386,19 @@ public class CognitoStack extends Stack {
                   "cognitoClientId": "%s",
                   "cognitoUserPoolId": "%s",
                   "environment": "%s",
-                  "timestamp": "%s"
+                  "timestamp": "%s",
+                  "issuer": "https://%s"
                 }
                 """, 
                 props.authDomainName,
                 this.client.getRef(),
                 this.pool.getRef(),
                 props.envName,
-                java.time.Instant.now().toString()
+                java.time.Instant.now().toString(),
+                props.domainName
             ),
             "ContentType", "application/json",
-            "CacheControl", "no-cache"
+            "CacheControl", "no-cache, no-store, must-revalidate"
         ))
         .physicalResourceId(PhysicalResourceId.of("cognito-config-" + resourceNamePrefix))
         .build();

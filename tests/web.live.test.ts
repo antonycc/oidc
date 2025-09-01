@@ -17,8 +17,8 @@ test("Home renders", async ({ page }) => {
 
 // @ts-ignore
 test("Direct login form: failed login shows error", async ({ page }) => {
-  await page.goto(new URL("./login.html", BASE_URL).toString());
-  await page.getByRole("heading", { name: "OIDC - Login" }).waitFor();
+  await page.goto(new URL("./loginDirect.html", BASE_URL).toString());
+  await page.getByRole("heading", { name: "OIDC - Direct Login" }).waitFor();
   await page.getByLabel("Username").fill(TEST_USERNAME);
   await page.getByLabel("Password").fill("wrong");
   await page.getByRole("button", { name: "Sign in" }).click();
@@ -27,8 +27,8 @@ test("Direct login form: failed login shows error", async ({ page }) => {
 
 // @ts-ignore
 test("Direct login form: successful login returns tokens and claims", async ({ page }) => {
-  await page.goto(new URL("./login.html", BASE_URL).toString());
-  await page.getByRole("heading", { name: "OIDC - Login" }).waitFor();
+  await page.goto(new URL("./loginDirect.html", BASE_URL).toString());
+  await page.getByRole("heading", { name: "OIDC - Direct Login" }).waitFor();
   await page.getByLabel("Username").fill("test-user");
   await page.getByLabel("Password").fill(TEST_PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();

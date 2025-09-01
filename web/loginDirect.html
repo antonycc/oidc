@@ -60,7 +60,7 @@
       }
 
       // Populate redirect_uri from query (?redirect=...)
-      const redirectParam = urlParams.get('redirect');
+      const redirectParam = urlParams.get('redirect_uri');
       const defaultRedirect = new URL('/post-auth.html', location.origin).toString();
       let resolvedRedirect;
       try {

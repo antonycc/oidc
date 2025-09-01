@@ -98,6 +98,9 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
           role-session-name: gha-oidc-deploy
 
+      - name: Node test
+        run: npm ci && npm test
+
       - name: Build CDK and synth
         run: ./mvnw --errors clean package
 

@@ -159,10 +159,10 @@ jobs:
         run: |
           npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk deploy OidcProviderStack-${DEPLOYMENT_NAME} --exclusively --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-oidc-provider.json
 
-      - name: Deploy Cognito Stack (CDK)
-        if: ${{ inputs.skipDeploy != 'true' }}
-        run: |
-          npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk deploy CognitoStack-${ENV_NAME} --exclusively --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-cognito.json
+      #- name: Deploy Cognito Stack (CDK)
+      #  if: ${{ inputs.skipDeploy != 'true' }}
+      #  run: |
+      #    npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk deploy CognitoStack-${ENV_NAME} --exclusively --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-cognito.json
 
       - name: Resolve OIDC Provider and Cognito outputs
         if: ${{ inputs.skipDeploy != 'true' }}
@@ -172,20 +172,20 @@ jobs:
           DEPLOYMENT_NAME='${{ env.DEPLOYMENT_NAME }}'
           BASE_URL=$(jq -r '.["OidcProviderStack-'${DEPLOYMENT_NAME}'"].BaseUrl' cdk.out/cdk-outputs-oidc-provider.json)
           USERS_TABLE=$(jq -r '.["OidcProviderStack-'${DEPLOYMENT_NAME}'"].UsersTableName' cdk.out/cdk-outputs-oidc-provider.json)
-          COGNITO_DOMAIN=$(jq -r '.["CognitoStack-'${ENV_NAME}'"].CognitoAuthDomain' cdk.out/cdk-outputs-cognito.json)
-          COGNITO_CLIENT_ID=$(jq -r '.["CognitoStack-'${ENV_NAME}'"].UserPoolClientId' cdk.out/cdk-outputs-cognito.json)
+          #COGNITO_DOMAIN=$(jq -r '.["CognitoStack-'${ENV_NAME}'"].CognitoAuthDomain' cdk.out/cdk-outputs-cognito.json)
+          #COGNITO_CLIENT_ID=$(jq -r '.["CognitoStack-'${ENV_NAME}'"].UserPoolClientId' cdk.out/cdk-outputs-cognito.json)
           echo "ENV_NAME=$ENV_NAME"
           echo "DEPLOYMENT_NAME=$DEPLOYMENT_NAME"
           echo "BASE_URL=$BASE_URL"
           echo "USERS_TABLE=$USERS_TABLE"
-          echo "COGNITO_DOMAIN=$COGNITO_DOMAIN"
-          echo "COGNITO_CLIENT_ID=$COGNITO_CLIENT_ID"
+          #echo "COGNITO_DOMAIN=$COGNITO_DOMAIN"
+          #echo "COGNITO_CLIENT_ID=$COGNITO_CLIENT_ID"
           echo "ENV_NAME=$ENV_NAME" >> $GITHUB_OUTPUT
           echo "DEPLOYMENT_NAME=$DEPLOYMENT_NAME" >> $GITHUB_OUTPUT
           echo "BASE_URL=$BASE_URL" >> $GITHUB_OUTPUT
           echo "USERS_TABLE=$USERS_TABLE" >> $GITHUB_OUTPUT
-          echo "COGNITO_DOMAIN=$COGNITO_DOMAIN" >> $GITHUB_OUTPUT
-          echo "COGNITO_CLIENT_ID=$COGNITO_CLIENT_ID" >> $GITHUB_OUTPUT
+          #echo "COGNITO_DOMAIN=$COGNITO_DOMAIN" >> $GITHUB_OUTPUT
+          #echo "COGNITO_CLIENT_ID=$COGNITO_CLIENT_ID" >> $GITHUB_OUTPUT
         shell: bash
 
       - name: Wait 10 seconds for CloudFront distribution testing
@@ -233,11 +233,11 @@ jobs:
       - name: Run Playwright behaviour tests
         run: |
           echo "BASE_URL=${{ steps.oidc-outputs.outputs.BASE_URL }}"
-          echo "COGNITO_DOMAIN=${{ steps.oidc-outputs.outputs.COGNITO_DOMAIN }}"
-          echo "COGNITO_CLIENT_ID=${{ steps.oidc-outputs.outputs.COGNITO_CLIENT_ID }}"
+          #echo "COGNITO_DOMAIN=${{ steps.oidc-outputs.outputs.COGNITO_DOMAIN }}"
+          #echo "COGNITO_CLIENT_ID=${{ steps.oidc-outputs.outputs.COGNITO_CLIENT_ID }}"
           BASE_URL='${{ steps.oidc-outputs.outputs.BASE_URL }}' \
-          COGNITO_DOMAIN='${{ steps.oidc-outputs.outputs.COGNITO_DOMAIN }}' \
-          COGNITO_CLIENT_ID='${{ steps.oidc-outputs.outputs.COGNITO_CLIENT_ID }}' \
+          #COGNITO_DOMAIN='${{ steps.oidc-outputs.outputs.COGNITO_DOMAIN }}' \
+          #COGNITO_CLIENT_ID='${{ steps.oidc-outputs.outputs.COGNITO_CLIENT_ID }}' \
           npm run test:web --project=chromium
         env:
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}

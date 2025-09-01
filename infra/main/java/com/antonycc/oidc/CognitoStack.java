@@ -413,7 +413,7 @@ public class CognitoStack extends Stack {
                 .resources(List.of(props.webBucket.getBucketArn() + "/config.json"))
                 .build()
         )))
-        .logRetention(RetentionDays.ONE_DAY)
+        .installLatestAwsSdk(false)
         .build();
         
     // Ensure the custom resource runs after Cognito resources are created
@@ -448,7 +448,7 @@ public class CognitoStack extends Stack {
                   .resources(List.of("*"))
                   .build()
           )))
-          .logRetention(RetentionDays.ONE_DAY)
+          .installLatestAwsSdk(false)
           .build();
           
       // Ensure invalidation happens after config upload

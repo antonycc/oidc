@@ -480,7 +480,7 @@ public class OidcProviderStack extends Stack {
                     .resources(List.of(this.wellKnownBucket.getBucketArn() + "/.well-known/*"))
                     .build()
             )))
-            .logRetention(RetentionDays.ONE_DAY)
+            .installLatestAwsSdk(false)
             .build();
 
         // Ensure the custom resource runs after the initial deployment
@@ -513,7 +513,7 @@ public class OidcProviderStack extends Stack {
                     .resources(List.of(this.distribution.getDistributionArn()))
                     .build()
             )))
-            .logRetention(RetentionDays.ONE_DAY)
+            .installLatestAwsSdk(false)
             .build();
 
         // Ensure invalidation runs after config is updated

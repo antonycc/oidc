@@ -43,7 +43,7 @@
     "update-to-greatest": "npx npm-check-updates --upgrade --enginesNode --target greatest --verbose --install always --reject 'alpha'",
     "formatting": "prettier --check . && ./mvnw spotless:check",
     "formatting-fix": "prettier --write . && ./mvnw spotless:apply",
-    "cdk": "docker build -t oidc-base:latest -f Dockerfile . && npm run build && npx dotenv -e .env.prod -- npx cdk synth CognitoStack-prod --require-approval never --ci true --strict --validation && ./scripts/clean-tests.sh",
+    "cdk": "docker build -t oidc-base:latest -f Dockerfile . && npm run build && npx dotenv -e .env.prod -- npx cdk synth OidcProviderStack-prod --require-approval never --ci true --strict --validation && ./scripts/clean-tests.sh",
     "test": "npm run test:unit && npm run test:system",
     "test:unit": "vitest run",
     "test:system": "vitest run app/system",

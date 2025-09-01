@@ -23,35 +23,75 @@
           Use this form to exercise the OP directly without Cognito. It will perform PKCE, post to
           <code>/authorize</code>, and redirect back to Post Auth.
         </p>
-        <p><a href="./login.html">← Back to login options</a></p>
+        <p id="backLinkWrapper"><a id="backLink" href="./login.html">← Back to login options</a></p>
         <form id="loginForm" class="form-card">
-          <label>Username <input type="text" name="username" required minlength="1" /></label>
-          <label>Password <input type="password" name="password" required minlength="1" /></label>
-          <label>Client ID <input type="text" name="client_id" value="self-client" required title="OIDC client identifier" /></label>
+          <fieldset>
+            <legend>Credentials</legend>
+            <label>Username <input type="text" name="username" required minlength="1" /></label>
+            <label>Password <input type="password" name="password" required minlength="1" /></label>
+          </fieldset>
+          <fieldset>
+            <legend>OIDC Parameters</legend>
+            <label>Client ID <input type="text" name="client_id" value="self-client" required title="OIDC client identifier" /></label>
+            <label>Redirect URI <input type="url" name="redirect_uri" required /></label>
+            <label>Response Type <input type="text" name="response_type" value="code" required readonly /></label>
+            <label>Scope <input type="text" name="scope" value="openid email profile" required /></label>
+            <label>State <input type="text" name="state" required readonly /></label>
+            <label>Nonce <input type="text" name="nonce" required readonly /></label>
+            <label>Code Challenge <input type="text" name="code_challenge" required readonly /></label>
+            <label>Code Challenge Method <input type="text" name="code_challenge_method" value="S256" required readonly /></label>
+          </fieldset>
           <button type="submit">Sign in</button>
         </form>
+        <p class="muted">Form will POST to: <code id="formActionDisplay"></code></p>
         <div id="error" class="error" style="display: none"></div>
       </div>
     </main>
     <div id="modal-root"></div>
     <script src="./oidc.js" defer></script>
     <script>
-      // Check for error parameter in URL and display it
+      // URL params and initial UI setup
       const urlParams = new URLSearchParams(window.location.search);
       const errorMsg = urlParams.get('error');
       if (errorMsg) {
         const errorEl = document.getElementById('error');
         errorEl.textContent = errorMsg;
         errorEl.style.display = 'block';
-        
-        // Pre-fill form with OAuth parameters if available
-        const clientIdInput = document.querySelector('input[name="client_id"]');
-        const clientIdParam = urlParams.get('client_id');
-        if (clientIdParam && clientIdInput) {
-          clientIdInput.value = clientIdParam;
-        }
       }
-      
+
+      // Populate redirect_uri from query (?redirect=...)
+      const redirectParam = urlParams.get('redirect');
+      const defaultRedirect = new URL('/post-auth.html', location.origin).toString();
+      let resolvedRedirect;
+      try {
+        if (redirectParam) {
+          // Support absolute or relative
+          resolvedRedirect = new URL(redirectParam, location.origin).toString();
+        } else {
+          resolvedRedirect = defaultRedirect;
+        }
+      } catch (e) {
+        resolvedRedirect = defaultRedirect;
+      }
+      const redirectInput = document.querySelector('input[name="redirect_uri"]');
+      if (redirectInput) redirectInput.value = resolvedRedirect;
+
+      // Hide back link if redirect host differs from current host
+      try {
+        const r = new URL(resolvedRedirect);
+        if (r.host && r.host !== location.host) {
+          const backWrapper = document.getElementById('backLinkWrapper');
+          if (backWrapper) backWrapper.style.display = 'none';
+        }
+      } catch {}
+
+      // Pre-fill client_id if provided via query param
+      const clientIdInput = document.querySelector('input[name="client_id"]');
+      const clientIdParam = urlParams.get('client_id');
+      if (clientIdParam && clientIdInput) {
+        clientIdInput.value = clientIdParam;
+      }
+
       // Minimal PKCE helpers
       const rand = (len = 32) =>
         crypto.getRandomValues(new Uint8Array(len)).reduce((s, b) => s + ("0" + (b % 36).toString(36)).slice(-1), "");
@@ -65,22 +105,30 @@
         return b;
       }
       const form = document.getElementById("loginForm");
+
+      // Initialize fixed form attributes and display
+      form.setAttribute("action", "/authorize");
+      form.setAttribute("method", "POST");
+      form.setAttribute("autocomplete", "on");
+      const actionDisplay = document.getElementById('formActionDisplay');
+      if (actionDisplay) actionDisplay.textContent = form.getAttribute('action');
+
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
         const fd = new FormData(form);
         const username = fd.get("username");
         const password = fd.get("password");
         const client_id = fd.get("client_id");
+        const redirect_uri = String(fd.get("redirect_uri") || "");
+        const scope = String(fd.get("scope") || "openid email profile");
 
         // Validate required fields
-        if (!username || !password || !client_id) {
+        if (!username || !password || !client_id || !redirect_uri) {
           const el = document.getElementById("error");
           el.style.display = "block";
           el.textContent = "All fields are required.";
           return;
         }
-
-        const redirect_uri = new URL("/post-auth.html", location.origin).toString();
 
         // Validate redirect_uri format
         try {
@@ -92,11 +140,15 @@
           return;
         }
 
-        const scope = "openid email profile";
         const state = rand(16);
         const nonce = rand(16);
         const code_verifier = rand(64);
         const code_challenge = await sha256base64url(code_verifier);
+
+        // Fill visible inputs with generated values
+        form.querySelector('input[name="state"]').value = state;
+        form.querySelector('input[name="nonce"]').value = nonce;
+        form.querySelector('input[name="code_challenge"]').value = code_challenge;
 
         // Stash PKCE for post-auth token exchange
         sessionStorage.setItem(
@@ -104,32 +156,6 @@
           JSON.stringify({ code_verifier, client_id, redirect_uri })
         );
 
-        // Prepare a standard POST so the browser follows redirects (302/303/307/308)
-        form.setAttribute("action", "/authorize");
-        form.setAttribute("method", "POST");
-        form.setAttribute("autocomplete", "on");
-
-        // Ensure hidden inputs for OIDC params are present/updated
-        const ensureHidden = (name, value) => {
-          let input = form.querySelector(`input[name="${name}"]`);
-          if (!input) {
-            input = document.createElement("input");
-            input.type = "hidden";
-            input.name = name;
-            form.appendChild(input);
-          }
-          input.value = value;
-        };
-
-        ensureHidden("client_id", String(client_id));
-        ensureHidden("redirect_uri", redirect_uri);
-        ensureHidden("response_type", "code");
-        ensureHidden("scope", scope);
-        ensureHidden("state", state);
-        ensureHidden("nonce", nonce);
-        ensureHidden("code_challenge", code_challenge);
-        ensureHidden("code_challenge_method", "S256");
-        // username and password are already in visible inputs with matching names
         // Submit the form to trigger a real navigation handled by the browser
         form.submit();
       });

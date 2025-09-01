@@ -38,6 +38,12 @@ import software.amazon.awscdk.services.s3.assets.AssetOptions;
 import software.amazon.awscdk.services.s3.deployment.BucketDeployment;
 import software.amazon.awscdk.services.s3.deployment.Source;
 import software.amazon.awscdk.services.xray.CfnGroup;
+import software.amazon.awscdk.customresources.AwsCustomResource;
+import software.amazon.awscdk.customresources.AwsCustomResourcePolicy;
+import software.amazon.awscdk.customresources.PhysicalResourceId;
+import software.amazon.awscdk.customresources.AwsSdkCall;
+import software.amazon.awscdk.services.iam.PolicyStatement;
+import software.amazon.awscdk.services.iam.Effect;
 import software.constructs.Construct;
 
 import java.util.HashMap;
@@ -329,6 +335,9 @@ public class OidcProviderStack extends Stack {
             .prune(true)
             .build();
 
+    // Create a custom resource to fix the well-known configuration with correct domain
+    createWellKnownConfigFix(resourceNamePrefix, domainName);
+
     // A record
     this.aliasRecord = new ARecord(
         this,
@@ -424,5 +433,90 @@ public class OidcProviderStack extends Stack {
         }
         sb.append('-').append(deploymentName);
         return sb.toString();
+    }
+
+    /**
+     * Create a custom resource to fix the well-known configuration with the correct domain
+     */
+    private void createWellKnownConfigFix(String resourceNamePrefix, String domainName) {
+        var configContent = String.format("""
+            {
+              "issuer": "https://%s",
+              "authorization_endpoint": "https://%s/authorize",
+              "token_endpoint": "https://%s/token",
+              "userinfo_endpoint": "https://%s/userinfo",
+              "jwks_uri": "https://%s/jwks",
+              "scopes_supported": ["openid", "email", "profile"],
+              "response_types_supported": ["code"],
+              "grant_types_supported": ["authorization_code"],
+              "subject_types_supported": ["public"],
+              "id_token_signing_alg_values_supported": ["RS256"],
+              "token_endpoint_auth_methods_supported": ["none"],
+              "code_challenge_methods_supported": ["S256"],
+              "claims_supported": ["sub", "email", "email_verified", "name", "given_name", "family_name", "aud", "exp", "iat", "iss", "nonce"]
+            }
+            """, domainName, domainName, domainName, domainName, domainName);
+
+        var wellKnownConfigCall = AwsSdkCall.builder()
+            .service("S3")
+            .action("putObject")
+            .parameters(Map.of(
+                "Bucket", this.wellKnownBucket.getBucketName(),
+                "Key", ".well-known/openid-configuration",
+                "Body", configContent,
+                "ContentType", "application/json",
+                "CacheControl", "no-cache"
+            ))
+            .physicalResourceId(PhysicalResourceId.of("well-known-config-" + resourceNamePrefix))
+            .build();
+
+        var wellKnownConfigCustomResource = AwsCustomResource.Builder.create(this, resourceNamePrefix + "-WellKnownConfigFix")
+            .onCreate(wellKnownConfigCall)
+            .onUpdate(wellKnownConfigCall)
+            .policy(AwsCustomResourcePolicy.fromStatements(List.of(
+                PolicyStatement.Builder.create()
+                    .effect(Effect.ALLOW)
+                    .actions(List.of("s3:PutObject"))
+                    .resources(List.of(this.wellKnownBucket.getBucketArn() + "/.well-known/*"))
+                    .build()
+            )))
+            .installLatestAwsSdk(false)
+            .build();
+
+        // Ensure the custom resource runs after the initial deployment
+        wellKnownConfigCustomResource.getNode().addDependency(this.wellKnownDeployment);
+
+        // Invalidate CloudFront after config is updated
+        var wellKnownInvalidationCall = AwsSdkCall.builder()
+            .service("CloudFront")
+            .action("createInvalidation")
+            .parameters(Map.of(
+                "DistributionId", this.distribution.getDistributionId(),
+                "InvalidationBatch", Map.of(
+                    "CallerReference", "well-known-config-" + java.time.Instant.now().toEpochMilli(),
+                    "Paths", Map.of(
+                        "Quantity", 1,
+                        "Items", List.of("/.well-known/*")
+                    )
+                )
+            ))
+            .physicalResourceId(PhysicalResourceId.of("well-known-config-invalidation-" + resourceNamePrefix))
+            .build();
+
+        var wellKnownInvalidationCustomResource = AwsCustomResource.Builder.create(this, resourceNamePrefix + "-WellKnownConfigInvalidation")
+            .onCreate(wellKnownInvalidationCall)
+            .onUpdate(wellKnownInvalidationCall)
+            .policy(AwsCustomResourcePolicy.fromStatements(List.of(
+                PolicyStatement.Builder.create()
+                    .effect(Effect.ALLOW)
+                    .actions(List.of("cloudfront:CreateInvalidation"))
+                    .resources(List.of(this.distribution.getDistributionArn()))
+                    .build()
+            )))
+            .installLatestAwsSdk(false)
+            .build();
+
+        // Ensure invalidation runs after config is updated
+        wellKnownInvalidationCustomResource.getNode().addDependency(wellKnownConfigCustomResource);
     }
 }

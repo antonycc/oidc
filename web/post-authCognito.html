@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OIDC - Cognito Post-auth</title>
+    <link rel="stylesheet" href="./oidc.css" />
+  </head>
+  <body>
+    <header>
+      <div class="header-nav">
+        <div class="hamburger-menu">
+          <button class="hamburger-btn">☰</button>
+          <div class="menu-dropdown"><a href="./index.html">Home</a><div data-utils-target></div></div>
+        </div>
+        <div class="auth-section"><span class="login-status">Checking…</span></div>
+      </div>
+    </header>
+    <main class="container">
+      <h1>OIDC - Cognito Post-auth</h1>
+      <div class="card">
+        <p id="status">Looking for authorization code from Cognito...</p>
+        <pre id="result" class="code"></pre>
+        <pre id="claims" class="code"></pre>
+      </div>
+    </main>
+    <div id="modal-root"></div>
+    <script src="./oidc.js" defer></script>
+    <script>
+      function decodeJwtNoVerify(jwt) {
+        try {
+          const [, payload] = jwt.split(".");
+          const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+          // Base64 strings must be a multiple of 4 characters; calculate required padding
+          const paddingLength = (4 - (base64.length % 4)) % 4;
+          const paddedBase64 = base64.padEnd(base64.length + paddingLength, '=');
+          return JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(paddedBase64), (c) => c.charCodeAt(0))));
+        } catch {
+          return null;
+        }
+      }
+
+      async function exchangeCognitoCode(code, state) {
+        try {
+          document.getElementById("status").textContent = "Exchanging Cognito authorization code for tokens...";
+          
+          // Get stored PKCE data
+          const pkceKey = "cognito_pkce:" + state;
+          const pkceData = sessionStorage.getItem(pkceKey);
+          let storedParams = null;
+          if (pkceData) {
+            try {
+              storedParams = JSON.parse(pkceData);
+              sessionStorage.removeItem(pkceKey); // Clean up
+            } catch (e) {
+              console.warn("Could not parse stored PKCE data:", e);
+            }
+          }
+
+          // Get configuration for token exchange
+          let clientId = null;
+          let cognitoDomain = null;
+          
+          // Try to fetch config.json first
+          try {
+            const configResponse = await fetch('/config.json');
+            if (configResponse.ok) {
+              const config = await configResponse.json();
+              clientId = config.cognitoClientId;
+              cognitoDomain = config.cognitoDomain;
+            }
+          } catch (e) {
+            console.log('No config.json found, using fallback methods');
+          }
+          
+          // Fallback to computing domain if not in config
+          if (!cognitoDomain) {
+            const currentDomain = window.location.host;
+            if (currentDomain.includes('.oidc.')) {
+              cognitoDomain = currentDomain.replace('.oidc.', '.auth.oidc.');
+            } else {
+              cognitoDomain = `auth.${currentDomain}`;
+            }
+          }
+          
+          // If we still don't have client ID, try URL parameters or globals
+          if (!clientId) {
+            const urlParams = new URLSearchParams(window.location.search);
+            clientId = urlParams.get('client_id') || window.COGNITO_CLIENT_ID || 'test-client-id';
+          }
+          
+          if (!clientId || !cognitoDomain) {
+            throw new Error('Missing required configuration for token exchange');
+          }
+
+          // Prepare token exchange request
+          const tokenEndpoint = `https://${cognitoDomain}/oauth2/token`;
+          const redirectUri = `${window.location.protocol}//${window.location.host}/post-authCognito.html`;
+          
+          const tokenParams = new URLSearchParams({
+            grant_type: 'authorization_code',
+            client_id: clientId,
+            code: code,
+            redirect_uri: redirectUri
+          });
+          
+          // Add PKCE verifier if available
+          if (storedParams && storedParams.code_verifier) {
+            tokenParams.set('code_verifier', storedParams.code_verifier);
+          }
+
+          // Exchange authorization code for tokens
+          const tokenResponse = await fetch(tokenEndpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: tokenParams.toString()
+          });
+
+          if (!tokenResponse.ok) {
+            const errorText = await tokenResponse.text();
+            throw new Error(`Token exchange failed: ${tokenResponse.status} ${errorText}`);
+          }
+
+          const tokens = await tokenResponse.json();
+          
+          // Decode the tokens to extract claims
+          let idTokenClaims = null;
+          let accessTokenClaims = null;
+          
+          if (tokens.id_token) {
+            idTokenClaims = decodeJwtNoVerify(tokens.id_token);
+          }
+          
+          if (tokens.access_token) {
+            accessTokenClaims = decodeJwtNoVerify(tokens.access_token);
+          }
+
+          // Create token data structure similar to direct OIDC flow
+          const tokenData = {
+            access_token: tokens.access_token,
+            id_token: tokens.id_token,
+            refresh_token: tokens.refresh_token,
+            token_type: tokens.token_type || 'Bearer',
+            expires_in: tokens.expires_in,
+            expires_at: Date.now() + ((tokens.expires_in || 3600) * 1000),
+            scope: tokens.scope,
+            flow: 'cognito',
+            claims: idTokenClaims,
+            access_claims: accessTokenClaims,
+            userinfo: idTokenClaims // Use ID token claims as userinfo
+          };
+
+          // Store tokens in localStorage
+          localStorage.setItem('cognito_tokens', JSON.stringify(tokenData));
+          
+          // Also store the cognito_auth marker for compatibility
+          const cognitoAuthData = {
+            flow: "cognito",
+            code: code,
+            state: state,
+            timestamp: Date.now(),
+            redirect_source: "cognito_hosted_ui",
+            has_tokens: true
+          };
+          localStorage.setItem("cognito_auth", JSON.stringify(cognitoAuthData));
+
+          // Display results
+          document.getElementById("result").textContent = JSON.stringify({
+            flow: "cognito_hosted_ui",
+            tokens_received: {
+              access_token: tokens.access_token ? "✓ Present" : "✗ Missing",
+              id_token: tokens.id_token ? "✓ Present" : "✗ Missing", 
+              refresh_token: tokens.refresh_token ? "✓ Present" : "✗ Missing"
+            },
+            expires_in: tokens.expires_in,
+            scope: tokens.scope,
+            token_exchange: "successful"
+          }, null, 2);
+
+          // Display decoded claims if available
+          if (idTokenClaims) {
+            document.getElementById("claims").textContent = JSON.stringify({
+              id_token_claims: idTokenClaims,
+              access_token_claims: accessTokenClaims
+            }, null, 2);
+          }
+
+          // Update status and login indicator
+          document.getElementById("status").textContent = "Token exchange successful! Tokens stored in localStorage.";
+          document.querySelector(".login-status").textContent = `Logged in as ${idTokenClaims?.name || idTokenClaims?.email || idTokenClaims?.sub || 'User'} (via Cognito)`;
+          
+          // Update login status using centralized function from oidc.js if available
+          if (typeof refreshLoginStatusText === 'function') {
+            refreshLoginStatusText();
+          }
+
+          return { success: true, tokens: tokenData };
+          
+        } catch (error) {
+          console.error("Error in Cognito token exchange:", error);
+          document.getElementById("status").textContent = "Token exchange failed: " + error.message;
+          document.getElementById("result").textContent = JSON.stringify({
+            error: error.message,
+            flow: "cognito_token_exchange",
+            status: "failed"
+          }, null, 2);
+          document.querySelector(".login-status").textContent = "Login failed";
+          throw error;
+        }
+      }
+
+      // Handle URL parameters on page load
+      document.addEventListener('DOMContentLoaded', () => {
+        // Wait a bit for oidc.js to load and initialize
+        setTimeout(() => {
+          const urlParams = new URLSearchParams(window.location.search);
+          const code = urlParams.get("code");
+          const state = urlParams.get("state");
+          const error = urlParams.get("error");
+          const error_description = urlParams.get("error_description");
+
+          if (error) {
+            // Handle OAuth/Cognito errors
+            document.getElementById("status").textContent = `Authentication error: ${error}`;
+            if (error_description) {
+              document.getElementById("result").textContent = `Error details: ${error_description}`;
+            }
+            document.querySelector(".login-status").textContent = "Login failed";
+            return;
+          }
+
+          if (code && state) {
+            // Handle successful authorization code response
+            exchangeCognitoCode(code, state).catch((error) => {
+              console.error("Code exchange failed:", error);
+              document.getElementById("status").textContent = "Code exchange failed: " + error.message;
+              document.querySelector(".login-status").textContent = "Login failed";
+            });
+          } else if (code) {
+            // Handle code without state (fallback)
+            document.getElementById("status").textContent = "Received authorization code (no state parameter)";
+            document.getElementById("result").textContent = JSON.stringify({
+              authorization_code: code,
+              note: "Code received without state parameter"
+            }, null, 2);
+            document.querySelector(".login-status").textContent = "Logged in (via Cognito, partial)";
+          } else {
+            // No code present
+            document.getElementById("status").textContent = "No authorization code found in URL";
+            document.querySelector(".login-status").textContent = "Login required";
+            
+            // Provide link back to Cognito login
+            document.getElementById("result").innerHTML = 
+              '<a href="./loginCognito.html">Try Cognito login again</a><br><br>' +
+              '<a href="./index.html">Return to home page</a>';
+          }
+        }, 100); // Small delay to ensure oidc.js has loaded
+      });
+    </script>
+    <footer><small>© 2025 <a href="https://github.com/antonycc/oidc">@antonycc/oidc</a></small></footer>
+  </body>
+</html>

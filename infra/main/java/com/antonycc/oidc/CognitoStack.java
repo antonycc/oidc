@@ -2,6 +2,8 @@ package com.antonycc.oidc;
 
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
+import software.amazon.awscdk.Duration;
+import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.services.cloudfront.Distribution;
 import software.amazon.awscdk.services.cloudfront.DistributionAttributes;
@@ -18,10 +20,26 @@ import software.amazon.awscdk.services.route53.HostedZone;
 import software.amazon.awscdk.services.route53.HostedZoneAttributes;
 import software.amazon.awscdk.services.route53.RecordTarget;
 import software.amazon.awscdk.services.route53.targets.CloudFrontTarget;
+import software.amazon.awscdk.services.s3.deployment.BucketDeployment;
+import software.amazon.awscdk.services.s3.deployment.Source;
+import software.amazon.awscdk.services.logs.LogGroup;
+import software.amazon.awscdk.services.logs.RetentionDays;
+import software.amazon.awscdk.services.lambda.Function;
+import software.amazon.awscdk.services.lambda.Runtime;
+import software.amazon.awscdk.services.lambda.Code;
+import software.amazon.awscdk.services.iam.PolicyStatement;
+import software.amazon.awscdk.services.iam.Effect;
+import software.amazon.awscdk.customresources.AwsCustomResource;
+import software.amazon.awscdk.customresources.AwsCustomResourcePolicy;
+import software.amazon.awscdk.customresources.PhysicalResourceId;
+import software.amazon.awscdk.customresources.AwsSdkCall;
 import software.constructs.Construct;
 
 import java.util.List;
 import java.util.Map;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 public class CognitoStack extends Stack {
   public final CfnUserPool pool;
@@ -150,7 +168,7 @@ public class CognitoStack extends Stack {
       var hostedZone = HostedZone.fromHostedZoneAttributes(this, "HostedZone",
               HostedZoneAttributes.builder()
                       .hostedZoneId(props.hostedZoneId)
-                      .zoneName(domainName) // e.g. example.com
+                      .zoneName(props.hostedZoneName) // e.g. antonycc.com
                       .build());
       var distributionDomainName = this.domain.getAttrCloudFrontDistribution();
       var distribution = Distribution.fromDistributionAttributes(this, "CognitoDistribution",
@@ -161,13 +179,13 @@ public class CognitoStack extends Stack {
       new ARecord(this, "CognitoARecord",
               ARecordProps.builder()
                       .zone(hostedZone)
-                      .recordName(cognitoDomainName + ".")
+                      .recordName(cognitoDomainName)
                       .target(RecordTarget.fromAlias(new CloudFrontTarget(distribution)))
                       .build());
       new AaaaRecord(this, "CognitoAaaaRecord",
               AaaaRecordProps.builder()
                       .zone(hostedZone)
-                      .recordName(cognitoDomainName + ".")
+                      .recordName(cognitoDomainName)
                       .target(RecordTarget.fromAlias(new CloudFrontTarget(distribution)))
                       .build());
 
@@ -179,7 +197,7 @@ public class CognitoStack extends Stack {
             .allowedOAuthFlows(List.of("code"))
             .allowedOAuthFlowsUserPoolClient(true)
             .allowedOAuthScopes(List.of("openid", "email", "profile", "aws.cognito.signin.user.admin"))
-            .callbackUrLs(List.of(baseUrl + "/post-auth.html"))
+            .callbackUrLs(List.of(baseUrl + "/post-auth.html", baseUrl + "/post-authCognito.html"))
             .logoutUrLs(List.of(baseUrl + "/"))
             .supportedIdentityProviders(List.of("OIDC"))
             // Enhanced frontend UI settings
@@ -311,6 +329,9 @@ public class CognitoStack extends Stack {
     // Ensure the OIDC identity provider is created before the client that references it
     this.client.getNode().addDependency(this.oidcIdp);
 
+    // Create configuration outputs for frontend consumption
+    deployConfiguration(resourceNamePrefix, props);
+
     // Outputs
     new CfnOutput(
         this, "CognitoAuthDomain", CfnOutputProps.builder().value(this.domain.getRef()).build());
@@ -319,6 +340,120 @@ public class CognitoStack extends Stack {
         this,
         "UserPoolClientId",
         CfnOutputProps.builder().value(this.client.getRef()).build());
+  }
+
+  /**
+   * Deploy configuration file with Cognito settings to the web bucket
+   */
+  private void deployConfiguration(String resourceNamePrefix, CognitoStackProps props) {
+    // Create configuration outputs for frontend consumption
+    new CfnOutput(this, "CognitoConfigDomain", 
+        CfnOutputProps.builder()
+            .value(props.authDomainName)
+            .description("Cognito domain for frontend configuration")
+            .exportName(resourceNamePrefix + "-CognitoDomain")
+            .build());
+            
+    new CfnOutput(this, "CognitoConfigClientId", 
+        CfnOutputProps.builder()
+            .value(this.client.getRef())
+            .description("Cognito client ID for frontend configuration")
+            .exportName(resourceNamePrefix + "-CognitoClientId")
+            .build());
+            
+    // Create config.json file if we have bucket and distribution
+    if (props.webBucket != null && props.distribution != null) {
+      createConfigFileDeployment(resourceNamePrefix, props);
+    }
+  }
+  
+  /**
+   * Create a Lambda-backed custom resource to generate and deploy config.json with resolved values
+   */
+  private void createConfigFileDeployment(String resourceNamePrefix, CognitoStackProps props) {
+    // Create a custom resource that generates config.json with actual resolved values
+    // This works around the CloudFormation token limitation by executing at deployment time
+    
+    var configGeneratorCall = AwsSdkCall.builder()
+        .service("S3")
+        .action("putObject")
+        .parameters(Map.of(
+            "Bucket", props.webBucket.getBucketName(),
+            "Key", "config.json",
+            "Body", String.format("""
+                {
+                  "cognitoDomain": "%s",
+                  "cognitoClientId": "%s",
+                  "cognitoUserPoolId": "%s",
+                  "environment": "%s",
+                  "timestamp": "%s",
+                  "issuer": "https://%s"
+                }
+                """, 
+                props.authDomainName,
+                this.client.getRef(),
+                this.pool.getRef(),
+                props.envName,
+                java.time.Instant.now().toString(),
+                props.domainName
+            ),
+            "ContentType", "application/json",
+            "CacheControl", "no-cache, no-store, must-revalidate"
+        ))
+        .physicalResourceId(PhysicalResourceId.of("cognito-config-" + resourceNamePrefix))
+        .build();
+        
+    var configCustomResource = AwsCustomResource.Builder.create(this, resourceNamePrefix + "-ConfigGenerator")
+        .onCreate(configGeneratorCall)
+        .onUpdate(configGeneratorCall)
+        .policy(AwsCustomResourcePolicy.fromStatements(List.of(
+            PolicyStatement.Builder.create()
+                .effect(Effect.ALLOW)
+                .actions(List.of("s3:PutObject"))
+                .resources(List.of(props.webBucket.getBucketArn() + "/config.json"))
+                .build()
+        )))
+        .installLatestAwsSdk(false)
+        .build();
+        
+    // Ensure the custom resource runs after Cognito resources are created
+    configCustomResource.getNode().addDependency(this.client);
+    configCustomResource.getNode().addDependency(this.domain);
+    
+    // Invalidate CloudFront after config.json is uploaded
+    if (props.distribution != null) {
+      var invalidationCall = AwsSdkCall.builder()
+          .service("CloudFront")
+          .action("createInvalidation")
+          .parameters(Map.of(
+              "DistributionId", props.distribution.getDistributionId(),
+              "InvalidationBatch", Map.of(
+                  "CallerReference", "cognito-config-" + java.time.Instant.now().toEpochMilli(),
+                  "Paths", Map.of(
+                      "Quantity", 1,
+                      "Items", List.of("/config.json")
+                  )
+              )
+          ))
+          .physicalResourceId(PhysicalResourceId.of("cognito-config-invalidation-" + resourceNamePrefix))
+          .build();
+          
+      var invalidationCustomResource = AwsCustomResource.Builder.create(this, resourceNamePrefix + "-ConfigInvalidation")
+          .onCreate(invalidationCall)
+          .onUpdate(invalidationCall)
+          .policy(AwsCustomResourcePolicy.fromStatements(List.of(
+              PolicyStatement.Builder.create()
+                  .effect(Effect.ALLOW)
+                  .actions(List.of("cloudfront:CreateInvalidation"))
+                  .resources(List.of("*"))
+                  .build()
+          )))
+          .installLatestAwsSdk(false)
+          .build();
+          
+      // Ensure invalidation happens after config upload
+      invalidationCustomResource.getNode().addDependency(configCustomResource);
+    }
   }
 
   /**

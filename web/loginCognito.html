@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OIDC - Cognito Login</title>
+    <link rel="stylesheet" href="./oidc.css" />
+  </head>
+  <body>
+    <header>
+      <div class="header-nav">
+        <div class="hamburger-menu">
+          <button class="hamburger-btn">☰</button>
+          <div class="menu-dropdown"><a href="./index.html">Home</a><a href="./login.html">Login</a><div data-utils-target></div></div>
+        </div>
+        <div class="auth-section"><span class="login-status">Not logged in</span></div>
+      </div>
+    </header>
+    <main class="container">
+      <h1>OIDC - Cognito Login</h1>
+      <div class="card">
+        <p>You will be redirected to AWS Cognito's hosted UI for authentication.</p>
+        <p>Cognito will federate to the OIDC provider in this repository, then return you to the post-auth page with your tokens.</p>
+        <p><a href="./login.html">← Back to login options</a></p>
+        <div id="status">Preparing authentication...</div>
+        <div id="error" style="display: none; color: red; margin-top: 10px;"></div>
+      </div>
+    </main>
+    <div id="modal-root"></div>
+    <script src="./oidc.js" defer></script>
+    <script>
+      // Utility functions for OIDC/OAuth2 flow
+      function randomString(length = 32) {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+        let result = '';
+        for (let i = 0; i < length; i++) {
+          result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
+      }
+
+      async function sha256(plain) {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(plain);
+        return window.crypto.subtle.digest('SHA-256', data);
+      }
+
+      function base64urlEscape(str) {
+        return str.replace(/\+/g, '-')
+                 .replace(/\//g, '_')
+                 .replace(/=/g, '');
+      }
+
+      async function sha256base64url(plain) {
+        const hashBuffer = await sha256(plain);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashBase64 = btoa(String.fromCharCode.apply(null, hashArray));
+        return base64urlEscape(hashBase64);
+      }
+
+      async function initiateCognitoLogin() {
+        try {
+          // Generate OAuth2/OIDC parameters
+          const state = randomString(32);
+          const nonce = randomString(32);
+          
+          // PKCE parameters (even though Cognito handles this, we generate for completeness)
+          const code_verifier = randomString(64);
+          const code_challenge = await sha256base64url(code_verifier);
+          
+          // Store PKCE for later use (though Cognito flow may not need it)
+          sessionStorage.setItem(
+            "cognito_pkce:" + state,
+            JSON.stringify({ code_verifier, state, nonce })
+          );
+
+          // Cognito configuration with proper domain computation
+          const currentDomain = window.location.host;
+          
+          // Fix domain computation for branch environments
+          // For ci.oidc.example.com -> ci.auth.oidc.example.com
+          // For prod: oidc.example.com -> auth.oidc.example.com  
+          let cognitoDomain;
+          if (currentDomain.includes('.oidc.')) {
+            // Branch environment: insert .auth. before .oidc.
+            cognitoDomain = currentDomain.replace('.oidc.', '.auth.oidc.');
+          } else {
+            // Fallback: prepend auth.
+            cognitoDomain = `auth.${currentDomain}`;
+          }
+          
+          const redirectUri = `${window.location.protocol}//${currentDomain}/post-authCognito.html`;
+          
+          // Try to get client ID from various sources
+          let clientId = null;
+          let configCognitoDomain = null;
+          let configSource = null;
+          
+          // 1. Try to fetch from config.json first (deployed by CDK)
+          try {
+            document.getElementById('status').textContent = 'Loading configuration...';
+            const configResponse = await fetch('/config.json');
+            if (configResponse.ok) {
+              const config = await configResponse.json();
+              console.log('Loaded config.json:', { ...config, cognitoClientId: config.cognitoClientId ? '***' : undefined });
+              clientId = config.cognitoClientId;
+              if (config.cognitoDomain) {
+                configCognitoDomain = config.cognitoDomain;
+              }
+              configSource = 'config.json';
+            } else {
+              console.log('config.json not found or inaccessible:', configResponse.status);
+            }
+          } catch (e) {
+            console.log('Failed to fetch config.json:', e.message);
+          }
+          
+          // 2. Check if injected globally by deployment
+          if (!clientId && window.COGNITO_CLIENT_ID) {
+            clientId = window.COGNITO_CLIENT_ID;
+            configSource = 'window.COGNITO_CLIENT_ID';
+            console.log('Using client ID from global variable');
+          }
+          
+          // 3. Check URL parameters (for testing)
+          const urlParams = new URLSearchParams(window.location.search);
+          if (!clientId && urlParams.get('client_id')) {
+            clientId = urlParams.get('client_id');
+            configSource = 'URL parameter';
+            console.log('Using client ID from URL parameter');
+          }
+          
+          // 4. Use environment variable if available (would be injected during build)
+          if (!clientId && window.location.search.includes('auto=true')) {
+            // This would be the automatic mode for testing
+            clientId = 'test-client-id';
+            configSource = 'auto test mode';
+            console.log('Using test client ID for auto mode');
+          }
+          
+          // Use config domain if available, otherwise compute it
+          const finalCognitoDomain = configCognitoDomain || cognitoDomain;
+          
+          console.log('Final configuration:', {
+            clientId: clientId ? '***' : 'none',
+            cognitoDomain: finalCognitoDomain,
+            source: configSource
+          });
+          
+          if (!clientId) {
+            // Show configuration instructions with better formatting and guidance
+            const errorEl = document.getElementById('error');
+            errorEl.style.display = 'block';
+            errorEl.innerHTML = 
+              '<div style="text-align: left; background: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px solid #e9ecef;">' +
+              '<h4 style="margin-top: 0; color: #495057;">🔧 Configuration Required</h4>' +
+              '<p style="margin-bottom: 15px;">This page requires a Cognito Client ID to function properly.</p>' +
+              
+              '<h5 style="color: #6c757d; margin-bottom: 10px;">For Local Testing:</h5>' +
+              '<p style="margin-bottom: 10px;">Add the client ID as a URL parameter:</p>' +
+              '<code style="background: #e9ecef; padding: 4px 8px; border-radius: 4px; display: block; margin-bottom: 15px;">' +
+              window.location.href.split('?')[0] + '?client_id=YOUR_CLIENT_ID</code>' +
+              
+              '<h5 style="color: #6c757d; margin-bottom: 10px;">For Deployed Environments:</h5>' +
+              '<p style="margin-bottom: 5px;">• Configuration should be automatically loaded from deployment</p>' +
+              '<p style="margin-bottom: 5px;">• CDK deployment creates CloudFormation exports with the values</p>' +
+              '<p style="margin-bottom: 5px;">• Alternatively, set <code>window.COGNITO_CLIENT_ID</code> globally</p>' +
+              '<p style="margin-bottom: 15px;">• Check if <a href="/config.json" target="_blank">config.json</a> is accessible</p>' +
+              
+              '<h5 style="color: #6c757d; margin-bottom: 10px;">Configuration Sources Checked:</h5>' +
+              '<ul style="margin-bottom: 15px; padding-left: 20px;">' +
+              '<li>❌ <code>/config.json</code> endpoint - ' + (configSource === 'config.json' ? 'Found but missing client ID' : 'Not found or failed to load') + '</li>' +
+              '<li>❌ <code>window.COGNITO_CLIENT_ID</code> global variable - Not set</li>' +
+              '<li>❌ <code>?client_id=</code> URL parameter - Not provided</li>' +
+              '<li>❌ Auto test mode - Not enabled (use <code>?auto=true</code> for testing)</li>' +
+              '</ul>' +
+              
+              '<div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #dee2e6;">' +
+              '<a href="./login.html" style="background: #6c757d; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; margin-right: 10px;">← Back to Login Options</a>' +
+              '<a href="./index.html" style="background: #007bff; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px;">🏠 Home</a>' +
+              '</div>' +
+              '</div>';
+            document.getElementById('status').innerHTML = '<strong>Configuration required</strong> - See details below';
+            return;
+          }
+          
+          // Construct Cognito Hosted UI URL
+          const cognitoParams = new URLSearchParams({
+            client_id: clientId,
+            response_type: 'code',
+            scope: 'openid email profile',
+            redirect_uri: redirectUri,
+            state: state,
+            nonce: nonce,
+            code_challenge: code_challenge,
+            code_challenge_method: 'S256'
+          });
+
+          const cognitoUrl = `https://${finalCognitoDomain}/oauth2/authorize?${cognitoParams.toString()}`;
+          
+          document.getElementById('status').innerHTML = 
+            `Redirecting to Cognito at <strong>${finalCognitoDomain}</strong>...<br>` +
+            `<small>Configuration loaded from: ${configSource}</small><br>` +
+            `<small>If not redirected automatically, <a href="${cognitoUrl}">click here</a></small>`;
+          
+          // Wait a moment for user to see the message, then redirect
+          setTimeout(() => {
+            window.location.href = cognitoUrl;
+          }, 2000);
+          
+        } catch (error) {
+          console.error('Error initiating Cognito login:', error);
+          const errorEl = document.getElementById('error');
+          errorEl.style.display = 'block';
+          errorEl.textContent = 'Error preparing authentication: ' + error.message;
+          document.getElementById('status').textContent = 'Authentication preparation failed';
+        }
+      }
+
+      // Start the login process when page loads
+      document.addEventListener('DOMContentLoaded', () => {
+        initiateCognitoLogin();
+      });
+    </script>
+    <footer><small>© 2025 <a href="https://github.com/antonycc/oidc">@antonycc/oidc</a></small></footer>
+  </body>
+</html>

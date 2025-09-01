@@ -69,7 +69,7 @@ public class App {
                 .xrayGroup(observabilityStack.xrayGroup)
                 .build());
 
-    // Create the Cognito stack (independent of provider stack)
+    // Create the Cognito stack (depends on provider stack for web bucket)
     CognitoStack cognitoStack =
         new CognitoStack(
             app,
@@ -82,6 +82,8 @@ public class App {
                 .authCertificateArn(authCertificateArn)
                 .hostedZoneName(hostedZoneName)
                 .hostedZoneId(hostedZoneId)
+                .webBucket(providerStack.webBucket)
+                .distribution(providerStack.distribution)
                 .build());
 
     providerStack.addDependency(observabilityStack);

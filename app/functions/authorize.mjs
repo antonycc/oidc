@@ -105,8 +105,8 @@ export const handler = async (event) => {
       const hash = got.Item?.passwordHash || "$2a$10$zCwQ6QJkQ6QJkQ6QJkQ6QOeQ6QJkQ6QJkQ6QJkQ6QJkQ6QJkQ6QJk"; // bcrypt hash for "dummy"
       const ok = !!qp.password && bcrypt.compareSync(qp.password, hash);
       if (!ok || !got.Item?.passwordHash) {
-        // Redirect back to login page with error instead of showing form
-        const loginUrl = `/login.html?error=${encodeURIComponent("Invalid username or password")}&` +
+        // Redirect back to direct login page with error instead of showing form
+        const loginUrl = `/loginDirect.html?error=${encodeURIComponent("Invalid username or password")}&` +
           `client_id=${encodeURIComponent(qp.client_id || "")}&` +
           `redirect_uri=${encodeURIComponent(qp.redirect_uri || "")}&` +
           `scope=${encodeURIComponent(qp.scope || "")}&` +

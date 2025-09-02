@@ -26,21 +26,21 @@
           <div class="login-option">
             <h3>Direct OIDC Login</h3>
             <p>Use the direct login form to exercise the OIDC Provider directly without Cognito. This performs PKCE authentication and returns to the standard post-auth page.</p>
-            <a href="./loginDirect.html" class="button primary">Direct Login</a>
+            <a href="./loginDirect.html?redirect_uri=/post-auth.html" class="button primary">Direct Login</a>
           </div>
           
-          <div class="login-option">
+          <!--div class="login-option">
             <h3>Cognito Hosted UI Login</h3>
             <p>Use Cognito login for a fully-managed authentication experience. This redirects to AWS Cognito's hosted UI which federates to this OIDC provider.</p>
             <a href="./loginCognito.html" class="button primary">Login with Cognito</a>
-          </div>
+          </div-->
         </div>
         
-        <div class="advanced-section">
+        <!--div class="advanced-section">
           <h3>Manual Cognito URL (Advanced)</h3>
           <p>For testing, your Cognito domain is output as <code>CognitoAuthDomain</code>. Visit:</p>
           <pre><code>https://&lt;cognito-domain&gt;/oauth2/authorize?client_id=&lt;clientId&gt;&amp;response_type=code&amp;scope=openid+email+profile&amp;redirect_uri=https://&lt;your-subdomain&gt;.&lt;zone&gt;/post-authCognito.html</code></pre>
-        </div>
+        </div-->
       </div>
     </main>
     <div id="modal-root"></div>

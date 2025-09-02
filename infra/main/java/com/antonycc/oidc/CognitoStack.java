@@ -2,8 +2,6 @@ package com.antonycc.oidc;
 
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
-import software.amazon.awscdk.Duration;
-import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.services.cloudfront.Distribution;
 import software.amazon.awscdk.services.cloudfront.DistributionAttributes;
@@ -20,26 +18,10 @@ import software.amazon.awscdk.services.route53.HostedZone;
 import software.amazon.awscdk.services.route53.HostedZoneAttributes;
 import software.amazon.awscdk.services.route53.RecordTarget;
 import software.amazon.awscdk.services.route53.targets.CloudFrontTarget;
-import software.amazon.awscdk.services.s3.deployment.BucketDeployment;
-import software.amazon.awscdk.services.s3.deployment.Source;
-import software.amazon.awscdk.services.logs.LogGroup;
-import software.amazon.awscdk.services.logs.RetentionDays;
-import software.amazon.awscdk.services.lambda.Function;
-import software.amazon.awscdk.services.lambda.Runtime;
-import software.amazon.awscdk.services.lambda.Code;
-import software.amazon.awscdk.services.iam.PolicyStatement;
-import software.amazon.awscdk.services.iam.Effect;
-import software.amazon.awscdk.customresources.AwsCustomResource;
-import software.amazon.awscdk.customresources.AwsCustomResourcePolicy;
-import software.amazon.awscdk.customresources.PhysicalResourceId;
-import software.amazon.awscdk.customresources.AwsSdkCall;
 import software.constructs.Construct;
 
 import java.util.List;
 import java.util.Map;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 
 public class CognitoStack extends Stack {
   public final CfnUserPool pool;
@@ -362,18 +344,19 @@ public class CognitoStack extends Stack {
             .build());
             
     // Create config.json file if we have bucket and distribution
-    if (props.webBucket != null && props.distribution != null) {
-      createConfigFileDeployment(resourceNamePrefix, props);
-    }
+    //if (props.webBucket != null && props.distribution != null) {
+    //  createConfigFileDeployment(resourceNamePrefix, props);
+    //}
   }
   
   /**
    * Create a Lambda-backed custom resource to generate and deploy config.json with resolved values
    */
+  /*
   private void createConfigFileDeployment(String resourceNamePrefix, CognitoStackProps props) {
     // Create a custom resource that generates config.json with actual resolved values
     // This works around the CloudFormation token limitation by executing at deployment time
-    
+
     var configGeneratorCall = AwsSdkCall.builder()
         .service("S3")
         .action("putObject")
@@ -402,7 +385,6 @@ public class CognitoStack extends Stack {
         ))
         .physicalResourceId(PhysicalResourceId.of("cognito-config-" + resourceNamePrefix))
         .build();
-        
     var configCustomResource = AwsCustomResource.Builder.create(this, resourceNamePrefix + "-ConfigGenerator")
         .onCreate(configGeneratorCall)
         .onUpdate(configGeneratorCall)
@@ -455,6 +437,7 @@ public class CognitoStack extends Stack {
       invalidationCustomResource.getNode().addDependency(configCustomResource);
     }
   }
+*/
 
   /**
    * Generate a predictable resource name prefix based on domain name and environment.

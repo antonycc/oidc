@@ -13,25 +13,25 @@ public class App {
     
     // Compute domain name based on deployment pattern
     String domainName;
-    String authDomainName;
+    //String authDomainName;
     if ("prod".equals(deploymentName)) {
       domainName = System.getenv().getOrDefault("DOMAIN_NAME", "oidc.example.com");
-      authDomainName = System.getenv().getOrDefault("AUTH_DOMAIN_NAME", "auth.oidc.example.com");
+      //authDomainName = System.getenv().getOrDefault("AUTH_DOMAIN_NAME", "auth.oidc.example.com");
     } else if ("ci".equals(deploymentName)) {
       domainName = System.getenv().getOrDefault("DOMAIN_NAME", "ci.oidc.example.com");
-      authDomainName = System.getenv().getOrDefault("AUTH_DOMAIN_NAME", "ci.auth.oidc.example.com");
+      //authDomainName = System.getenv().getOrDefault("AUTH_DOMAIN_NAME", "ci.auth.oidc.example.com");
     } else {
       // For branch deployments like ci-branchname
       domainName = System.getenv().getOrDefault("DOMAIN_NAME", deploymentName + ".oidc.example.com");
-      authDomainName = System.getenv().getOrDefault("AUTH_DOMAIN_NAME", deploymentName + ".auth.oidc.example.com");
+      //authDomainName = System.getenv().getOrDefault("AUTH_DOMAIN_NAME", deploymentName + ".auth.oidc.example.com");
     }
     
     String certificateArn =
         System.getenv()
             .getOrDefault("CERTIFICATE_ARN", "arn:aws:acm:us-east-1:123456789012:certificate/abc");
-    String authCertificateArn =
-          System.getenv()
-                  .getOrDefault("AUTH_CERTIFICATE_ARN", "arn:aws:acm:us-east-1:123456789012:certificate/xyz");
+    //String authCertificateArn =
+    //      System.getenv()
+    //              .getOrDefault("AUTH_CERTIFICATE_ARN", "arn:aws:acm:us-east-1:123456789012:certificate/xyz");
 
     Environment env =
         Environment.builder()
@@ -68,26 +68,27 @@ public class App {
                 .auditTrail(observabilityStack.auditTrail)
                 .xrayGroup(observabilityStack.xrayGroup)
                 .build());
-
-    // Create the Cognito stack (depends on provider stack for web bucket)
-    CognitoStack cognitoStack =
-        new CognitoStack(
-            app,
-            "CognitoStack-" + envName,
-            CognitoStackProps.builder()
-                .env(env)
-                .envName(envName)
-                .domainName(domainName)
-                .authDomainName(authDomainName)
-                .authCertificateArn(authCertificateArn)
-                .hostedZoneName(hostedZoneName)
-                .hostedZoneId(hostedZoneId)
-                .webBucket(providerStack.webBucket)
-                .distribution(providerStack.distribution)
-                .build());
-
     providerStack.addDependency(observabilityStack);
-    cognitoStack.addDependency(providerStack);
+
+      // Create the Cognito stack
+      /*
+      CognitoStack cognitoStack =
+              new CognitoStack(
+                      app,
+                      "CognitoStack-" + envName,
+                      CognitoStackProps.builder()
+                              .env(env)
+                              .envName(envName)
+                              .domainName(domainName)
+                              .authDomainName(authDomainName)
+                              .authCertificateArn(authCertificateArn)
+                              .hostedZoneName(hostedZoneName)
+                              .hostedZoneId(hostedZoneId)
+                              //.webBucket(providerStack.webBucket)
+                              //.distribution(providerStack.distribution)
+                              .build());
+      cognitoStack.addDependency(observabilityStack);
+      */
 
     app.synth();
   }

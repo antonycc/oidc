@@ -111,7 +111,41 @@
       form.setAttribute("method", "POST");
       form.setAttribute("autocomplete", "on");
       const actionDisplay = document.getElementById('formActionDisplay');
-      if (actionDisplay) actionDisplay.textContent = form.getAttribute('action');
+      
+      // Calculate fully qualified URL for form action display
+      if (actionDisplay) {
+        const actionUrl = form.getAttribute('action');
+        let displayUrl = actionUrl;
+        try {
+          // If the action URL is not already a full URL (doesn't start with protocol), make it fully qualified
+          if (actionUrl && !actionUrl.match(/^https?:\/\//)) {
+            displayUrl = new URL(actionUrl, location.origin).toString();
+          }
+        } catch (e) {
+          // Fallback to original if URL construction fails
+          displayUrl = actionUrl;
+        }
+        actionDisplay.textContent = displayUrl;
+      }
+
+      // Generate PKCE values on page load and populate form fields
+      async function initializePkceFields() {
+        const state = rand(16);
+        const nonce = rand(16);
+        const code_verifier = rand(64);
+        const code_challenge = await sha256base64url(code_verifier);
+
+        // Fill visible inputs with generated values
+        form.querySelector('input[name="state"]').value = state;
+        form.querySelector('input[name="nonce"]').value = nonce;
+        form.querySelector('input[name="code_challenge"]').value = code_challenge;
+
+        // Store for later use during form submission
+        window.pkceData = { state, nonce, code_verifier, code_challenge };
+      }
+
+      // Initialize PKCE fields on page load
+      initializePkceFields();
 
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -140,15 +174,8 @@
           return;
         }
 
-        const state = rand(16);
-        const nonce = rand(16);
-        const code_verifier = rand(64);
-        const code_challenge = await sha256base64url(code_verifier);
-
-        // Fill visible inputs with generated values
-        form.querySelector('input[name="state"]').value = state;
-        form.querySelector('input[name="nonce"]').value = nonce;
-        form.querySelector('input[name="code_challenge"]').value = code_challenge;
+        // Use pre-generated PKCE values
+        const { state, code_verifier } = window.pkceData;
 
         // Stash PKCE for post-auth token exchange
         sessionStorage.setItem(

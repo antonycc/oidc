@@ -25,8 +25,8 @@ export const clients = {
       return [
           `http://localhost:3000/auth/loginWithAntonyccCallback.html`,
           `https://wanted-finally-anteater.ngrok-free.app/auth/loginWithAntonyccCallback.html`,
-          `https://ci.submit.co.uk/auth/loginWithAntonyccCallback.html`,
-          `https://submit.co.uk/auth/loginWithAntonyccCallback.html`,
+          `https://ci.submit.diyaccounting.co.uk/auth/loginWithAntonyccCallback.html`,
+          `https://submit.diyaccounting.co.uk/auth/loginWithAntonyccCallback.html`,
       ];
     },
     grantTypes: ["authorization_code"],

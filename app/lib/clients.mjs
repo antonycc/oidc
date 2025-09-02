@@ -18,16 +18,20 @@ const getCognitoClientId = () => {
   return process.env.COGNITO_CLIENT_ID || "cognito-web";
 };
 
+// Load this from a yml file in the project root
 export const clients = {
-  "cognito-web": {
-    // Legacy client name for backward compatibility
+  "submit-diyaccounting-co-uk": {
     get redirectUris() {
-      return [`https://${getCognitoDomain()}/oauth2/idpresponse`];
+      return [
+          `http://localhost:3000/auth/loginWithAntonyccCallback.html`,
+          `https://wanted-finally-anteater.ngrok-free.app/auth/loginWithAntonyccCallback.html`,
+          `https://ci.submit.co.uk/auth/loginWithAntonyccCallback.html`,
+          `https://submit.co.uk/auth/loginWithAntonyccCallback.html`,
+      ];
     },
     grantTypes: ["authorization_code"],
     scopes: ["openid", "email", "profile"],
     pkceRequired: true,
-    // No client secret for public client (Cognito doesn't send one by default)
     clientSecret: null
   },
   "self-client": {
@@ -47,7 +51,18 @@ export const clients = {
     pkceRequired: true,
     // No client secret for public client used in testing
     clientSecret: null
-  }
+  },
+    "cognito-web": {
+        // Legacy client name for backward compatibility
+        get redirectUris() {
+            return [`https://${getCognitoDomain()}/oauth2/idpresponse`];
+        },
+        grantTypes: ["authorization_code"],
+        scopes: ["openid", "email", "profile"],
+        pkceRequired: true,
+        // No client secret for public client (Cognito doesn't send one by default)
+        clientSecret: null
+    },
 };
 
 /**

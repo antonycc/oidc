@@ -73,8 +73,11 @@ export const handler = async (event) => {
     const clientId = body.get("client_id");
     const redirectUri = body.get("redirect_uri");
 
-    log("token_request", clientId, redirectUri, code ? `has_code: ${maskSensitive(code)}` : "no_code", verifier ? `has_verifier: ${maskSensitive(verifier)}` : "no_verifier");
-    if (!code || !verifier || !clientId || !redirectUri) return json(400, { error: "invalid_request" });
+    //log("token_request", clientId, redirectUri, code ? `has_code: ${maskSensitive(code)}` : "no_code", verifier ? `has_verifier: ${maskSensitive(verifier)}` : "no_verifier");
+    log("token_request", clientId, redirectUri, code ? `has_code: ${maskSensitive(code)}` : "no_code");
+    //if (!code || !verifier || !clientId || !redirectUri) return json(400, { error: "invalid_request" });
+    // TODO: Conditionally check for verifier if PKCE is enabled
+    if (!code || !clientId || !redirectUri) return json(400, { error: "invalid_request" });
 
     // Validate client authentication (for public clients, no secret needed)
     const clientSecret = body.get("client_secret");

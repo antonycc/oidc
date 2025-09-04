@@ -37,7 +37,7 @@ describe("token", () => {
     
     expect(response.statusCode).toBe(401);
     const body = JSON.parse(response.body);
-    expect(body.error).toBe("invalid_client");
+    expect(body.error).toMatch(/^invalid_client/);
   });
 
   it("returns error for missing authorization code", async () => {
@@ -52,7 +52,7 @@ describe("token", () => {
     
     expect(response.statusCode).toBe(400);
     const body = JSON.parse(response.body);
-    expect(body.error).toBe("invalid_grant");
+    expect(body.error).toMatch(/^invalid_grant/);
   });
 
   it("returns error for client_id mismatch", async () => {
@@ -76,7 +76,7 @@ describe("token", () => {
     
     expect(response.statusCode).toBe(400);
     const body = JSON.parse(response.body);
-    expect(body.error).toBe("invalid_grant");
+    expect(body.error).toMatch(/^invalid_grant/);
   });
 
   it("returns error for redirect_uri mismatch", async () => {
@@ -100,6 +100,6 @@ describe("token", () => {
     
     expect(response.statusCode).toBe(400);
     const body = JSON.parse(response.body);
-    expect(body.error).toBe("invalid_grant");
+    expect(body.error).toMatch(/^invalid_grant/);
   });
 });

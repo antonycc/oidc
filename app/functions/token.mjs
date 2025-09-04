@@ -77,39 +77,62 @@ export const handler = async (event) => {
     log("token_request", clientId, redirectUri, code ? `has_code: ${maskSensitive(code)}` : "no_code");
     //if (!code || !verifier || !clientId || !redirectUri) return json(400, { error: "invalid_request" });
     // TODO: Conditionally check for verifier if PKCE is enabled
-    if (!code || !clientId || !redirectUri) return json(400, { error: `invalid_request (!code${code} || !clientId${clientId} || !redirectUri${redirectUri})` });
+    if (!code || !clientId || !redirectUri) {
+        return json(400, { error: `invalid_request (!code${code} || !clientId${clientId} || !redirectUri${redirectUri})` });
+    } else {
+        log("token_request_parameters_present", clientId, { hasCode: !!code, hasRedirect: !!redirectUri }, maskSensitive(code));
+    }
 
     // Validate client authentication (for public clients, no secret needed)
     const clientSecret = body.get("client_secret");
     if (!validateClientAuth(clientId, clientSecret)) {
       return json(401, { error: `invalid_client (!validateClientAuth(${clientId}, clientSecret))` });
+    } else {
+      log("client_authenticated", clientId);
     }
 
     const row = await get(tables.codes, { code });
     log("token_request_validation row for code", { codeExists: !!row.Item }, maskSensitive(code));
-    if (!row.Item) return json(400, { error: "invalid_grant (!row.Item)" });
+    if (!row.Item) {
+        return json(400, { error: "invalid_grant (!row.Item)" });
+    } else {
+        log("authorization_code_found", { sub: row.Item?.sub, client: row.Item?.client }, maskSensitive(code));
+    }
 
     const now = Math.floor(Date.now() / 1000);
     if (row.Item.used === true || (row.Item.ttl && row.Item.ttl <= now)) {
       return json(400, { error: `invalid_grant (row.Item.used === true || ${row.Item.ttl} <= now)` });
+    } else {
+        log("authorization_code_valid", { used: row.Item.used === true, ttl: row.Item.ttl, now });
     }
 
     if (row.Item.ccm && row.Item.ccm !== "S256") {
       return json(400, { error: `invalid_grant (${row.Item.ccm} !== "S256")` });
+    }else {
+      log("authorization_code_challenge_method", row.Item.ccm || "none");
     }
+
     // Validate that client_id and redirect_uri match what was stored in the auth code
     if (row.Item.client !== clientId) {
       log("token_validation_failed", "client_mismatch", `stored: ${row.Item.client}, provided: ${clientId}`);
       return json(400, { error: `invalid_grant (row.Item.client !== ${clientId})` });
+    } else {
+      log("token_client_id_validated", clientId, { clientValidated: true }, maskSensitive(code));
     }
     
     if (row.Item.redirect !== redirectUri) {
       log("token_validation_failed", "redirect_mismatch", `stored: ${row.Item.redirect}, provided: ${redirectUri}`);
       return json(400, { error: `invalid_grant (row.Item.redirect !== ${redirectUri})` });
+    } else {
+      log("token_redirect_uri_validated", redirectUri, { redirectValidated: true }, maskSensitive(code));
     }
 
-    const expect = crypto.createHash("sha256").update(verifier).digest("base64url");
-    if (expect !== row.Item.ch) return json(400, { error: `invalid_grant (crypto.createHash("sha256").update(${verifier}).digest("base64url") !== row.Item.ch)` });
+    if(verifier && row.Item.ccm) {
+        const expect = crypto.createHash("sha256").update(verifier).digest("base64url");
+        if (expect !== row.Item.ch) return json(400, {error: `invalid_grant (crypto.createHash("sha256").update(${verifier}).digest("base64url") !== row.Item.ch)`});
+    } else {
+        log("no_pkce_verifier_to_validate", { hasVerifier: !!verifier, hasChallenge: !!row.Item.ch });
+    }
 
     // Use conditional delete to ensure one-time use
     log("token_request_validated", clientId, { codeValidated: true, sub: row.Item?.sub }, maskSensitive(code));
@@ -119,6 +142,8 @@ export const handler = async (event) => {
       if (error.name === "ConditionalCheckFailedException") {
         log("authorization_code_already_used", maskSensitive(code));
         return json(400, { error: "invalid_grant" });
+      } else {
+        logError("authorization_code_delete_failed", error, { code: maskSensitive(code) });
       }
       throw error;
     }

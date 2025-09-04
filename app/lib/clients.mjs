@@ -114,9 +114,9 @@ export function validateRedirectUri(clientId, redirectUri) {
     log("redirect_validation_failed", "client_not_found", clientId);
     return false;
   }
-  
+
   const isValid = client.redirectUris.includes(redirectUri);
-  log("redirect_validation", clientId, redirectUri, isValid ? "valid" : "invalid");
+  log("redirect_validation in ", client.redirectUris, clientId, redirectUri, isValid ? "valid" : "invalid");
   return isValid;
 }
 

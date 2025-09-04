@@ -77,44 +77,44 @@ export const handler = async (event) => {
     log("token_request", clientId, redirectUri, code ? `has_code: ${maskSensitive(code)}` : "no_code");
     //if (!code || !verifier || !clientId || !redirectUri) return json(400, { error: "invalid_request" });
     // TODO: Conditionally check for verifier if PKCE is enabled
-    if (!code || !clientId || !redirectUri) return json(400, { error: "invalid_request" });
+    if (!code || !clientId || !redirectUri) return json(400, { error: `invalid_request (!code${code} || !clientId${clientId} || !redirectUri${redirectUri})` });
 
     // Validate client authentication (for public clients, no secret needed)
     const clientSecret = body.get("client_secret");
     if (!validateClientAuth(clientId, clientSecret)) {
-      return json(401, { error: "invalid_client" });
+      return json(401, { error: `invalid_client (!validateClientAuth(${clientId}, clientSecret))` });
     }
 
     const row = await get(tables.codes, { code });
     log("token_request_validation row for code", { codeExists: !!row.Item }, maskSensitive(code));
-    if (!row.Item) return json(400, { error: "invalid_grant" });
+    if (!row.Item) return json(400, { error: "invalid_grant (!row.Item)" });
 
     const now = Math.floor(Date.now() / 1000);
     if (row.Item.used === true || (row.Item.ttl && row.Item.ttl <= now)) {
-      return json(400, { error: "invalid_grant" });
+      return json(400, { error: `invalid_grant (row.Item.used === true || ${row.Item.ttl} <= now)` });
     }
 
     if (row.Item.ccm && row.Item.ccm !== "S256") {
-      return json(400, { error: "invalid_grant" });
+      return json(400, { error: `invalid_grant (${row.Item.ccm} !== "S256")` });
     }
     // Validate that client_id and redirect_uri match what was stored in the auth code
     if (row.Item.client !== clientId) {
       log("token_validation_failed", "client_mismatch", `stored: ${row.Item.client}, provided: ${clientId}`);
-      return json(400, { error: "invalid_grant" });
+      return json(400, { error: `invalid_grant (row.Item.client !== ${clientId})` });
     }
     
     if (row.Item.redirect !== redirectUri) {
       log("token_validation_failed", "redirect_mismatch", `stored: ${row.Item.redirect}, provided: ${redirectUri}`);
-      return json(400, { error: "invalid_grant" });
+      return json(400, { error: `invalid_grant (row.Item.redirect !== ${redirectUri})` });
     }
 
     const expect = crypto.createHash("sha256").update(verifier).digest("base64url");
-    if (expect !== row.Item.ch) return json(400, { error: "invalid_grant" });
+    if (expect !== row.Item.ch) return json(400, { error: `invalid_grant (crypto.createHash("sha256").update(${verifier}).digest("base64url") !== row.Item.ch)` });
 
     // Use conditional delete to ensure one-time use
     log("token_request_validated", clientId, { codeValidated: true, sub: row.Item?.sub }, maskSensitive(code));
     try {
-      await conditionalDelete(tables.codes, { code }, "attribute_exists(code)");
+      await conditionalDelete(tables.codes, { code }, `attribute_exists(${code})`);
     } catch (error) {
       if (error.name === "ConditionalCheckFailedException") {
         log("authorization_code_already_used", maskSensitive(code));

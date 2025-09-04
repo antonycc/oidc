@@ -137,7 +137,7 @@ export const handler = async (event) => {
     // Use conditional delete to ensure one-time use
     log("token_request_validated", clientId, { codeValidated: true, sub: row.Item?.sub }, maskSensitive(code));
     try {
-      await conditionalDelete(tables.codes, { code }, `attribute_exists(${code})`);
+      await conditionalDelete(tables.codes, { code }, "attribute_exists(code)");
     } catch (error) {
       if (error.name === "ConditionalCheckFailedException") {
         log("authorization_code_already_used", maskSensitive(code));

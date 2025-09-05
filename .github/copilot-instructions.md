@@ -94,8 +94,6 @@
 ### E2E Testing Requirements:
 **WARNING**: E2E tests require a deployed AWS environment with specific environment variables:
 - `BASE_URL` - e.g., https://oidc.example.com (from CDK BaseUrl output)
-- `COGNITO_DOMAIN` - Cognito Hosted UI domain, e.g., xyz.auth.us-east-1.amazoncognito.com
-- `COGNITO_CLIENT_ID` - user pool client id used for the flow
 
 Without deployment, you can only validate test discovery with `npx playwright test --list`.
 

@@ -70,26 +70,6 @@ public class App {
                 .build());
     providerStack.addDependency(observabilityStack);
 
-      // Create the Cognito stack
-      /*
-      CognitoStack cognitoStack =
-              new CognitoStack(
-                      app,
-                      "CognitoStack-" + envName,
-                      CognitoStackProps.builder()
-                              .env(env)
-                              .envName(envName)
-                              .domainName(domainName)
-                              .authDomainName(authDomainName)
-                              .authCertificateArn(authCertificateArn)
-                              .hostedZoneName(hostedZoneName)
-                              .hostedZoneId(hostedZoneId)
-                              //.webBucket(providerStack.webBucket)
-                              //.distribution(providerStack.distribution)
-                              .build());
-      cognitoStack.addDependency(observabilityStack);
-      */
-
     app.synth();
   }
 }

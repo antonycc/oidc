@@ -1,3 +1,2 @@
-oidc-github-actions-deploy-cognito-policy
 oidc-github-actions-deploy-core-policy
 oidc-github-actions-deploy-provider-policy

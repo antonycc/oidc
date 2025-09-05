@@ -150,18 +150,7 @@ Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ### Client Configuration
 
-The provider supports two pre-configured clients:
-
-#### `cognito-web` - For Cognito Integration
-```javascript
-{
-  "redirectUris": ["https://${COGNITO_DOMAIN}/oauth2/idpresponse"],
-  "grantTypes": ["authorization_code"],
-  "scopes": ["openid", "email", "profile"],
-  "pkceRequired": true,
-  "clientSecret": null // Public client
-}
-```
+TODO: Add more
 
 #### `self-client` - For Direct Testing  
 ```javascript

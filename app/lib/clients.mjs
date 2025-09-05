@@ -3,19 +3,9 @@
 
 const log = (...a) => console.log(JSON.stringify({ level: "info", ts: new Date().toISOString(), msg: a.join(" ") }));
 
-// Get the actual Cognito domain from environment variable, fallback to placeholder
-const getCognitoDomain = () => {
-  return process.env.COGNITO_DOMAIN || "YOUR_COGNITO_DOMAIN.auth.us-east-1.amazoncognito.com";
-};
-
 // Get the base URL for self-client redirects (for direct OP login flow)
 const getSelfClientBaseUrl = () => {
   return process.env.BASE_URL || "http://localhost:8080";
-};
-
-// Get the actual Cognito client ID from environment variable
-const getCognitoClientId = () => {
-  return process.env.COGNITO_CLIENT_ID || "cognito-web";
 };
 
 // Load this from a yml file in the project root
@@ -52,17 +42,6 @@ export const clients = {
     // No client secret for public client used in testing
     clientSecret: null
   },
-    "cognito-web": {
-        // Legacy client name for backward compatibility
-        get redirectUris() {
-            return [`https://${getCognitoDomain()}/oauth2/idpresponse`];
-        },
-        grantTypes: ["authorization_code"],
-        scopes: ["openid", "email", "profile"],
-        pkceRequired: true,
-        // No client secret for public client (Cognito doesn't send one by default)
-        clientSecret: null
-    },
 };
 
 /**
@@ -71,17 +50,6 @@ export const clients = {
  * @returns {object|null} Client configuration or null if not found
  */
 export function getClient(clientId) {
-  // Check if it's the actual Cognito client ID from environment
-  const cognitoClientId = getCognitoClientId();
-  if (clientId === cognitoClientId && clientId !== "cognito-web") {
-    // Return cognito-web config for the real Cognito client ID
-    const client = clients["cognito-web"];
-    if (client) {
-      log("client_found", "cognito_client_id_mapped", clientId);
-      return client;
-    }
-  }
-  
   // Check for exact match in registry
   const client = clients[clientId] || null;
   if (client) {

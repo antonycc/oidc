@@ -42,21 +42,6 @@ class SynthTest {
                 .xrayGroup(observabilityStack.xrayGroup)
                 .build());
 
-    // Create the Cognito stack (independent of provider stack)
-    CognitoStack cognitoStack =
-        new CognitoStack(
-            app,
-            "TestCognitoStack",
-            CognitoStackProps.builder()
-                .env(env)
-                .envName("test")
-                .domainName("oidc.example.com")
-                .authDomainName("auth.oidc.example.com")
-                .authCertificateArn("arn:aws:acm:us-east-1:123456789012:certificate/xyz")
-                .hostedZoneName("example.com")
-                .hostedZoneId("Z000EXAMPLE")
-                .build());
-
     StageSynthesisOptions options = StageSynthesisOptions.builder()
               .skipValidation(false)
               .validateOnSynthesis(true)

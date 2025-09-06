@@ -10,10 +10,9 @@ on:
       prompt_selection:
         description: 'Prompt to send to GitHub Copilot Agent'
         required: false
-        default: 'auto-select'
+        default: 'increase-consistency'
         type: choice
         options:
-          - auto-select
           - expand-capabilities
           - prune-focus
           - abstract-libraries
@@ -24,102 +23,18 @@ on:
         required: false
         default: 'main'
         type: string
+  #schedule:
+  #  - cron: '15 6 * * 1'  # Weekly on Mondays at 6:15 AM UTC
 
 env:
   PROMPT_SELECTION: ${{ inputs.prompt_selection || 'auto-select' }}
   TARGET_BRANCH: ${{ inputs.target_branch || 'main' }}
+  TRIGGER_TYPE: manual
 
 jobs:
-  analyze-repository:
-    name: 'Analyze Repository State'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    outputs:
-      analysis_complete: ${{ steps.analyze.outputs.analysis_complete }}
-      repository_state: ${{ steps.analyze.outputs.repository_state }}
-      recommended_prompt: ${{ steps.analyze.outputs.recommended_prompt }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'npm'
-
-      - run: npm ci
-
-      - name: Analyze repository state
-        id: analyze
-        run: |
-          echo "Analyzing repository state for prompt selection..."
-          
-          # Gather repository metrics
-          TOTAL_JS_FILES=$(find . -name "*.js" -o -name "*.ts" | grep -v node_modules | wc -l)
-          TOTAL_JAVA_FILES=$(find . -name "*.java" | grep -v node_modules | wc -l)
-          TODO_COUNT=$(grep -rn "TODO" --include="*.js" --include="*.ts" --include="*.java" . --exclude-dir=node_modules 2>/dev/null | wc -l)
-          TEST_FILES=$(find . -name "*.test.js" -o -name "*.spec.js" | grep -v node_modules | wc -l)
-          
-          # Check for recent commits indicating development focus
-          RECENT_COMMITS=$(git log --oneline -10 | head -10)
-          
-          # Check for dependencies that might need updating
-          OUTDATED_DEPS=$(npm outdated 2>/dev/null | wc -l || echo "0")
-          
-          # Analyze code complexity indicators
-          LONG_FUNCTIONS=$(find ./app ./web -name "*.js" 2>/dev/null | grep -v node_modules | xargs grep -l "function\|=>" 2>/dev/null | wc -l || echo "0")
-          
-          # Check documentation freshness
-          DOC_FILES=$(find . -name "*.md" | wc -l)
-          README_AGE=$(stat -c %Y README.md 2>/dev/null || echo "0")
-          CURRENT_TIME=$(date +%s)
-          README_DAYS_OLD=$(( (CURRENT_TIME - README_AGE) / 86400 ))
-          
-          # Create repository state summary
-          REPOSITORY_STATE="Repository Analysis:
-          - JavaScript/TypeScript files: $TOTAL_JS_FILES
-          - Java files: $TOTAL_JAVA_FILES  
-          - TODO comments: $TODO_COUNT
-          - Test files: $TEST_FILES
-          - Documentation files: $DOC_FILES
-          - README last modified: $README_DAYS_OLD days ago
-          - Potentially outdated dependencies: $OUTDATED_DEPS
-          - Files with functions: $LONG_FUNCTIONS
-          
-          Recent development activity:
-          $RECENT_COMMITS"
-          
-          echo "repository_state<<EOF" >> $GITHUB_OUTPUT
-          echo "$REPOSITORY_STATE" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          
-          # Auto-recommend prompt based on analysis
-          RECOMMENDED_PROMPT="expand-capabilities"  # Default
-          
-          if [ "$TODO_COUNT" -gt 20 ]; then
-            RECOMMENDED_PROMPT="prune-focus"
-          elif [ "$LONG_FUNCTIONS" -gt 50 ]; then
-            RECOMMENDED_PROMPT="abstract-libraries"
-          elif [ "$README_DAYS_OLD" -gt 90 ]; then
-            RECOMMENDED_PROMPT="refresh-documentation"
-          elif [ "$TOTAL_JS_FILES" -gt 100 ]; then
-            RECOMMENDED_PROMPT="increase-consistency"
-          fi
-          
-          echo "recommended_prompt=$RECOMMENDED_PROMPT" >> $GITHUB_OUTPUT
-          echo "analysis_complete=true" >> $GITHUB_OUTPUT
-          
-          echo "::group::Repository Analysis"
-          echo "$REPOSITORY_STATE"
-          echo "Recommended prompt: $RECOMMENDED_PROMPT"
-          echo "::endgroup::"
 
   setup-github-cli:
     name: 'Setup GitHub CLI'
-    needs: analyze-repository
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -133,31 +48,21 @@ jobs:
         run: |
           echo "Setting up GitHub CLI..."
           
-          # Install GitHub CLI if not available
-          if ! command -v gh &> /dev/null; then
-            echo "Installing GitHub CLI..."
-            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-            sudo apt update
-            sudo apt install gh
-          fi
+          # GitHub CLI is pre-installed on Ubuntu runners
+          # No installation needed, just verify availability and authentication
           
-          # Authenticate with GitHub CLI
-          echo "$GITHUB_TOKEN" | gh auth login --with-token
-          
-          # Test GitHub CLI availability
-          if gh --version &> /dev/null; then
+          # Test GitHub CLI availability and authentication
+          if gh auth status &> /dev/null; then
             echo "gh_available=true" >> $GITHUB_OUTPUT
-            echo "GitHub CLI is available"
+            echo "GitHub CLI is available and authenticated"
           else
             echo "gh_available=false" >> $GITHUB_OUTPUT
-            echo "GitHub CLI is not available"
+            echo "GitHub CLI is not available or not authenticated"
           fi
 
   create-copilot-issue:
     name: 'Create Issue for GitHub Copilot Agent'
-    needs: [analyze-repository, setup-github-cli]
-    if: needs.analyze-repository.outputs.analysis_complete == 'true'
+    needs: [setup-github-cli]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -181,57 +86,30 @@ jobs:
           AWS_HOSTED_ZONE_NAME: ${{ vars.AWS_HOSTED_ZONE_NAME }}
         run: |
           echo "Creating GitHub issue for Copilot Agent with prompt selection: ${{ env.PROMPT_SELECTION }}"
+          echo "Trigger type: ${{ env.TRIGGER_TYPE }}"
           
-          # Determine which prompt to use
-          if [ "${{ env.PROMPT_SELECTION }}" = "auto-select" ]; then
-            SELECTED_PROMPT="${{ needs.analyze-repository.outputs.recommended_prompt }}"
-            echo "Auto-selected prompt: $SELECTED_PROMPT based on repository analysis"
-          else
-            SELECTED_PROMPT="${{ env.PROMPT_SELECTION }}"
-            echo "Using user-selected prompt: $SELECTED_PROMPT"
-          fi
-          
+          SELECTED_PROMPT="${{ env.PROMPT_SELECTION }}"
+          echo "Using user-selected prompt: $SELECTED_PROMPT"
           echo "selected_prompt=$SELECTED_PROMPT" >> $GITHUB_OUTPUT
           
-          # Load the appropriate prompt content
-          case "$SELECTED_PROMPT" in
-            "expand-capabilities")
-              PROMPT_FILE="expand-capabilities.md"
-              ;;
-            "prune-focus") 
-              PROMPT_FILE="prune-focus.md"
-              ;;
-            "abstract-libraries")
-              PROMPT_FILE="abstract-libraries.md"
-              ;;
-            "increase-consistency")
-              PROMPT_FILE="increase-consistency.md"
-              ;;
-            "refresh-documentation")
-              PROMPT_FILE="refresh-documentation.md"
-              ;;
-            *)
-              echo "Unknown prompt selection: $SELECTED_PROMPT"
-              exit 1
-              ;;
-          esac
-          
+          PROMPT_FILE="${SELECTED_PROMPT?}.md"
           if [ ! -f "prompts/$PROMPT_FILE" ]; then
             echo "Prompt file not found: prompts/$PROMPT_FILE"
             exit 1
           fi
-          
           echo "Using prompt file: prompts/$PROMPT_FILE"
           
           # Create issue title and body for Copilot Agent
-          ISSUE_TITLE="Repository Enhancement: $SELECTED_PROMPT ($(date +%Y-%m-%d))"
+          TRIGGER_INFO="Manual Trigger"
+          ISSUE_TITLE="Repository Enhancement: $SELECTED_PROMPT - $TRIGGER_INFO ($(date +%Y-%m-%d))"
           
           cat > issue_body.md << EOF
           ## Repository Enhancement Request
           
           **Prompt Type:** $SELECTED_PROMPT  
           **Target Branch:** ${{ env.TARGET_BRANCH }}  
-          **Triggered by:** ${{ github.workflow }} workflow
+          **Triggered by:** $TRIGGER_INFO (${{ github.workflow }} workflow)
+          **Run ID:** ${{ github.run_id }}
           
           ### Task Description
           $(cat prompts/$PROMPT_FILE)
@@ -258,70 +136,50 @@ jobs:
           
           # Create issue assigned to Copilot Agent
           if [ "${{ needs.setup-github-cli.outputs.gh_available }}" = "true" ]; then
-            echo "Creating issue assigned to @copilot..."
-            ISSUE_NUMBER=$(gh issue create \
+            echo "Creating issue assigned to copilot..."
+            
+            # Try to create the issue with copilot assignee first
+            ISSUE_OUTPUT=$(gh issue create \
               --title "$ISSUE_TITLE" \
               --body-file issue_body.md \
-              --assignee @copilot \
-              --label "enhancement,copilot-agent" | \
-              grep -o '#[0-9]*' | sed 's/#//')
+              --assignee copilot \
+              --label "enhancement,copilot-agent" 2>&1)
+            
+            # If that fails, try without assignee as fallback
+            if [ $? -ne 0 ]; then
+              echo "Failed to create issue with assignee, trying without assignee..."
+              echo "Original error: $ISSUE_OUTPUT"
+              ISSUE_OUTPUT=$(gh issue create \
+                --title "$ISSUE_TITLE" \
+                --body-file issue_body.md \
+                --label "enhancement,copilot-agent" 2>&1)
+            fi
+            
+            # Extract issue number from the output
+            ISSUE_NUMBER=$(echo "$ISSUE_OUTPUT" | grep -o '#[0-9]*' | sed 's/#//' | head -1)
+            
+            # Also try to extract full URL if available
+            ISSUE_URL=$(echo "$ISSUE_OUTPUT" | grep -o 'https://github.com/[^/]*/[^/]*/issues/[0-9]*' | head -1)
             
             if [ -n "$ISSUE_NUMBER" ]; then
               echo "issue_created=true" >> $GITHUB_OUTPUT
               echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
-              echo "Successfully created issue #$ISSUE_NUMBER assigned to Copilot Agent"
+              echo "Successfully created issue #$ISSUE_NUMBER for Copilot Agent"
+              
+              if [ -n "$ISSUE_URL" ]; then
+                echo "Issue URL: $ISSUE_URL"
+              fi
+              
+              # Output for GitHub Actions summary with proper link
+              REPO_URL="https://github.com/${{ github.repository }}"
+              echo "Issue Link: $REPO_URL/issues/$ISSUE_NUMBER"
             else
               echo "issue_created=false" >> $GITHUB_OUTPUT
-              echo "Failed to create issue"
+              echo "Failed to create issue. Output: $ISSUE_OUTPUT"
+              exit 1
             fi
           else
             echo "GitHub CLI not available, cannot create issue"
             echo "issue_created=false" >> $GITHUB_OUTPUT
+            exit 1
           fi
-
-
-
-  create-summary:
-    name: 'Create Summary'  
-    permissions: {}
-    needs: [analyze-repository, setup-github-cli, create-copilot-issue]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Workflow Summary
-        run: |
-          echo "## GitHub Copilot Agent Workflow Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- **Prompt Selection**: ${{ env.PROMPT_SELECTION }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Selected Prompt**: ${{ needs.create-copilot-issue.outputs.selected_prompt }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Repository Analysis**: ${{ needs.analyze-repository.outputs.analysis_complete }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **GitHub CLI Available**: ${{ needs.setup-github-cli.outputs.gh_available }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Issue Created**: ${{ needs.create-copilot-issue.outputs.issue_created }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Issue Number**: ${{ needs.create-copilot-issue.outputs.issue_number }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Target Branch**: ${{ env.TARGET_BRANCH }}" >> $GITHUB_STEP_SUMMARY
-          
-          if [ "${{ needs.analyze-repository.outputs.analysis_complete }}" != "true" ]; then
-            echo "- **Result**: Repository analysis failed" >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ needs.setup-github-cli.outputs.gh_available }}" != "true" ]; then
-            echo "- **Result**: GitHub CLI unavailable" >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ needs.create-copilot-issue.outputs.issue_created }}" = "true" ]; then
-            echo "- **Result**: Successfully created issue #${{ needs.create-copilot-issue.outputs.issue_number }} assigned to @copilot" >> $GITHUB_STEP_SUMMARY
-            echo "- **Next Steps**: Copilot Agent will analyze the issue and create a pull request automatically" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- **Result**: Issue creation failed" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### How It Works" >> $GITHUB_STEP_SUMMARY
-          echo "1. **Analysis**: Workflow analyzes repository state and selects appropriate prompt" >> $GITHUB_STEP_SUMMARY
-          echo "2. **Issue Creation**: Creates GitHub issue assigned to @copilot with detailed context" >> $GITHUB_STEP_SUMMARY
-          echo "3. **Agent Processing**: Copilot coding agent processes the issue automatically" >> $GITHUB_STEP_SUMMARY
-          echo "4. **PR Creation**: Agent creates pull request with proposed changes" >> $GITHUB_STEP_SUMMARY
-          echo "5. **Iteration**: Comment on the PR mentioning @copilot for further changes" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Available Prompts" >> $GITHUB_STEP_SUMMARY
-          echo "- **expand-capabilities**: Suggest ways to expand repository capabilities" >> $GITHUB_STEP_SUMMARY  
-          echo "- **prune-focus**: Identify areas to prune for improved focus" >> $GITHUB_STEP_SUMMARY
-          echo "- **abstract-libraries**: Find opportunities to abstract to libraries" >> $GITHUB_STEP_SUMMARY
-          echo "- **increase-consistency**: Improve consistency across the codebase" >> $GITHUB_STEP_SUMMARY
-          echo "- **refresh-documentation**: Update and improve documentation" >> $GITHUB_STEP_SUMMARY
-          echo "- **auto-select**: Automatically choose the most appropriate prompt" >> $GITHUB_STEP_SUMMARY

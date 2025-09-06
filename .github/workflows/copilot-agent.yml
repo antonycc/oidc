@@ -222,7 +222,7 @@ jobs:
         with:
           script: |
             const issueNumber = ${{ needs.create-issue.outputs.issue_number }};
-            const issueId = "${{ needs.create-issue.outputs.issue_id }}";
+            const issueId = ${{ needs.create-issue.outputs.issue_id }};
             
             console.log(`Assigning issue #${issueNumber} (ID: ${issueId}) to Copilot Agent`);
             

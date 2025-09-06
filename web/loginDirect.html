@@ -11,7 +11,10 @@
       <div class="header-nav">
         <div class="hamburger-menu">
           <button class="hamburger-btn">☰</button>
-          <div class="menu-dropdown"><a href="./index.html">Home</a><a href="./login.html">Login</a><div data-utils-target></div></div>
+          <div class="menu-dropdown">
+            <a href="./index.html">Home</a><a href="./login.html">Login</a>
+            <div data-utils-target></div>
+          </div>
         </div>
         <div class="auth-section"><span class="login-status">Not logged in</span></div>
       </div>
@@ -32,14 +35,19 @@
           </fieldset>
           <fieldset>
             <legend>OIDC Parameters</legend>
-            <label>Client ID <input type="text" name="client_id" value="self-client" required title="OIDC client identifier" /></label>
+            <label
+              >Client ID
+              <input type="text" name="client_id" value="self-client" required title="OIDC client identifier"
+            /></label>
             <label>Redirect URI <input type="url" name="redirect_uri" required /></label>
             <label>Response Type <input type="text" name="response_type" value="code" required readonly /></label>
             <label>Scope <input type="text" name="scope" value="openid email profile" required /></label>
             <label>State <input type="text" name="state" required readonly /></label>
             <label>Nonce <input type="text" name="nonce" required readonly /></label>
             <label>Code Challenge <input type="text" name="code_challenge" required readonly /></label>
-            <label>Code Challenge Method <input type="text" name="code_challenge_method" value="S256" required readonly /></label>
+            <label
+              >Code Challenge Method <input type="text" name="code_challenge_method" value="S256" required readonly
+            /></label>
           </fieldset>
           <button type="submit">Sign in</button>
         </form>
@@ -52,16 +60,16 @@
     <script>
       // URL params and initial UI setup
       const urlParams = new URLSearchParams(window.location.search);
-      const errorMsg = urlParams.get('error');
+      const errorMsg = urlParams.get("error");
       if (errorMsg) {
-        const errorEl = document.getElementById('error');
+        const errorEl = document.getElementById("error");
         errorEl.textContent = errorMsg;
-        errorEl.style.display = 'block';
+        errorEl.style.display = "block";
       }
 
       // Populate redirect_uri from query (?redirect=...)
-      const redirectParam = urlParams.get('redirect_uri');
-      const defaultRedirect = new URL('/post-auth.html', location.origin).toString();
+      const redirectParam = urlParams.get("redirect_uri");
+      const defaultRedirect = new URL("/post-auth.html", location.origin).toString();
       let resolvedRedirect;
       try {
         if (redirectParam) {
@@ -80,14 +88,14 @@
       try {
         const r = new URL(resolvedRedirect);
         if (r.host && r.host !== location.host) {
-          const backWrapper = document.getElementById('backLinkWrapper');
-          if (backWrapper) backWrapper.style.display = 'none';
+          const backWrapper = document.getElementById("backLinkWrapper");
+          if (backWrapper) backWrapper.style.display = "none";
         }
       } catch {}
 
       // Pre-fill client_id if provided via query param
       const clientIdInput = document.querySelector('input[name="client_id"]');
-      const clientIdParam = urlParams.get('client_id');
+      const clientIdParam = urlParams.get("client_id");
       if (clientIdParam && clientIdInput) {
         clientIdInput.value = clientIdParam;
       }
@@ -110,11 +118,11 @@
       form.setAttribute("action", "/authorize");
       form.setAttribute("method", "POST");
       form.setAttribute("autocomplete", "on");
-      const actionDisplay = document.getElementById('formActionDisplay');
-      
+      const actionDisplay = document.getElementById("formActionDisplay");
+
       // Calculate fully qualified URL for form action display
       if (actionDisplay) {
-        const actionUrl = form.getAttribute('action');
+        const actionUrl = form.getAttribute("action");
         let displayUrl = actionUrl;
         try {
           // If the action URL is not already a full URL (doesn't start with protocol), make it fully qualified
@@ -178,15 +186,14 @@
         const { state, code_verifier } = window.pkceData;
 
         // Stash PKCE for post-auth token exchange
-        sessionStorage.setItem(
-          "pkce:" + state,
-          JSON.stringify({ code_verifier, client_id, redirect_uri })
-        );
+        sessionStorage.setItem("pkce:" + state, JSON.stringify({ code_verifier, client_id, redirect_uri }));
 
         // Submit the form to trigger a real navigation handled by the browser
         form.submit();
       });
     </script>
-    <footer><small>© 2025 <a href="https://github.com/antonycc/oidc">@antonycc/oidc</a></small></footer>
+    <footer>
+      <small>© 2025 <a href="https://github.com/antonycc/oidc">@antonycc/oidc</a></small>
+    </footer>
   </body>
 </html>

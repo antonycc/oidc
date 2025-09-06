@@ -1,4 +1,4 @@
-import {expect, request, test} from "@playwright/test";
+import { expect, request, test } from "@playwright/test";
 import * as crypto from "node:crypto";
 
 // use dotenv variables for sensitive info
@@ -73,9 +73,9 @@ test("live API: authorize -> token -> userinfo", async ({ page }) => {
   async function tryAuthorize(password: string) {
     const body = new URLSearchParams({ username: TEST_USERNAME, password }).toString();
     return await ctx.fetch(authorizeUrl.toString(), {
-        method: "POST",
-        headers: {"content-type": "application/x-www-form-urlencoded"},
-        data: body,
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      data: body,
     });
   }
 

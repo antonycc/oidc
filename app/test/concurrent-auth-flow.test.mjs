@@ -125,12 +125,10 @@ describe("Concurrent auth->token->userinfo flows", () => {
   });
 
   it("handles multiple concurrent auth flows", async () => {
-    const promises = Array.from({ length: 5 }, (_, i) => 
-      completeAuthFlow(`user-${i}`, "self-client")
-    );
+    const promises = Array.from({ length: 5 }, (_, i) => completeAuthFlow(`user-${i}`, "self-client"));
 
     const results = await Promise.all(promises);
-    
+
     // Verify all flows completed successfully
     expect(results).toHaveLength(5);
     results.forEach((result, i) => {
@@ -139,7 +137,7 @@ describe("Concurrent auth->token->userinfo flows", () => {
     });
 
     // Verify all codes are unique
-    const codes = results.map(r => r.code);
+    const codes = results.map((r) => r.code);
     const uniqueCodes = new Set(codes);
     expect(uniqueCodes.size).toBe(5);
   });
@@ -148,7 +146,7 @@ describe("Concurrent auth->token->userinfo flows", () => {
     const getRes = await fetch(new URL("/authorize?client_id=test", BASE_URL), {
       method: "GET",
     });
-    
+
     expect(getRes.status).toBe(405);
     const text = await getRes.text();
     expect(text).toBe("method_not_allowed");
@@ -175,18 +173,20 @@ describe("Concurrent auth->token->userinfo flows", () => {
     });
 
     const results = await Promise.all(promises);
-    
+
     // All should return 400 invalid_client
-    await Promise.all(results.map(async (res) => {
-      expect(res.status).toBe(400);
-      const text = await res.text();
-      expect(text).toBe("invalid_client");
-    }));
+    await Promise.all(
+      results.map(async (res) => {
+        expect(res.status).toBe(400);
+        const text = await res.text();
+        expect(text).toBe("invalid_client");
+      }),
+    );
   });
 
   it("handles token reuse attempts", async () => {
     const { code, tokenJson } = await completeAuthFlow();
-    
+
     // Try to use the same code again
     const tokenBody = new URLSearchParams({
       grant_type: "authorization_code",
@@ -208,7 +208,7 @@ describe("Concurrent auth->token->userinfo flows", () => {
 
   it("validates access tokens correctly", async () => {
     const { tokenJson } = await completeAuthFlow();
-    
+
     // Valid token should work
     const validRes = await fetch(new URL("/userinfo", BASE_URL), {
       headers: { authorization: `Bearer ${tokenJson.access_token}` },

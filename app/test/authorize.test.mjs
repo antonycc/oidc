@@ -7,8 +7,8 @@ vi.mock("../lib/db.mjs", () => ({
   put: vi.fn(),
   tables: {
     codes: "test-codes-table",
-    users: "test-users-table"
-  }
+    users: "test-users-table",
+  },
 }));
 
 const baseEvent = () => ({
@@ -63,7 +63,7 @@ describe("authorize", () => {
     // Ensure BASE_URL is not set so it falls back to localhost:8080
     const originalBaseUrl = process.env.BASE_URL;
     delete process.env.BASE_URL;
-    
+
     try {
       const e = {
         ...baseEvent(),

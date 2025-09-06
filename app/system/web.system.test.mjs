@@ -49,7 +49,7 @@ describe("system(jsdom): web UI basics without Playwright", () => {
     const future = Date.now() + 60_000;
     localStorage.setItem(
       "oidc_tokens",
-      JSON.stringify({ access_token: "t", id_token: "i", expires_at: future, userinfo: { name: "Test User" } })
+      JSON.stringify({ access_token: "t", id_token: "i", expires_at: future, userinfo: { name: "Test User" } }),
     );
 
     loadHtmlAndScripts(filePath);

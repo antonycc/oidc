@@ -4,11 +4,7 @@
     {
       "Sid": "VisualEditor0",
       "Effect": "Allow",
-      "Action": [
-        "lambda:*",
-        "cloudfront:*",
-        "dynamodb:*"
-      ],
+      "Action": ["lambda:*", "cloudfront:*", "dynamodb:*"],
       "Resource": "*"
     }
   ]

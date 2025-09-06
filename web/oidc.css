@@ -109,14 +109,14 @@ h2 {
 }
 
 .button.primary {
-  background: #2196F3;
-  border-color: #2196F3;
+  background: #2196f3;
+  border-color: #2196f3;
   color: white;
 }
 
 .button.primary:hover {
-  background: #1976D2;
-  border-color: #1976D2;
+  background: #1976d2;
+  border-color: #1976d2;
   color: white;
 }
 
@@ -178,7 +178,6 @@ footer {
   margin: 12px 0;
 }
 
-
 /* Hamburger dropdown popup */
 .hamburger-menu {
   position: relative;
@@ -206,7 +205,6 @@ footer {
 .menu-dropdown a:hover {
   background: #f6f8fa;
 }
-
 
 /* Modal components */
 #modal-root {

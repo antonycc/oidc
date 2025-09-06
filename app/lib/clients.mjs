@@ -1,7 +1,7 @@
 // Client registry for OIDC provider
 // In production, this could be stored in DynamoDB or another data store
 
-const log = (...a) => console.log(JSON.stringify({ level: "info", ts: new Date().toISOString(), msg: a.join(" ") }));
+import { log } from "./utils.mjs";
 
 // Get the base URL for self-client redirects (for direct OP login flow)
 const getSelfClientBaseUrl = () => {
@@ -13,16 +13,16 @@ export const clients = {
   "submit-diyaccounting-co-uk": {
     get redirectUris() {
       return [
-          `http://localhost:3000/auth/loginWithAntonyccCallback.html`,
-          `https://wanted-finally-anteater.ngrok-free.app/auth/loginWithAntonyccCallback.html`,
-          `https://ci.submit.diyaccounting.co.uk/auth/loginWithAntonyccCallback.html`,
-          `https://submit.diyaccounting.co.uk/auth/loginWithAntonyccCallback.html`,
+        `http://localhost:3000/auth/loginWithAntonyccCallback.html`,
+        `https://wanted-finally-anteater.ngrok-free.app/auth/loginWithAntonyccCallback.html`,
+        `https://ci.submit.diyaccounting.co.uk/auth/loginWithAntonyccCallback.html`,
+        `https://submit.diyaccounting.co.uk/auth/loginWithAntonyccCallback.html`,
       ];
     },
     grantTypes: ["authorization_code"],
     scopes: ["openid", "email", "profile"],
     pkceRequired: true,
-    clientSecret: null
+    clientSecret: null,
   },
   "self-client": {
     // Client for direct login form testing - allows any redirect URI to the same origin
@@ -30,17 +30,13 @@ export const clients = {
       // Get base URL from environment, fallback to localhost for development
       const baseUrl = process.env.BASE_URL || process.env.ISSUER || "http://localhost:3000";
       const url = new URL(baseUrl);
-      return [
-        `${url.origin}/post-auth.html`,
-        `${url.origin}/callback.html`,
-        `${url.origin}/login-callback.html`
-      ];
+      return [`${url.origin}/post-auth.html`, `${url.origin}/callback.html`, `${url.origin}/login-callback.html`];
     },
     grantTypes: ["authorization_code"],
     scopes: ["openid", "email", "profile"],
     pkceRequired: true,
     // No client secret for public client used in testing
-    clientSecret: null
+    clientSecret: null,
   },
 };
 
@@ -61,13 +57,13 @@ export function getClient(clientId) {
 }
 
 export function isValidRedirectUri(client, redirectUri) {
-    if (!client || !redirectUri) return false;
-    try {
-        const u = new URL(redirectUri);
-        return client.redirectPattern?.test(u.toString()) === true;
-    } catch {
-        return false;
-    }
+  if (!client || !redirectUri) return false;
+  try {
+    const u = new URL(redirectUri);
+    return client.redirectPattern?.test(u.toString()) === true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -100,20 +96,20 @@ export function validateScopes(clientId, scopes) {
     log("scope_validation_failed", "client_not_found", clientId);
     return false;
   }
-  
+
   const requestedScopes = scopes.split(" ");
   const allowedScopes = client.scopes;
-  const allValid = requestedScopes.every(scope => allowedScopes.includes(scope));
-  
+  const allValid = requestedScopes.every((scope) => allowedScopes.includes(scope));
+
   log("scope_validation", clientId, scopes, allValid ? "valid" : "invalid");
   return allValid;
 }
 
 export function isScopeSubset(client, requestedScopeStr) {
-    if (!client) return false;
-    const requested = new Set((requestedScopeStr || "").split(/\s+/).filter(Boolean));
-    for (const s of requested) if (!client.scopes.includes(s)) return false;
-    return requested.size > 0 && requested.has("openid");
+  if (!client) return false;
+  const requested = new Set((requestedScopeStr || "").split(/\s+/).filter(Boolean));
+  for (const s of requested) if (!client.scopes.includes(s)) return false;
+  return requested.size > 0 && requested.has("openid");
 }
 
 /**
@@ -138,13 +134,13 @@ export function validateClientAuth(clientId, clientSecret = null) {
     log("client_auth_failed", "client_not_found", clientId);
     return false;
   }
-  
+
   // For public clients (like Cognito), no secret is required
   if (client.clientSecret === null && clientSecret === null) {
     log("client_auth_success", "public_client", clientId);
     return true;
   }
-  
+
   // For confidential clients, secret must match
   const isValid = client.clientSecret === clientSecret;
   log("client_auth", clientId, isValid ? "success" : "failed");

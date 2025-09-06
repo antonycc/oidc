@@ -283,6 +283,7 @@ jobs:
 
   create-summary:
     name: 'Create Summary'  
+    permissions: {}
     needs: [analyze-repository, setup-copilot, invoke-copilot-agent]
     if: always()
     runs-on: ubuntu-latest

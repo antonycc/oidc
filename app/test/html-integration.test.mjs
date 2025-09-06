@@ -130,7 +130,7 @@ describe("HTML page userinfo integration", () => {
       try {
         const [, payload] = jwt.split(".");
         const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
-        const paddedBase64 = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+        const paddedBase64 = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
         return JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(paddedBase64), (c) => c.charCodeAt(0))));
       } catch {
         return null;

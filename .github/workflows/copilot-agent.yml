@@ -10,9 +10,10 @@ on:
       prompt_selection:
         description: 'Prompt to send to GitHub Copilot Agent'
         required: false
-        default: 'increase-consistency'
+        default: 'auto-select'
         type: choice
         options:
+          - auto-select
           - expand-capabilities
           - prune-focus
           - abstract-libraries

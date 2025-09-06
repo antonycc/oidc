@@ -218,16 +218,16 @@ jobs:
               ;;
           esac
           
-          if [ ! -f "$PROMPT_FILE" ]; then
-            echo "Prompt file not found: $PROMPT_FILE"
+          if [ ! -f "prompts/$PROMPT_FILE" ]; then
+            echo "Prompt file not found: prompts/$PROMPT_FILE"
             exit 1
           fi
           
-          echo "Using prompt file: $PROMPT_FILE"
+          echo "Using prompt file: prompts/$PROMPT_FILE"
           
           # Create comprehensive prompt for Copilot Agent
           cat > copilot_agent_prompt.txt << EOF
-          $(cat $PROMPT_FILE)
+          $(cat prompts/$PROMPT_FILE)
           
           Repository Context:
           ${{ needs.analyze-repository.outputs.repository_state }}

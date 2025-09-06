@@ -23,12 +23,18 @@ on:
         required: false
         default: 'main'
         type: string
+      copilot_agent_login:
+        description: 'GitHub login name of the Copilot agent to assign issues to'
+        required: false
+        default: 'copilot-swe-agent'
+        type: string
   #schedule:
   #  - cron: '15 6 * * 1'  # Weekly on Mondays at 6:15 AM UTC
 
 env:
   PROMPT_SELECTION: ${{ inputs.prompt_selection || 'auto-select' }}
   TARGET_BRANCH: ${{ inputs.target_branch || 'main' }}
+  COPILOT_AGENT_LOGIN: ${{ inputs.copilot_agent_login || 'copilot-swe-agent' }}
   TRIGGER_TYPE: manual
 
 jobs:
@@ -60,7 +66,7 @@ jobs:
             echo "GitHub CLI is not available or not authenticated"
           fi
 
-  create-copilot-issue:
+  create-issue:
     name: 'Create Issue for GitHub Copilot Agent'
     needs: [setup-github-cli]
     runs-on: ubuntu-latest
@@ -70,6 +76,8 @@ jobs:
     outputs:
       issue_created: ${{ steps.create.outputs.issue_created }}
       issue_number: ${{ steps.create.outputs.issue_number }}
+      issue_id: ${{ steps.create.outputs.issue_id }}
+      issue_url: ${{ steps.create.outputs.issue_url }}
       selected_prompt: ${{ steps.create.outputs.selected_prompt }}
     steps:
       - name: Checkout repository  
@@ -77,109 +85,248 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Create issue for Copilot Agent with selected prompt
+      - name: Create issue using GitHub Script
         id: create
+        uses: actions/github-script@v7
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AWS_CERTIFICATE_ARN: ${{ vars.AWS_CERTIFICATE_ARN }}
           AWS_HOSTED_ZONE_ID: ${{ vars.AWS_HOSTED_ZONE_ID }}
           AWS_HOSTED_ZONE_NAME: ${{ vars.AWS_HOSTED_ZONE_NAME }}
+        with:
+          script: |
+            const fs = require('fs');
+            
+            console.log("Creating GitHub issue for Copilot Agent with prompt selection: ${{ env.PROMPT_SELECTION }}");
+            console.log("Trigger type: ${{ env.TRIGGER_TYPE }}");
+            
+            const selectedPrompt = "${{ env.PROMPT_SELECTION }}";
+            console.log(`Using user-selected prompt: ${selectedPrompt}`);
+            core.setOutput('selected_prompt', selectedPrompt);
+            
+            const promptFile = `${selectedPrompt}.md`;
+            const promptPath = `prompts/${promptFile}`;
+            
+            if (!fs.existsSync(promptPath)) {
+              core.setFailed(`Prompt file not found: ${promptPath}`);
+              return;
+            }
+            console.log(`Using prompt file: ${promptPath}`);
+            
+            // Read prompt content
+            const promptContent = fs.readFileSync(promptPath, 'utf8');
+            
+            // Create issue title and body for Copilot Agent
+            const triggerInfo = "Manual Trigger";
+            const issueTitle = `Repository Enhancement: ${selectedPrompt} - ${triggerInfo} (${new Date().toISOString().split('T')[0]})`;
+            
+            const envConfig = [
+              `- AWS_CERTIFICATE_ARN: ${{ vars.AWS_CERTIFICATE_ARN && 'configured' || 'not set' }}`,
+              `- AWS_HOSTED_ZONE_ID: ${{ vars.AWS_HOSTED_ZONE_ID && 'configured' || 'not set' }}`,
+              `- AWS_HOSTED_ZONE_NAME: ${{ vars.AWS_HOSTED_ZONE_NAME && 'configured' || 'not set' }}`
+            ].join('\n');
+            
+            const issueBody = `## Repository Enhancement Request
+
+            **Prompt Type:** ${selectedPrompt}  
+            **Target Branch:** ${{ env.TARGET_BRANCH }}  
+            **Triggered by:** ${triggerInfo} (${{ github.workflow }} workflow)
+            **Run ID:** ${{ github.run_id }}
+            
+            ### Task Description
+            ${promptContent}
+            
+            ### Environment Configuration
+            ${envConfig}
+            
+            ### Instructions for Copilot Agent
+            Please provide specific, actionable recommendations and implementations based on the current repository state. Focus on changes that can be implemented incrementally and maintain the existing architecture patterns.
+            
+            Create a pull request with your proposed changes targeting the \`${{ env.TARGET_BRANCH }}\` branch.`;
+            
+            console.log("Issue Content:");
+            console.log(`Title: ${issueTitle}`);
+            console.log(`Body: ${issueBody}`);
+            
+            try {
+              // Get repository ID first
+              const repoQuery = `
+                query($owner: String!, $name: String!) {
+                  repository(owner: $owner, name: $name) {
+                    id
+                  }
+                }
+              `;
+              
+              const repoResult = await github.graphql(repoQuery, {
+                owner: context.repo.owner,
+                name: context.repo.repo
+              });
+              
+              const repositoryId = repoResult.repository.id;
+              console.log(`Repository ID: ${repositoryId}`);
+              
+              // Create issue using GraphQL
+              const createIssueMutation = `
+                mutation($repositoryId: ID!, $title: String!, $body: String!) {
+                  createIssue(input: {
+                    repositoryId: $repositoryId,
+                    title: $title,
+                    body: $body,
+                    labelIds: []
+                  }) {
+                    issue {
+                      id
+                      number
+                      title
+                      url
+                    }
+                  }
+                }
+              `;
+              
+              const createResult = await github.graphql(createIssueMutation, {
+                repositoryId: repositoryId,
+                title: issueTitle,
+                body: issueBody
+              });
+              
+              const issue = createResult.createIssue.issue;
+              
+              console.log(`Successfully created issue #${issue.number} (ID: ${issue.id})`);
+              console.log(`Issue URL: ${issue.url}`);
+              
+              // Add labels using REST API as it's more straightforward
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: ["enhancement", "copilot-agent"]
+              });
+              
+              core.setOutput('issue_created', 'true');
+              core.setOutput('issue_number', issue.number.toString());
+              core.setOutput('issue_id', issue.id);
+              core.setOutput('issue_url', issue.url);
+              
+            } catch (error) {
+              console.error('Failed to create issue:', error);
+              core.setFailed(`Failed to create issue: ${error.message}`);
+              core.setOutput('issue_created', 'false');
+            }
+
+      - name: Display issue link
+        if: steps.create.outputs.issue_created == 'true'
         run: |
-          echo "Creating GitHub issue for Copilot Agent with prompt selection: ${{ env.PROMPT_SELECTION }}"
-          echo "Trigger type: ${{ env.TRIGGER_TYPE }}"
-          
-          SELECTED_PROMPT="${{ env.PROMPT_SELECTION }}"
-          echo "Using user-selected prompt: $SELECTED_PROMPT"
-          echo "selected_prompt=$SELECTED_PROMPT" >> $GITHUB_OUTPUT
-          
-          PROMPT_FILE="${SELECTED_PROMPT?}.md"
-          if [ ! -f "prompts/$PROMPT_FILE" ]; then
-            echo "Prompt file not found: prompts/$PROMPT_FILE"
-            exit 1
-          fi
-          echo "Using prompt file: prompts/$PROMPT_FILE"
-          
-          # Create issue title and body for Copilot Agent
-          TRIGGER_INFO="Manual Trigger"
-          ISSUE_TITLE="Repository Enhancement: $SELECTED_PROMPT - $TRIGGER_INFO ($(date +%Y-%m-%d))"
-          
-          cat > issue_body.md << EOF
-          ## Repository Enhancement Request
-          
-          **Prompt Type:** $SELECTED_PROMPT  
-          **Target Branch:** ${{ env.TARGET_BRANCH }}  
-          **Triggered by:** $TRIGGER_INFO (${{ github.workflow }} workflow)
-          **Run ID:** ${{ github.run_id }}
-          
-          ### Task Description
-          $(cat prompts/$PROMPT_FILE)
-          
-          ### Repository Context
-          ${{ needs.analyze-repository.outputs.repository_state }}
-          
-          ### Environment Configuration
-          - AWS_CERTIFICATE_ARN: ${{ vars.AWS_CERTIFICATE_ARN && 'configured' || 'not set' }}
-          - AWS_HOSTED_ZONE_ID: ${{ vars.AWS_HOSTED_ZONE_ID && 'configured' || 'not set' }}
-          - AWS_HOSTED_ZONE_NAME: ${{ vars.AWS_HOSTED_ZONE_NAME && 'configured' || 'not set' }}
-          
-          ### Instructions for Copilot Agent
-          Please provide specific, actionable recommendations and implementations based on the current repository state. Focus on changes that can be implemented incrementally and maintain the existing architecture patterns.
-          
-          Create a pull request with your proposed changes targeting the \`${{ env.TARGET_BRANCH }}\` branch.
-          EOF
-          
-          echo "::group::Issue Content"
-          echo "Title: $ISSUE_TITLE"
-          echo "Body:"
-          cat issue_body.md
-          echo "::endgroup::"
-          
-          # Create issue assigned to Copilot Agent
-          if [ "${{ needs.setup-github-cli.outputs.gh_available }}" = "true" ]; then
-            echo "Creating issue assigned to copilot..."
+          echo "✅ **Issue Created:** #${{ steps.create.outputs.issue_number }}"
+          echo "🔗 **Issue Link:** ${{ steps.create.outputs.issue_url }}"
+
+  assign-issue:
+    name: 'Assign Issue to GitHub Copilot Agent'
+    needs: [create-issue]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    outputs:
+      issue_assigned: ${{ steps.assign.outputs.issue_assigned }}
+    steps:
+      - name: Assign issue to Copilot using GitHub Script
+        id: assign
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          script: |
+            const issueNumber = ${{ needs.create-issue.outputs.issue_number }};
+            const issueId = '${{ needs.create-issue.outputs.issue_id }}';
             
-            # Try to create the issue with copilot assignee first
-            ISSUE_OUTPUT=$(gh issue create \
-              --title "$ISSUE_TITLE" \
-              --body-file issue_body.md \
-              --assignee copilot \
-              --label "enhancement,copilot-agent" 2>&1)
+            console.log(`Assigning issue #${issueNumber} (ID: ${issueId}) to Copilot Agent`);
             
-            # If that fails, try without assignee as fallback
-            if [ $? -ne 0 ]; then
-              echo "Failed to create issue with assignee, trying without assignee..."
-              echo "Original error: $ISSUE_OUTPUT"
-              ISSUE_OUTPUT=$(gh issue create \
-                --title "$ISSUE_TITLE" \
-                --body-file issue_body.md \
-                --label "enhancement,copilot-agent" 2>&1)
-            fi
-            
-            # Extract issue number from the output
-            ISSUE_NUMBER=$(echo "$ISSUE_OUTPUT" | grep -o '#[0-9]*' | sed 's/#//' | head -1)
-            
-            # Also try to extract full URL if available
-            ISSUE_URL=$(echo "$ISSUE_OUTPUT" | grep -o 'https://github.com/[^/]*/[^/]*/issues/[0-9]*' | head -1)
-            
-            if [ -n "$ISSUE_NUMBER" ]; then
-              echo "issue_created=true" >> $GITHUB_OUTPUT
-              echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
-              echo "Successfully created issue #$ISSUE_NUMBER for Copilot Agent"
+            try {
+              // First, get the Copilot bot ID from repository suggested actors
+              const suggestedActorsQuery = `
+                query($owner: String!, $name: String!) {
+                  repository(owner: $owner, name: $name) {
+                    suggestedActors(capabilities: [CAN_BE_ASSIGNED], first: 100) {
+                      nodes {
+                        login
+                        __typename
+                        ... on Bot {
+                          id
+                        }
+                        ... on User {
+                          id
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
               
-              if [ -n "$ISSUE_URL" ]; then
-                echo "Issue URL: $ISSUE_URL"
-              fi
+              const actorsResult = await github.graphql(suggestedActorsQuery, {
+                owner: context.repo.owner,
+                name: context.repo.repo
+              });
               
-              # Output for GitHub Actions summary with proper link
-              REPO_URL="https://github.com/${{ github.repository }}"
-              echo "Issue Link: $REPO_URL/issues/$ISSUE_NUMBER"
-            else
-              echo "issue_created=false" >> $GITHUB_OUTPUT
-              echo "Failed to create issue. Output: $ISSUE_OUTPUT"
-              exit 1
-            fi
+              console.log('Available suggested actors:', actorsResult.repository.suggestedActors.nodes.map(n => n.login));
+              
+              // Find the copilot agent
+              const copilotBot = actorsResult.repository.suggestedActors.nodes.find(
+                actor => actor.login === '${{ env.COPILOT_AGENT_LOGIN }}'
+              );
+              
+              if (!copilotBot) {
+                console.log('Copilot coding agent not found in suggested actors. Available actors:', 
+                  actorsResult.repository.suggestedActors.nodes.map(n => n.login));
+                core.setOutput('issue_assigned', 'false');
+                // Don't fail the workflow - just log that assignment wasn't possible
+                return;
+              }
+              
+              console.log(`Found Copilot bot with ID: ${copilotBot.id}`);
+              
+              // Assign the issue to Copilot using GraphQL mutation
+              const assignIssueMutation = `
+                mutation($assignableId: ID!, $actorIds: [ID!]!) {
+                  replaceActorsForAssignable(input: {
+                    assignableId: $assignableId,
+                    actorIds: $actorIds
+                  }) {
+                    assignable {
+                      ... on Issue {
+                        id
+                        title
+                        assignees(first: 10) {
+                          nodes {
+                            login
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+              
+              const assignResult = await github.graphql(assignIssueMutation, {
+                assignableId: issueId,
+                actorIds: [copilotBot.id]
+              });
+              
+              const assignees = assignResult.replaceActorsForAssignable.assignable.assignees.nodes.map(n => n.login);
+              console.log(`Successfully assigned issue to: ${assignees.join(', ')}`);
+              
+              core.setOutput('issue_assigned', 'true');
+              
+            } catch (error) {
+              console.error('Failed to assign issue to Copilot:', error);
+              console.log('Issue was created successfully but assignment failed - this is not critical');
+              core.setOutput('issue_assigned', 'false');
+              // Don't fail the workflow - the issue was created successfully
+            }
+
+      - name: Display assignment status
+        run: |
+          if [ "${{ steps.assign.outputs.issue_assigned }}" = "true" ]; then
+            echo "✅ **Assignment:** Successfully assigned to ${{ env.COPILOT_AGENT_LOGIN }}"
           else
-            echo "GitHub CLI not available, cannot create issue"
-            echo "issue_created=false" >> $GITHUB_OUTPUT
-            exit 1
+            echo "⚠️ **Assignment:** Failed or ${{ env.COPILOT_AGENT_LOGIN }} not available (issue still created)"
           fi

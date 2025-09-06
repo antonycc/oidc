@@ -1,7 +1,6 @@
 import * as jose from "jose";
 import { get, put, tables } from "./db.mjs";
-
-const log = (...a) => console.log(JSON.stringify({ level: "info", ts: new Date().toISOString(), msg: a.join(" ") }));
+import { log } from "./utils.mjs";
 
 // Stable keypair with DynamoDB persistence. In production, use S3/KMS for rotation.
 let jwkPrivate,
@@ -31,7 +30,7 @@ async function saveToStore() {
       code: "jwk-key-store",
       privateKey: jwkPrivate,
       publicKey: jwkPublic,
-      ttl: Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60), // 1 year TTL for key storage
+      ttl: Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60, // 1 year TTL for key storage
     });
     log("keys_saved_to_store");
   } catch (error) {
@@ -41,10 +40,10 @@ async function saveToStore() {
 
 export async function ensureKeys(generateIfMissing = true) {
   if (jwkPrivate && jwkPublic) return true;
-  
+
   // Try to load existing keys from store
   if (await loadFromStore()) return true;
-  
+
   if (!generateIfMissing) {
     // Do not generate keys in verifier contexts to avoid cross-function key mismatches
     return false;
@@ -60,7 +59,7 @@ export async function ensureKeys(generateIfMissing = true) {
   jwkPublic.kid = kid;
   jwkPublic.use = "sig";
   jwkPublic.alg = "RS256";
-  
+
   // Save keys to store for future use
   await saveToStore();
   return true;

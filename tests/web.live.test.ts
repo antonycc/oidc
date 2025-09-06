@@ -11,8 +11,8 @@ const TEST_PASSWORD = process.env.TEST_PASSWORD || "";
 
 // @ts-ignore
 test("Home renders", async ({ page }) => {
-    await page.goto(new URL("/", BASE_URL).toString());
-    await expect(page.getByRole("heading", { name: "OIDC - Home" })).toBeVisible();
+  await page.goto(new URL("/", BASE_URL).toString());
+  await expect(page.getByRole("heading", { name: "OIDC - Home" })).toBeVisible();
 });
 
 // @ts-ignore
@@ -37,4 +37,3 @@ test("Direct login form: successful login returns tokens and claims", async ({ p
   await expect(page.locator("#result")).toContainText("id_token");
   await expect(page.locator("#claims")).toContainText("sub");
 });
-

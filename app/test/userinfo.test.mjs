@@ -6,15 +6,15 @@ vi.stubEnv("USERS_TABLE", "test-users-table");
 
 // Mock the crypto module
 vi.mock("../lib/crypto.mjs", () => ({
-  verifyJwt: vi.fn()
+  verifyJwt: vi.fn(),
 }));
 
 // Mock the database calls
 vi.mock("../lib/db.mjs", () => ({
   get: vi.fn(),
   tables: {
-    users: "test-users-table"
-  }
+    users: "test-users-table",
+  },
 }));
 
 const { verifyJwt } = await import("../lib/crypto.mjs");
@@ -27,11 +27,11 @@ describe("userinfo", () => {
 
   it("returns error for missing authorization header", async () => {
     const event = {
-      headers: {}
+      headers: {},
     };
 
     const response = await userinfo(event);
-    
+
     expect(response.statusCode).toBe(401);
     const body = JSON.parse(response.body);
     expect(body.error).toBe("invalid_request");
@@ -42,12 +42,12 @@ describe("userinfo", () => {
 
     const event = {
       headers: {
-        authorization: "Bearer invalid-token"
-      }
+        authorization: "Bearer invalid-token",
+      },
     };
 
     const response = await userinfo(event);
-    
+
     expect(response.statusCode).toBe(401);
     const body = JSON.parse(response.body);
     expect(body.error).toBe("invalid_token");
@@ -56,17 +56,17 @@ describe("userinfo", () => {
   it("returns basic userinfo for valid token", async () => {
     verifyJwt.mockResolvedValueOnce({
       sub: "test-user",
-      scope: "openid"
+      scope: "openid",
     });
 
     const event = {
       headers: {
-        authorization: "Bearer valid-token"
-      }
+        authorization: "Bearer valid-token",
+      },
     };
 
     const response = await userinfo(event);
-    
+
     expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
     expect(body.sub).toBe("test-user");
@@ -76,24 +76,24 @@ describe("userinfo", () => {
   it("returns email claims for email scope", async () => {
     verifyJwt.mockResolvedValueOnce({
       sub: "test-user",
-      scope: "openid email"
+      scope: "openid email",
     });
 
     get.mockResolvedValueOnce({
       Item: {
         email: "test@example.com",
-        emailVerified: true
-      }
+        emailVerified: true,
+      },
     });
 
     const event = {
       headers: {
-        authorization: "Bearer valid-token"
-      }
+        authorization: "Bearer valid-token",
+      },
     };
 
     const response = await userinfo(event);
-    
+
     expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
     expect(body.sub).toBe("test-user");

@@ -1,28 +1,25 @@
 import { publicJwks } from "../lib/crypto.mjs";
+import { log, logError, createJsonResponse } from "../lib/utils.mjs";
 
-const log = (...a) => console.log(JSON.stringify({ level: "info", ts: new Date().toISOString(), msg: a.join(" ") }));
-
+/**
+ * OIDC JWKS (JSON Web Key Set) endpoint handler
+ * Returns the public keys used for token verification
+ *
+ * @param {Object} event - Lambda event object (unused for JWKS)
+ * @returns {Promise<Object>} Lambda response object with JWKS or error
+ */
 export const handler = async (event) => {
   try {
     log("jwks_request");
-    
+
     // Get the current public keys
     const jwks = await publicJwks();
-    
-    return {
-      statusCode: 200,
-      headers: {
-        "content-type": "application/json",
-        "cache-control": "public, max-age=3600", // Cache for 1 hour since keys are stable
-      },
-      body: JSON.stringify(jwks),
-    };
+
+    return createJsonResponse(200, jwks, {
+      "cache-control": "public, max-age=3600", // Cache for 1 hour since keys are stable
+    });
   } catch (e) {
-    console.error("jwks_error", e);
-    return {
-      statusCode: 500,
-      headers: { "content-type": "application/json", "cache-control": "no-store" },
-      body: JSON.stringify({ error: "server_error" }),
-    };
+    logError("jwks_error", e);
+    return createJsonResponse(500, { error: "server_error" }, { "cache-control": "no-store" });
   }
 };

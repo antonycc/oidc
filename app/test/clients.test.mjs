@@ -28,11 +28,8 @@ describe("clients dynamic configuration", () => {
 
   it("rejects invalid self-client redirect URI", () => {
     process.env.BASE_URL = "https://test.example.com";
-    
-    const isValid = validateRedirectUri(
-      "self-client", 
-      "https://evil.com/post-auth.html"
-    );
+
+    const isValid = validateRedirectUri("self-client", "https://evil.com/post-auth.html");
     expect(isValid).toBe(false);
   });
 });

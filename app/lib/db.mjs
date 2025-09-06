@@ -79,7 +79,7 @@ export const scan = (TableName) => {
   if (isMem(TableName)) {
     const store = memGetStore(TableName);
     return Promise.resolve({ Items: Array.from(store.values()) });
-    }
+  }
   return ddb.send(new ScanCommand({ TableName }));
 };
 

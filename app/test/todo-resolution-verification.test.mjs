@@ -14,7 +14,7 @@ describe("TODO Resolution Verification", () => {
     };
 
     const response = await authorize(getEvent);
-    
+
     // Should return 405 Method Not Allowed instead of 200 login form
     expect(response.statusCode).toBe(405);
     expect(response.body).toBe("method_not_allowed");
@@ -31,7 +31,7 @@ describe("TODO Resolution Verification", () => {
     };
 
     const response = await authorize(postEvent);
-    
+
     // Should not return 405 (method not allowed) but rather 400 (invalid client)
     // This proves POST is accepted and processed
     expect(response.statusCode).toBe(400);
@@ -47,7 +47,7 @@ describe("TODO Resolution Verification", () => {
     };
 
     const response = await authorize(getWithCredsEvent);
-    
+
     // Credentials in URL are rejected, preventing exposure in logs
     expect(response.statusCode).toBe(405);
     expect(response.body).toBe("method_not_allowed");

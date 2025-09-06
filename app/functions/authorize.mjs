@@ -1,18 +1,15 @@
 import { ulid } from "ulid";
 import { put, get, tables } from "../lib/db.mjs";
 import bcrypt from "bcryptjs";
-import { getClient, isScopeSubset, isValidRedirectUri, validateRedirectUri, validateScopes, isPkceRequired } from "../lib/clients.mjs";
-
-// Very verbose logging by design
-const log = (...a) => console.log(JSON.stringify({ level: "info", ts: new Date().toISOString(), msg: a.join(" ") }));
-
-// Mask sensitive data in logs for security compliance
-const maskSensitive = (value, showLength = true) => {
-  if (!value) return "null";
-  const str = String(value);
-  if (str.length <= 4) return "***";
-  return showLength ? `***${str.length}chars` : "***";
-};
+import {
+  getClient,
+  isScopeSubset,
+  isValidRedirectUri,
+  validateRedirectUri,
+  validateScopes,
+  isPkceRequired,
+} from "../lib/clients.mjs";
+import { log, logError, maskSensitive, parseFormBody, createErrorResponse } from "../lib/utils.mjs";
 
 // Create a safe version of query params for logging (mask sensitive fields)
 const createSafeQpForLogging = (qp) => {
@@ -23,39 +20,31 @@ const createSafeQpForLogging = (qp) => {
   return safeQp;
 };
 
-function parseFormBody(event) {
-  try {
-    let raw = event.body || "";
-    if (event.isBase64Encoded && typeof raw === "string") {
-      raw = Buffer.from(raw, "base64").toString("utf8");
-    }
-    const headers = event.headers || {};
-    const ct = (headers["content-type"] || headers["Content-Type"] || "").toString().toLowerCase();
-    if (ct.includes("application/json")) {
-      try {
-        const obj = JSON.parse(raw || "{}");
-        const usp = new URLSearchParams();
-        for (const [k, v] of Object.entries(obj)) if (v !== undefined && v !== null) usp.set(k, String(v));
-        return usp;
-      } catch {}
-    }
-    return new URLSearchParams(raw || "");
-  } catch {
-    return new URLSearchParams();
-  }
-}
-
+/**
+ * OIDC Authorization endpoint handler
+ * Processes authorization requests and issues authorization codes
+ * 
+ * @param {Object} event - Lambda event object
+ * @param {Object} event.requestContext - Request context
+ * @param {Object} event.requestContext.http - HTTP details
+ * @param {string} event.requestContext.http.method - HTTP method
+ * @param {string} event.rawPath - Request path
+ * @param {string} event.rawQueryString - Query string
+ * @param {string} event.body - Request body
+ * @param {Object} event.headers - Request headers
+ * @returns {Promise<Object>} Lambda response object with redirect or error
+ */
 export const handler = async (event) => {
   try {
     const method = event.requestContext?.http?.method || "GET";
     const url = new URL(event.rawPath + (event.rawQueryString ? "?" + event.rawQueryString : ""), "https://issuer");
     const qp = Object.fromEntries(url.searchParams.entries());
-    
+
     // Only support POST method for security and OAuth2 best practices
     if (method !== "POST") {
-      return bad(405, "method_not_allowed");
+      return createErrorResponse(405, "method_not_allowed");
     }
-    
+
     const body = parseFormBody(event);
     for (const [k, v] of body.entries()) qp[k] = v;
     log("authorize", method, JSON.stringify(createSafeQpForLogging(qp)));
@@ -69,33 +58,33 @@ export const handler = async (event) => {
       // nonce is optional, but recommended
       // code_challenge and code_challenge_method are optional unless client requires PKCE
     ];
-    for (const k of req) if (!qp[k]) return bad(400, "missing " + k);
-    if (qp.response_type !== "code") return bad(400, "unsupported_response_type");
+    for (const k of req) if (!qp[k]) return createErrorResponse(400, "missing " + k);
+    if (qp.response_type !== "code") return createErrorResponse(400, "unsupported_response_type");
 
     // Client registry validation
     const client = getClient(qp.client_id);
-    if (!client) return bad(400, "invalid_client");
+    if (!client) return createErrorResponse(400, "invalid_client");
 
     // Validate redirect URI is allowed for this client
     if (!validateRedirectUri(qp.client_id, qp.redirect_uri)) {
-      return bad(400, "invalid_redirect_uri");
+      return createErrorResponse(400, "invalid_redirect_uri");
     }
 
     // Validate scopes are allowed for this client
     if (!validateScopes(qp.client_id, qp.scope)) {
-      return bad(400, "invalid_scope");
+      return createErrorResponse(400, "invalid_scope");
     }
 
     // Validate PKCE if required by client or if provided
     if (isPkceRequired(qp.client_id)) {
       if (!qp.code_challenge || !qp.code_challenge_method) {
-        return bad(400, "pkce_required");
+        return createErrorResponse(400, "pkce_required");
       }
     }
-    
+
     // If PKCE provided, validate it's correct format
     if (qp.code_challenge && qp.code_challenge_method !== "S256") {
-      return bad(400, "invalid_request");
+      return createErrorResponse(400, "invalid_request");
     }
 
     const username = qp.username || "test-user";
@@ -106,7 +95,8 @@ export const handler = async (event) => {
       const ok = !!qp.password && bcrypt.compareSync(qp.password, hash);
       if (!ok || !got.Item?.passwordHash) {
         // Redirect back to direct login page with error instead of showing form
-        const loginUrl = `/loginDirect.html?error=${encodeURIComponent("Invalid username or password")}&` +
+        const loginUrl =
+          `/loginDirect.html?error=${encodeURIComponent("Invalid username or password")}&` +
           `client_id=${encodeURIComponent(qp.client_id || "")}&` +
           `redirect_uri=${encodeURIComponent(qp.redirect_uri || "")}&` +
           `scope=${encodeURIComponent(qp.scope || "")}&` +
@@ -133,13 +123,7 @@ export const handler = async (event) => {
     log("redirect", location);
     return { statusCode: 302, headers: { Location: location }, body: "" };
   } catch (e) {
-    console.error("authorize_error", e);
-    return bad(500, "server_error");
+    logError("authorize_error", e);
+    return createErrorResponse(500, "server_error");
   }
 };
-
-const bad = (s, m) => ({
-  statusCode: s,
-  headers: { "content-type": "text/plain", "cache-control": "no-store" },
-  body: m,
-});

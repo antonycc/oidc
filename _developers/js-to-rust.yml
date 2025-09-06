@@ -7,12 +7,12 @@ on:
   #  branches: ['**']
 
 env:
-  NODE_VERSION: '22'
-  RUST_PORT_MAX_ATTEMPTS: '5'
-  NODE_BASE_URL: 'http://127.0.0.1:3000'
-  RUST_BASE_URL: 'http://127.0.0.1:3001'
-  COLLECTION: './postman/collection.json'   # change path as needed
-  ENV_FILE: './postman/environment.json'    # optional: remove if unused
+  NODE_VERSION: "22"
+  RUST_PORT_MAX_ATTEMPTS: "5"
+  NODE_BASE_URL: "http://127.0.0.1:3000"
+  RUST_BASE_URL: "http://127.0.0.1:3001"
+  COLLECTION: "./postman/collection.json" # change path as needed
+  ENV_FILE: "./postman/environment.json" # optional: remove if unused
 
 jobs:
   test-and-port:
@@ -29,7 +29,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install deps
         run: npm ci

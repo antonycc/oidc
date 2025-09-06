@@ -5,7 +5,7 @@ import { log, logError, createJsonResponse } from "../lib/utils.mjs";
 /**
  * OIDC UserInfo endpoint handler
  * Returns user information based on the provided access token
- * 
+ *
  * @param {Object} event - Lambda event object
  * @param {Object} event.headers - Request headers
  * @param {string} event.headers.authorization - Bearer token authorization header

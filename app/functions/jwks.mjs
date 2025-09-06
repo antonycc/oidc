@@ -4,7 +4,7 @@ import { log, logError, createJsonResponse } from "../lib/utils.mjs";
 /**
  * OIDC JWKS (JSON Web Key Set) endpoint handler
  * Returns the public keys used for token verification
- * 
+ *
  * @param {Object} event - Lambda event object (unused for JWKS)
  * @returns {Promise<Object>} Lambda response object with JWKS or error
  */

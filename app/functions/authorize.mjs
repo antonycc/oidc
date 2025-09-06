@@ -23,7 +23,7 @@ const createSafeQpForLogging = (qp) => {
 /**
  * OIDC Authorization endpoint handler
  * Processes authorization requests and issues authorization codes
- * 
+ *
  * @param {Object} event - Lambda event object
  * @param {Object} event.requestContext - Request context
  * @param {Object} event.requestContext.http - HTTP details

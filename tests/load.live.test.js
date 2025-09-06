@@ -48,7 +48,7 @@ function generatePkce() {
 
   // Create code challenge using the exact same method as api.live.test.ts
   // This ensures compatibility with the backend PKCE verification
-  const hash = sha256(verifier, 'binary');
+  const hash = sha256(verifier, "binary");
   // Convert ArrayBuffer to standard base64, then manually convert to base64url
   const base64 = encoding.b64encode(hash, "std");
   const challenge = base64.replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
@@ -93,7 +93,7 @@ function parseParam(url, name) {
  * Main test function that performs the complete OIDC flow
  * This matches the flow in tests/api.live.test.ts exactly
  */
-export default function() {
+export default function () {
   if (!TEST_PASSWORD) {
     // Do not hard-fail the iteration if password is missing. Proceed so HTTP requests are still made
     // and failures are reflected in k6 metrics. This also helps local dry runs.
@@ -106,7 +106,8 @@ export default function() {
   const { verifier: code_verifier, challenge: code_challenge } = generatePkce();
 
   // Step 1: Build authorize URL with query parameters
-  const authorizeUrl = `${BASE_URL}/authorize` +
+  const authorizeUrl =
+    `${BASE_URL}/authorize` +
     `?response_type=${encodeURIComponent(RESPONSE_TYPE)}` +
     `&client_id=${encodeURIComponent(CLIENT_ID)}` +
     `&redirect_uri=${encodeURIComponent(redirect_uri)}` +
@@ -163,7 +164,7 @@ export default function() {
     `code=${encodeURIComponent(code)}`,
     `redirect_uri=${encodeURIComponent(redirect_uri)}`,
     `client_id=${encodeURIComponent(CLIENT_ID)}`,
-    `code_verifier=${encodeURIComponent(code_verifier)}`
+    `code_verifier=${encodeURIComponent(code_verifier)}`,
   ].join("&");
 
   const tokenRes = http.post(tokenUrl, tokenBody, {
@@ -211,7 +212,7 @@ export default function() {
   const userinfoUrl = `${BASE_URL}/userinfo`;
   let userinfoRes = http.get(userinfoUrl, {
     headers: {
-      "Authorization": `Bearer ${tokenData.access_token}`,
+      Authorization: `Bearer ${tokenData.access_token}`,
     },
   });
 
@@ -219,7 +220,7 @@ export default function() {
   if (userinfoRes.status === 401 && tokenData.id_token) {
     userinfoRes = http.get(userinfoUrl, {
       headers: {
-        "Authorization": `Bearer ${tokenData.id_token}`,
+        Authorization: `Bearer ${tokenData.id_token}`,
       },
     });
   }
@@ -268,15 +269,15 @@ export const options = {
       preAllocatedVUs: 10,
       maxVUs: 20,
       stages: [
-        { duration: "10s", target: 3 },   // Ramp up to 3 RPS
-        { duration: "10s", target: 3 },   // Hold at 3 RPS
-        { duration: "10s", target: 0 },   // Ramp down to 0 RPS
+        { duration: "10s", target: 3 }, // Ramp up to 3 RPS
+        { duration: "10s", target: 3 }, // Hold at 3 RPS
+        { duration: "10s", target: 0 }, // Ramp down to 0 RPS
       ],
     },
   },
   thresholds: {
     http_req_duration: ["p(95)<5000"], // 95% of requests should be below 5s
-    http_req_failed: ["rate<0.1"],     // Error rate should be below 10%
-    http_reqs: ["count>0"],            // Ensure at least one HTTP request is executed
+    http_req_failed: ["rate<0.1"], // Error rate should be below 10%
+    http_reqs: ["count>0"], // Ensure at least one HTTP request is executed
   },
 };

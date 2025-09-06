@@ -63,16 +63,12 @@ describe("utils", () => {
   describe("log", () => {
     it("creates structured log entries", () => {
       const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-      
+
       log("test", "message", { key: "value" });
-      
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('"level":"info"')
-      );
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('"msg":"test message {\\"key\\":\\"value\\"}"')
-      );
-      
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('"level":"info"'));
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('"msg":"test message {\\"key\\":\\"value\\"}"'));
+
       consoleSpy.mockRestore();
     });
   });
@@ -81,22 +77,14 @@ describe("utils", () => {
     it("creates structured error log entries", () => {
       const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
       const error = new Error("test error");
-      
+
       logError("test message", error, { context: "test" });
-      
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('"level":"error"')
-      );
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('"msg":"test message"')
-      );
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('"err":{')
-      );
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('"extra":{"context":"test"}')
-      );
-      
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('"level":"error"'));
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('"msg":"test message"'));
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('"err":{'));
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('"extra":{"context":"test"}'));
+
       consoleSpy.mockRestore();
     });
   });
@@ -107,9 +95,9 @@ describe("utils", () => {
         body: "key1=value1&key2=value2",
         headers: { "content-type": "application/x-www-form-urlencoded" },
       };
-      
+
       const params = parseFormBody(event);
-      
+
       expect(params.get("key1")).toBe("value1");
       expect(params.get("key2")).toBe("value2");
     });
@@ -119,9 +107,9 @@ describe("utils", () => {
         body: JSON.stringify({ key1: "value1", key2: "value2" }),
         headers: { "content-type": "application/json" },
       };
-      
+
       const params = parseFormBody(event);
-      
+
       expect(params.get("key1")).toBe("value1");
       expect(params.get("key2")).toBe("value2");
     });
@@ -134,9 +122,9 @@ describe("utils", () => {
         isBase64Encoded: true,
         headers: { "content-type": "application/x-www-form-urlencoded" },
       };
-      
+
       const params = parseFormBody(event);
-      
+
       expect(params.get("key1")).toBe("value1");
       expect(params.get("key2")).toBe("value2");
     });
@@ -146,9 +134,9 @@ describe("utils", () => {
         body: "malformed",
         headers: { "content-type": "application/json" },
       };
-      
+
       const params = parseFormBody(event);
-      
+
       expect(params).toBeInstanceOf(URLSearchParams);
     });
 
@@ -157,9 +145,9 @@ describe("utils", () => {
         body: null,
         headers: {},
       };
-      
+
       const params = parseFormBody(event);
-      
+
       expect(params).toBeInstanceOf(URLSearchParams);
       expect([...params.entries()]).toHaveLength(0);
     });
@@ -168,7 +156,7 @@ describe("utils", () => {
   describe("createJsonResponse", () => {
     it("creates standard JSON response", () => {
       const response = createJsonResponse(200, { message: "success" });
-      
+
       expect(response.statusCode).toBe(200);
       expect(response.headers["content-type"]).toBe("application/json");
       expect(response.headers["cache-control"]).toBe("no-store");
@@ -176,11 +164,15 @@ describe("utils", () => {
     });
 
     it("allows custom headers", () => {
-      const response = createJsonResponse(200, { data: "test" }, {
-        "cache-control": "public, max-age=3600",
-        "custom-header": "value"
-      });
-      
+      const response = createJsonResponse(
+        200,
+        { data: "test" },
+        {
+          "cache-control": "public, max-age=3600",
+          "custom-header": "value",
+        },
+      );
+
       expect(response.headers["cache-control"]).toBe("public, max-age=3600");
       expect(response.headers["custom-header"]).toBe("value");
       expect(response.headers["content-type"]).toBe("application/json");
@@ -190,7 +182,7 @@ describe("utils", () => {
   describe("createErrorResponse", () => {
     it("creates standard error response", () => {
       const response = createErrorResponse(400, "invalid_request");
-      
+
       expect(response.statusCode).toBe(400);
       expect(response.headers["content-type"]).toBe("text/plain");
       expect(response.headers["cache-control"]).toBe("no-store");

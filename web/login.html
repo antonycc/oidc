@@ -11,7 +11,10 @@
       <div class="header-nav">
         <div class="hamburger-menu">
           <button class="hamburger-btn">☰</button>
-          <div class="menu-dropdown"><a href="./index.html">Home</a><div data-utils-target></div></div>
+          <div class="menu-dropdown">
+            <a href="./index.html">Home</a>
+            <div data-utils-target></div>
+          </div>
         </div>
         <div class="auth-section"><span class="login-status">Not logged in</span></div>
       </div>
@@ -21,11 +24,14 @@
       <div class="card">
         <h2>Choose Your Login Method</h2>
         <p>Select how you would like to authenticate:</p>
-        
+
         <div class="login-options">
           <div class="login-option">
             <h3>Direct OIDC Login</h3>
-            <p>Use the direct login form to exercise the OIDC Provider directly without Cognito. This performs PKCE authentication and returns to the standard post-auth page.</p>
+            <p>
+              Use the direct login form to exercise the OIDC Provider directly without Cognito. This performs PKCE
+              authentication and returns to the standard post-auth page.
+            </p>
             <a href="./loginDirect.html?redirect_uri=/post-auth.html" class="button primary">Direct Login</a>
           </div>
         </div>
@@ -33,6 +39,8 @@
     </main>
     <div id="modal-root"></div>
     <script src="./oidc.js" defer></script>
-    <footer><small>© 2025 <a href="https://github.com/antonycc/oidc">@antonycc/oidc</a></small></footer>
+    <footer>
+      <small>© 2025 <a href="https://github.com/antonycc/oidc">@antonycc/oidc</a></small>
+    </footer>
   </body>
 </html>

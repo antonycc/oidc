@@ -7,7 +7,7 @@ import { log, logError, maskSensitive, parseFormBody, createJsonResponse, create
 /**
  * OIDC Token endpoint handler
  * Exchanges authorization codes for access tokens and ID tokens
- * 
+ *
  * @param {Object} event - Lambda event object
  * @param {Object} event.requestContext - Request context
  * @param {Object} event.requestContext.http - HTTP details

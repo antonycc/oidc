@@ -58,10 +58,10 @@ jobs:
           echo "Analyzing repository state for prompt selection..."
           
           # Gather repository metrics
-          TOTAL_JS_FILES=$(find . -name "*.js" -o -name "*.ts" | wc -l)
-          TOTAL_JAVA_FILES=$(find . -name "*.java" | wc -l)
-          TODO_COUNT=$(grep -rn "TODO" --include="*.js" --include="*.ts" --include="*.java" . 2>/dev/null | wc -l)
-          TEST_FILES=$(find . -name "*.test.js" -o -name "*.spec.js" | wc -l)
+          TOTAL_JS_FILES=$(find . -name "*.js" -o -name "*.ts" | grep -v node_modules | wc -l)
+          TOTAL_JAVA_FILES=$(find . -name "*.java" | grep -v node_modules | wc -l)
+          TODO_COUNT=$(grep -rn "TODO" --include="*.js" --include="*.ts" --include="*.java" . --exclude-dir=node_modules 2>/dev/null | wc -l)
+          TEST_FILES=$(find . -name "*.test.js" -o -name "*.spec.js" | grep -v node_modules | wc -l)
           
           # Check for recent commits indicating development focus
           RECENT_COMMITS=$(git log --oneline -10 | head -10)
@@ -70,7 +70,7 @@ jobs:
           OUTDATED_DEPS=$(npm outdated 2>/dev/null | wc -l || echo "0")
           
           # Analyze code complexity indicators
-          LONG_FUNCTIONS=$(find ./app ./web -name "*.js" 2>/dev/null | xargs grep -l "function\|=>" 2>/dev/null | wc -l || echo "0")
+          LONG_FUNCTIONS=$(find ./app ./web -name "*.js" 2>/dev/null | grep -v node_modules | xargs grep -l "function\|=>" 2>/dev/null | wc -l || echo "0")
           
           # Check documentation freshness
           DOC_FILES=$(find . -name "*.md" | wc -l)
@@ -117,21 +117,21 @@ jobs:
           echo "Recommended prompt: $RECOMMENDED_PROMPT"
           echo "::endgroup::"
 
-  setup-copilot:
-    name: 'Setup GitHub Copilot CLI'
+  setup-github-cli:
+    name: 'Setup GitHub CLI'
     needs: analyze-repository
     runs-on: ubuntu-latest
     permissions:
       contents: read
     outputs:
-      copilot_available: ${{ steps.setup.outputs.copilot_available }}
+      gh_available: ${{ steps.setup.outputs.gh_available }}
     steps:
-      - name: Setup GitHub CLI and Copilot
+      - name: Setup GitHub CLI
         id: setup
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Setting up GitHub CLI and Copilot extension..."
+          echo "Setting up GitHub CLI..."
           
           # Install GitHub CLI if not available
           if ! command -v gh &> /dev/null; then
@@ -145,44 +145,42 @@ jobs:
           # Authenticate with GitHub CLI
           echo "$GITHUB_TOKEN" | gh auth login --with-token
           
-          # Install or upgrade Copilot extension
-          echo "Installing GitHub Copilot CLI extension..."
-          gh extension install github/gh-copilot --force || echo "Copilot extension installation failed"
-          
-          # Test Copilot availability
-          if gh copilot --help &> /dev/null; then
-            echo "copilot_available=true" >> $GITHUB_OUTPUT
-            echo "GitHub Copilot CLI is available"
+          # Test GitHub CLI availability
+          if gh --version &> /dev/null; then
+            echo "gh_available=true" >> $GITHUB_OUTPUT
+            echo "GitHub CLI is available"
           else
-            echo "copilot_available=false" >> $GITHUB_OUTPUT
-            echo "GitHub Copilot CLI is not available"
+            echo "gh_available=false" >> $GITHUB_OUTPUT
+            echo "GitHub CLI is not available"
           fi
 
-  invoke-copilot-agent:
-    name: 'Invoke GitHub Copilot Agent'
-    needs: [analyze-repository, setup-copilot]
+  create-copilot-issue:
+    name: 'Create Issue for GitHub Copilot Agent'
+    needs: [analyze-repository, setup-github-cli]
     if: needs.analyze-repository.outputs.analysis_complete == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      issues: write
     outputs:
-      agent_response_generated: ${{ steps.invoke.outputs.agent_response_generated }}
-      selected_prompt: ${{ steps.invoke.outputs.selected_prompt }}
+      issue_created: ${{ steps.create.outputs.issue_created }}
+      issue_number: ${{ steps.create.outputs.issue_number }}
+      selected_prompt: ${{ steps.create.outputs.selected_prompt }}
     steps:
       - name: Checkout repository  
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - name: Invoke Copilot Agent with selected prompt
-        id: invoke
+      - name: Create issue for Copilot Agent with selected prompt
+        id: create
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AWS_CERTIFICATE_ARN: ${{ vars.AWS_CERTIFICATE_ARN }}
           AWS_HOSTED_ZONE_ID: ${{ vars.AWS_HOSTED_ZONE_ID }}
           AWS_HOSTED_ZONE_NAME: ${{ vars.AWS_HOSTED_ZONE_NAME }}
         run: |
-          echo "Invoking GitHub Copilot Agent with prompt selection: ${{ env.PROMPT_SELECTION }}"
+          echo "Creating GitHub issue for Copilot Agent with prompt selection: ${{ env.PROMPT_SELECTION }}"
           
           # Determine which prompt to use
           if [ "${{ env.PROMPT_SELECTION }}" = "auto-select" ]; then
@@ -225,66 +223,68 @@ jobs:
           
           echo "Using prompt file: prompts/$PROMPT_FILE"
           
-          # Create comprehensive prompt for Copilot Agent
-          cat > copilot_agent_prompt.txt << EOF
+          # Create issue title and body for Copilot Agent
+          ISSUE_TITLE="Repository Enhancement: $SELECTED_PROMPT ($(date +%Y-%m-%d))"
+          
+          cat > issue_body.md << EOF
+          ## Repository Enhancement Request
+          
+          **Prompt Type:** $SELECTED_PROMPT  
+          **Target Branch:** ${{ env.TARGET_BRANCH }}  
+          **Triggered by:** ${{ github.workflow }} workflow
+          
+          ### Task Description
           $(cat prompts/$PROMPT_FILE)
           
-          Repository Context:
+          ### Repository Context
           ${{ needs.analyze-repository.outputs.repository_state }}
           
-          Environment Variables Available:
+          ### Environment Configuration
           - AWS_CERTIFICATE_ARN: ${{ vars.AWS_CERTIFICATE_ARN && 'configured' || 'not set' }}
           - AWS_HOSTED_ZONE_ID: ${{ vars.AWS_HOSTED_ZONE_ID && 'configured' || 'not set' }}
           - AWS_HOSTED_ZONE_NAME: ${{ vars.AWS_HOSTED_ZONE_NAME && 'configured' || 'not set' }}
           
-          Please provide specific, actionable recommendations based on the current repository state.
-          Focus on changes that can be implemented incrementally and maintain the existing architecture patterns.
+          ### Instructions for Copilot Agent
+          Please provide specific, actionable recommendations and implementations based on the current repository state. Focus on changes that can be implemented incrementally and maintain the existing architecture patterns.
+          
+          Create a pull request with your proposed changes targeting the \`${{ env.TARGET_BRANCH }}\` branch.
           EOF
           
-          echo "::group::Generated Prompt"
-          cat copilot_agent_prompt.txt
+          echo "::group::Issue Content"
+          echo "Title: $ISSUE_TITLE"
+          echo "Body:"
+          cat issue_body.md
           echo "::endgroup::"
           
-          # Invoke Copilot Agent (using gh copilot suggest as the available interface)
-          if [ "${{ needs.setup-copilot.outputs.copilot_available }}" = "true" ]; then
-            echo "Sending prompt to GitHub Copilot..."
-            gh copilot suggest "$(cat copilot_agent_prompt.txt)" \
-              > copilot_agent_response.txt 2>&1 || echo "Copilot invocation completed with warnings"
+          # Create issue assigned to Copilot Agent
+          if [ "${{ needs.setup-github-cli.outputs.gh_available }}" = "true" ]; then
+            echo "Creating issue assigned to @copilot..."
+            ISSUE_NUMBER=$(gh issue create \
+              --title "$ISSUE_TITLE" \
+              --body-file issue_body.md \
+              --assignee @copilot \
+              --label "enhancement,copilot-agent" | \
+              grep -o '#[0-9]*' | sed 's/#//')
             
-            if [ -f copilot_agent_response.txt ] && [ -s copilot_agent_response.txt ]; then
-              echo "agent_response_generated=true" >> $GITHUB_OUTPUT
-              echo "::group::Copilot Agent Response"
-              cat copilot_agent_response.txt
-              echo "::endgroup::"
+            if [ -n "$ISSUE_NUMBER" ]; then
+              echo "issue_created=true" >> $GITHUB_OUTPUT
+              echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
+              echo "Successfully created issue #$ISSUE_NUMBER assigned to Copilot Agent"
             else
-              echo "agent_response_generated=false" >> $GITHUB_OUTPUT
-              echo "No response generated from Copilot Agent"
+              echo "issue_created=false" >> $GITHUB_OUTPUT
+              echo "Failed to create issue"
             fi
           else
-            echo "GitHub Copilot CLI not available, creating placeholder response"
-            cat > copilot_agent_response.txt << EOF
-          GitHub Copilot CLI was not available during this workflow run.
-          
-          Prompt that would have been sent:
-          $(cat copilot_agent_prompt.txt)
-          
-          Recommended prompt selection: $SELECTED_PROMPT
-          EOF
-            echo "agent_response_generated=false" >> $GITHUB_OUTPUT
+            echo "GitHub CLI not available, cannot create issue"
+            echo "issue_created=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Upload agent response
-        uses: actions/upload-artifact@v4
-        with:
-          name: copilot-agent-response-${{ github.run_id }}
-          path: |
-            copilot_agent_*.txt
-          retention-days: 7
+
 
   create-summary:
     name: 'Create Summary'  
     permissions: {}
-    needs: [analyze-repository, setup-copilot, invoke-copilot-agent]
+    needs: [analyze-repository, setup-github-cli, create-copilot-issue]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -292,23 +292,31 @@ jobs:
         run: |
           echo "## GitHub Copilot Agent Workflow Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **Prompt Selection**: ${{ env.PROMPT_SELECTION }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Selected Prompt**: ${{ needs.invoke-copilot-agent.outputs.selected_prompt }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Selected Prompt**: ${{ needs.create-copilot-issue.outputs.selected_prompt }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Repository Analysis**: ${{ needs.analyze-repository.outputs.analysis_complete }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Copilot Available**: ${{ needs.setup-copilot.outputs.copilot_available }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Agent Response Generated**: ${{ needs.invoke-copilot-agent.outputs.agent_response_generated }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **GitHub CLI Available**: ${{ needs.setup-github-cli.outputs.gh_available }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Issue Created**: ${{ needs.create-copilot-issue.outputs.issue_created }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Issue Number**: ${{ needs.create-copilot-issue.outputs.issue_number }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Target Branch**: ${{ env.TARGET_BRANCH }}" >> $GITHUB_STEP_SUMMARY
           
           if [ "${{ needs.analyze-repository.outputs.analysis_complete }}" != "true" ]; then
             echo "- **Result**: Repository analysis failed" >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ needs.setup-copilot.outputs.copilot_available }}" != "true" ]; then
-            echo "- **Result**: GitHub Copilot CLI unavailable" >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ needs.invoke-copilot-agent.outputs.agent_response_generated }}" = "true" ]; then
-            echo "- **Result**: Successfully invoked Copilot Agent" >> $GITHUB_STEP_SUMMARY
-            echo "- **Artifact**: Check copilot-agent-response-${{ github.run_id }} for detailed response" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.setup-github-cli.outputs.gh_available }}" != "true" ]; then
+            echo "- **Result**: GitHub CLI unavailable" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.create-copilot-issue.outputs.issue_created }}" = "true" ]; then
+            echo "- **Result**: Successfully created issue #${{ needs.create-copilot-issue.outputs.issue_number }} assigned to @copilot" >> $GITHUB_STEP_SUMMARY
+            echo "- **Next Steps**: Copilot Agent will analyze the issue and create a pull request automatically" >> $GITHUB_STEP_SUMMARY
           else
-            echo "- **Result**: Copilot Agent invocation completed but no response generated" >> $GITHUB_STEP_SUMMARY
+            echo "- **Result**: Issue creation failed" >> $GITHUB_STEP_SUMMARY
           fi
           
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### How It Works" >> $GITHUB_STEP_SUMMARY
+          echo "1. **Analysis**: Workflow analyzes repository state and selects appropriate prompt" >> $GITHUB_STEP_SUMMARY
+          echo "2. **Issue Creation**: Creates GitHub issue assigned to @copilot with detailed context" >> $GITHUB_STEP_SUMMARY
+          echo "3. **Agent Processing**: Copilot coding agent processes the issue automatically" >> $GITHUB_STEP_SUMMARY
+          echo "4. **PR Creation**: Agent creates pull request with proposed changes" >> $GITHUB_STEP_SUMMARY
+          echo "5. **Iteration**: Comment on the PR mentioning @copilot for further changes" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Available Prompts" >> $GITHUB_STEP_SUMMARY
           echo "- **expand-capabilities**: Suggest ways to expand repository capabilities" >> $GITHUB_STEP_SUMMARY  

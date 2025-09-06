@@ -15,20 +15,59 @@ Review the existing prompts and their focus areas:
 
 Based on your analysis of the repository structure, codebase, architecture, and existing prompts, create a new prompt that addresses an important gap or opportunity that would provide significant value.
 
+**CRITICAL**: Before creating any new prompt, you must conduct rigorous multi-perspective analysis following the repository's coding guidelines:
+
+### Required Multi-Scenario Evaluation
+Evaluate AT LEAST 3 different approaches for the new prompt:
+- **Scenario A**: Conservative/minimal change approach
+- **Scenario B**: Optimized/refactored approach  
+- **Scenario C**: Alternative architectural approach
+
+For each scenario, analyze:
+- Implementation complexity
+- Performance implications
+- Security considerations (IAM least privilege, encryption, logging)
+- Maintainability impact
+- Deployment requirements
+- Testing strategy
+
+### Mandatory Internal Review Process
+Before executing the prompt creation, conduct this internal review:
+
+#### Technical Review
+- Does this follow AWS Well-Architected principles?
+- Are security best practices followed (IAM least privilege, encryption, logging)?
+- Is the CDK code following infrastructure-as-code best practices?
+- Does the Node.js code follow modern ES2022+ patterns?
+- Are error cases properly handled with comprehensive logging?
+
+#### Quality Review  
+- Are tests comprehensive (unit, integration, e2e)?
+- Is logging verbose enough for debugging auth flows?
+- Does the change maintain backward compatibility?
+- Is documentation updated appropriately?
+
+#### Operational Review
+- How does this impact cold start performance?
+- Are CloudWatch costs optimized (7-day retention)?
+- Does this scale to expected load?
+- How does this affect deployment time?
+- Are rollback scenarios considered?
+
 Your new prompt should:
 
 ### 1. Identify the Gap
 - Analyze what aspects of repository improvement are not covered by existing prompts
 - Consider the repository's specific domain (OIDC provider, serverless architecture, AWS CDK)
-- Look for opportunities in areas like:
-  - Security and compliance
-  - Performance and scalability  
-  - Developer experience and tooling
-  - Operational excellence and monitoring
-  - Cost optimization
-  - Integration patterns
-  - Testing strategies
-  - CI/CD improvements
+- Look for opportunities in OIDC-specific areas like:
+  - Token validation and JWT security patterns
+  - OAuth 2.0 and OpenID Connect flow implementations
+  - Identity federation and provider integration
+  - JWKS (JSON Web Key Set) management and rotation
+  - Authorization code and refresh token lifecycle
+  - OIDC discovery endpoint optimization
+  - Provider-specific security patterns and compliance
+  - Serverless authentication architecture patterns
 
 ### 2. Create the Prompt File
 - Create a new markdown file in the `prompts/` directory with a descriptive filename
@@ -55,11 +94,17 @@ Your new prompt should:
 
 ## Success Criteria
 
-The new prompt should:
+The new prompt must meet these mandatory requirements:
 - Address a genuine gap not covered by existing prompts  
-- Be strategically valuable for the repository's goals
-- Follow established patterns and quality standards
+- Be strategically valuable for the repository's OIDC provider goals
+- Follow AWS Well-Architected principles (security, reliability, performance, cost optimization, operational excellence)
+- Include security best practices assessment (IAM least privilege, encryption, logging)
+- Complete the internal technical review process before execution:
+  - Technical Review: AWS best practices, CDK patterns, Node.js ES2022+ standards
+  - Quality Review: comprehensive testing strategy, verbose logging for auth flows
+  - Operational Review: cold start performance, CloudWatch cost optimization, scalability
 - Integrate seamlessly with the existing prompt system
-- Provide clear, actionable guidance for the GitHub Copilot agent
+- Provide clear, actionable guidance specific to OIDC provider development
+- Include rollback and deployment risk assessment
 
 Focus on creating something that would be genuinely useful and that represents the most impactful improvement opportunity currently missing from the prompt collection.

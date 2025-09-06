@@ -45,7 +45,7 @@ describe("token", () => {
 
     const event = {
       requestContext: { http: { method: "POST" } },
-      body: "grant_type=authorization_code&code=non-existent-code&code_verifier=test-verifier&client_id=cognito-web&redirect_uri=https://YOUR_COGNITO_DOMAIN.auth.us-east-1.amazoncognito.com/oauth2/idpresponse"
+      body: "grant_type=authorization_code&code=non-existent-code&code_verifier=test-verifier&client_id=submit-diyaccounting-co-uk&redirect_uri=https://YOUR_COGNITO_DOMAIN.auth.us-east-1.amazoncognito.com/oauth2/idpresponse"
     };
 
     const response = await token(event);
@@ -69,7 +69,7 @@ describe("token", () => {
 
     const event = {
       requestContext: { http: { method: "POST" } },
-      body: "grant_type=authorization_code&code=test-code&code_verifier=test-verifier&client_id=cognito-web&redirect_uri=https://YOUR_COGNITO_DOMAIN.auth.us-east-1.amazoncognito.com/oauth2/idpresponse"
+      body: "grant_type=authorization_code&code=test-code&code_verifier=test-verifier&client_id=submit-diyaccounting-co-uk&redirect_uri=https://YOUR_COGNITO_DOMAIN.auth.us-east-1.amazoncognito.com/oauth2/idpresponse"
     };
 
     const response = await token(event);
@@ -93,7 +93,7 @@ describe("token", () => {
 
     const event = {
       requestContext: { http: { method: "POST" } },
-      body: "grant_type=authorization_code&code=test-code&code_verifier=test-verifier&client_id=cognito-web&redirect_uri=https://YOUR_COGNITO_DOMAIN.auth.us-east-1.amazoncognito.com/oauth2/idpresponse"
+      body: "grant_type=authorization_code&code=test-code&code_verifier=test-verifier&client_id=submit-diyaccounting-co-uk&redirect_uri=https://YOUR_COGNITO_DOMAIN.auth.us-east-1.amazoncognito.com/oauth2/idpresponse"
     };
 
     const response = await token(event);

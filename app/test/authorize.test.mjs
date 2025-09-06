@@ -42,7 +42,7 @@ describe("authorize", () => {
   it("returns invalid_redirect_uri for unauthorized redirect_uri", async () => {
     const e = {
       ...baseEvent(),
-      body: "client_id=cognito-web&redirect_uri=https://evil.com/cb&response_type=code&scope=openid&state=st&nonce=n&code_challenge=abc&code_challenge_method=S256&username=test&password=test",
+      body: "client_id=submit-diyaccounting-co-uk&redirect_uri=https://evil.com/cb&response_type=code&scope=openid&state=st&nonce=n&code_challenge=abc&code_challenge_method=S256&username=test&password=test",
     };
     const r = await authorize(e);
     expect(r.statusCode).toBe(400);
@@ -52,7 +52,7 @@ describe("authorize", () => {
   it("returns invalid_scope for unauthorized scopes", async () => {
     const e = {
       ...baseEvent(),
-      body: "client_id=cognito-web&redirect_uri=https://YOUR_COGNITO_DOMAIN.auth.us-east-1.amazoncognito.com/oauth2/idpresponse&response_type=code&scope=openid+admin&state=st&nonce=n&code_challenge=abc&code_challenge_method=S256&username=test&password=test",
+      body: "client_id=submit-diyaccounting-co-uk&redirect_uri=https://submit.diyaccounting.co.uk/auth/loginWithAntonyccCallback.html&response_type=code&scope=openid+admin&state=st&nonce=n&code_challenge=abc&code_challenge_method=S256&username=test&password=test",
     };
     const r = await authorize(e);
     expect(r.statusCode).toBe(400);

@@ -121,3 +121,84 @@ export const createErrorResponse = (statusCode, error) => ({
   headers: { "content-type": "text/plain", "cache-control": "no-store" },
   body: error,
 });
+
+/**
+ * Validate that required parameters are present
+ * @param {object} params - Parameters object to validate
+ * @param {string[]} requiredFields - Array of required field names
+ * @returns {string|null} Error message if validation fails, null if valid
+ */
+export const validateRequiredParams = (params, requiredFields) => {
+  for (const field of requiredFields) {
+    if (!params[field]) {
+      return `missing ${field}`;
+    }
+  }
+  return null;
+};
+
+/**
+ * Validate HTTP method matches expected method
+ * @param {object} event - Lambda event object
+ * @param {string} expectedMethod - Expected HTTP method
+ * @returns {boolean} True if method matches, false otherwise
+ */
+export const validateHttpMethod = (event, expectedMethod) => {
+  const method = event.requestContext?.http?.method || "GET";
+  return method === expectedMethod;
+};
+
+/**
+ * Get HTTP method from event
+ * @param {object} event - Lambda event object
+ * @param {string} defaultMethod - Default method if not found
+ * @returns {string} HTTP method
+ */
+export const getHttpMethod = (event, defaultMethod = "GET") => {
+  return event.requestContext?.http?.method || defaultMethod;
+};
+
+/**
+ * Environment configuration utilities
+ * Provides centralized access to environment variables with defaults
+ */
+export const env = {
+  /**
+   * Get ISSUER environment variable
+   * @param {string} defaultValue - Default value if not set
+   * @returns {string} ISSUER value
+   */
+  getIssuer: (defaultValue = "http://localhost:3000") => process.env.ISSUER || defaultValue,
+  
+  /**
+   * Get BASE_URL environment variable
+   * @param {string} defaultValue - Default value if not set
+   * @returns {string} BASE_URL value
+   */
+  getBaseUrl: (defaultValue = "http://localhost:3000") => process.env.BASE_URL || defaultValue,
+  
+  /**
+   * Get USERS_TABLE environment variable
+   * @returns {string|undefined} USERS_TABLE value
+   */
+  getUsersTable: () => process.env.USERS_TABLE,
+  
+  /**
+   * Get CODES_TABLE environment variable
+   * @returns {string|undefined} CODES_TABLE value
+   */
+  getCodesTable: () => process.env.CODES_TABLE,
+  
+  /**
+   * Get REFRESH_TABLE environment variable
+   * @returns {string|undefined} REFRESH_TABLE value
+   */
+  getRefreshTable: () => process.env.REFRESH_TABLE,
+  
+  /**
+   * Check if environment variable is set and truthy
+   * @param {string} name - Environment variable name
+   * @returns {boolean} True if set and truthy
+   */
+  has: (name) => Boolean(process.env[name]),
+};

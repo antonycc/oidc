@@ -1,5 +1,5 @@
 import { publicJwks } from "../lib/crypto.mjs";
-import { log, logError, createJsonResponse } from "../lib/utils.mjs";
+import { createJsonResponse, log, logError } from "../lib/utils.mjs";
 
 /**
  * OIDC JWKS (JSON Web Key Set) endpoint handler

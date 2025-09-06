@@ -1,9 +1,12 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 import bcrypt from "bcryptjs";
 
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
+
+import { env } from "../lib/utils.mjs";
+
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
-const table = process.env.USERS_TABLE || "oidc-antonycc-com-prod-users";
+const table = env.getUsersTable() || "oidc-antonycc-com-prod-users";
 
 const username = process.argv[2] || "test-user";
 const password = process.argv[3] || "Passw0rd!";

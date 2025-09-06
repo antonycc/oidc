@@ -1,6 +1,6 @@
 import { verifyJwt } from "../lib/crypto.mjs";
 import { get, tables } from "../lib/db.mjs";
-import { log, logError, createJsonResponse } from "../lib/utils.mjs";
+import { createJsonResponse, log, logError } from "../lib/utils.mjs";
 
 /**
  * OIDC UserInfo endpoint handler

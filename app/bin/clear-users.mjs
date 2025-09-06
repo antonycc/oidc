@@ -1,8 +1,10 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, ScanCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, DeleteCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
+
+import { env } from "../lib/utils.mjs";
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
-const table = "oidc-antonycc-com-prod-users";
+const table = env.getUsersTable() || "oidc-antonycc-com-prod-users";
 
 const scan = await ddb.send(new ScanCommand({ TableName: table, ProjectionExpression: "username" }));
 for (const item of scan.Items ?? []) {

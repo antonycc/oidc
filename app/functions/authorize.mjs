@@ -1,15 +1,16 @@
-import { ulid } from "ulid";
-import { put, get, tables } from "../lib/db.mjs";
 import bcrypt from "bcryptjs";
+import { ulid } from "ulid";
+
 import {
   getClient,
+  isPkceRequired,
   isScopeSubset,
   isValidRedirectUri,
   validateRedirectUri,
   validateScopes,
-  isPkceRequired,
 } from "../lib/clients.mjs";
-import { log, logError, maskSensitive, parseFormBody, createErrorResponse } from "../lib/utils.mjs";
+import { get, put, tables } from "../lib/db.mjs";
+import { createErrorResponse, getHttpMethod, log, logError, maskSensitive, parseFormBody, validateHttpMethod, validateRequiredParams } from "../lib/utils.mjs";
 
 // Create a safe version of query params for logging (mask sensitive fields)
 const createSafeQpForLogging = (qp) => {
@@ -36,12 +37,12 @@ const createSafeQpForLogging = (qp) => {
  */
 export const handler = async (event) => {
   try {
-    const method = event.requestContext?.http?.method || "GET";
+    const method = getHttpMethod(event);
     const url = new URL(event.rawPath + (event.rawQueryString ? "?" + event.rawQueryString : ""), "https://issuer");
     const qp = Object.fromEntries(url.searchParams.entries());
 
     // Only support POST method for security and OAuth2 best practices
-    if (method !== "POST") {
+    if (!validateHttpMethod(event, "POST")) {
       return createErrorResponse(405, "method_not_allowed");
     }
 
@@ -49,16 +50,12 @@ export const handler = async (event) => {
     for (const [k, v] of body.entries()) qp[k] = v;
     log("authorize", method, JSON.stringify(createSafeQpForLogging(qp)));
 
-    const req = [
-      "client_id",
-      "redirect_uri",
-      "response_type",
-      "scope",
-      "state",
-      // nonce is optional, but recommended
-      // code_challenge and code_challenge_method are optional unless client requires PKCE
-    ];
-    for (const k of req) if (!qp[k]) return createErrorResponse(400, "missing " + k);
+    // Validate required parameters
+    const requiredParams = ["client_id", "redirect_uri", "response_type", "scope", "state"];
+    const validationError = validateRequiredParams(qp, requiredParams);
+    if (validationError) {
+      return createErrorResponse(400, validationError);
+    }
     if (qp.response_type !== "code") return createErrorResponse(400, "unsupported_response_type");
 
     // Client registry validation

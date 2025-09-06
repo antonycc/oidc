@@ -1,8 +1,9 @@
 import * as crypto from "node:crypto";
-import { get, conditionalDelete, put, update, tables } from "../lib/db.mjs";
+
+import { isPkceRequired, validateClientAuth } from "../lib/clients.mjs";
 import { signJwt } from "../lib/crypto.mjs";
-import { validateClientAuth, isPkceRequired } from "../lib/clients.mjs";
-import { log, logError, maskSensitive, parseFormBody, createJsonResponse, createErrorResponse } from "../lib/utils.mjs";
+import { conditionalDelete, get, put, tables, update } from "../lib/db.mjs";
+import { createErrorResponse, createJsonResponse, getHttpMethod, log, logError, maskSensitive, parseFormBody, validateHttpMethod, validateRequiredParams } from "../lib/utils.mjs";
 
 /**
  * OIDC Token endpoint handler
@@ -17,25 +18,28 @@ import { log, logError, maskSensitive, parseFormBody, createJsonResponse, create
  */
 export const handler = async (event) => {
   try {
-    if (event.requestContext.http.method !== "POST") return createJsonResponse(405, { error: "method_not_allowed" });
+    if (!validateHttpMethod(event, "POST")) {
+      return createErrorResponse(405, "method_not_allowed");
+    }
 
     const body = parseFormBody(event);
     const grant = body.get("grant_type");
-    if (grant !== "authorization_code") return createJsonResponse(400, { error: "unsupported_grant_type" });
+    if (grant !== "authorization_code") {
+      return createJsonResponse(400, { error: "unsupported_grant_type" });
+    }
 
     const code = body.get("code");
     const verifier = body.get("code_verifier") || "";
-
     const clientId = body.get("client_id");
     const redirectUri = body.get("redirect_uri");
 
     log("token_request", clientId, redirectUri, code ? `has_code: ${maskSensitive(code)}` : "no_code");
 
     // Validate required parameters
-    if (!code || !clientId || !redirectUri) {
-      return createJsonResponse(400, {
-        error: `invalid_request (!code${code} || !clientId${clientId} || !redirectUri${redirectUri})`,
-      });
+    const params = { code, client_id: clientId, redirect_uri: redirectUri };
+    const validationError = validateRequiredParams(params, ["code", "client_id", "redirect_uri"]);
+    if (validationError) {
+      return createJsonResponse(400, { error: "invalid_request", error_description: validationError });
     }
 
     // Check if PKCE is required for this client

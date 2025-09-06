@@ -39,36 +39,8 @@ env:
 
 jobs:
 
-  setup-github-cli:
-    name: 'Setup GitHub CLI'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    outputs:
-      gh_available: ${{ steps.setup.outputs.gh_available }}
-    steps:
-      - name: Setup GitHub CLI
-        id: setup
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "Setting up GitHub CLI..."
-          
-          # GitHub CLI is pre-installed on Ubuntu runners
-          # No installation needed, just verify availability and authentication
-          
-          # Test GitHub CLI availability and authentication
-          if gh auth status &> /dev/null; then
-            echo "gh_available=true" >> $GITHUB_OUTPUT
-            echo "GitHub CLI is available and authenticated"
-          else
-            echo "gh_available=false" >> $GITHUB_OUTPUT
-            echo "GitHub CLI is not available or not authenticated"
-          fi
-
   create-issue:
     name: 'Create Issue for GitHub Copilot Agent'
-    needs: [setup-github-cli]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -142,10 +114,12 @@ jobs:
             Please provide specific, actionable recommendations and implementations based on the current repository state. Focus on changes that can be implemented incrementally and maintain the existing architecture patterns.
             
             Create a pull request with your proposed changes targeting the \`${{ env.TARGET_BRANCH }}\` branch.`;
+
+            If no changes would be a useful improvement within the scope of the Task Description, you may close the issue with a comment suggesting areas where the scope could be increased mentioning specific oppertunities for change.
             
             console.log("Issue Content:");
             console.log(`Title: ${issueTitle}`);
-            console.log(`Body: ${issueBody}`);
+            console.log(`Body: ${issueBody}
             
             try {
               // Get repository ID first

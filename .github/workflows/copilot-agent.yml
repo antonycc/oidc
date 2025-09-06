@@ -29,7 +29,7 @@ on:
 env:
   PROMPT_SELECTION: ${{ inputs.prompt_selection || 'auto-select' }}
   TARGET_BRANCH: ${{ inputs.target_branch || 'main' }}
-  TRIGGER_TYPE: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
+  TRIGGER_TYPE: manual
 
 jobs:
 

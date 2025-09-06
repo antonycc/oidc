@@ -99,10 +99,7 @@ The new prompt must meet these mandatory requirements:
 - Be strategically valuable for the repository's OIDC provider goals
 - Follow AWS Well-Architected principles (security, reliability, performance, cost optimization, operational excellence)
 - Include security best practices assessment (IAM least privilege, encryption, logging)
-- Complete the internal technical review process before execution:
-  - Technical Review: AWS best practices, CDK patterns, Node.js ES2022+ standards
-  - Quality Review: comprehensive testing strategy, verbose logging for auth flows
-  - Operational Review: cold start performance, CloudWatch cost optimization, scalability
+- Complete the internal review process as described in the "Mandatory Internal Review Process" section above.
 - Integrate seamlessly with the existing prompt system
 - Provide clear, actionable guidance specific to OIDC provider development
 - Include rollback and deployment risk assessment

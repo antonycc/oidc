@@ -10,10 +10,9 @@ on:
       prompt_selection:
         description: 'Prompt to send to GitHub Copilot Agent'
         required: false
-        default: 'auto-select'
+        default: 'increase-consistency'
         type: choice
         options:
-          - auto-select
           - expand-capabilities
           - prune-focus
           - abstract-libraries
@@ -24,8 +23,8 @@ on:
         required: false
         default: 'main'
         type: string
-  schedule:
-    - cron: '15 6 * * 1'  # Weekly on Mondays at 6:15 AM UTC
+  #schedule:
+  #  - cron: '15 6 * * 1'  # Weekly on Mondays at 6:15 AM UTC
 
 env:
   PROMPT_SELECTION: ${{ inputs.prompt_selection || 'auto-select' }}
@@ -33,96 +32,9 @@ env:
   TRIGGER_TYPE: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
 
 jobs:
-  analyze-repository:
-    name: 'Analyze Repository State'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    outputs:
-      analysis_complete: ${{ steps.analyze.outputs.analysis_complete }}
-      repository_state: ${{ steps.analyze.outputs.repository_state }}
-      recommended_prompt: ${{ steps.analyze.outputs.recommended_prompt }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'npm'
-
-      - run: npm ci
-
-      - name: Analyze repository state
-        id: analyze
-        run: |
-          echo "Analyzing repository state for prompt selection..."
-          
-          # Gather repository metrics
-          TOTAL_JS_FILES=$(find . -name "*.js" -o -name "*.ts" | grep -v node_modules | wc -l)
-          TOTAL_JAVA_FILES=$(find . -name "*.java" | grep -v node_modules | wc -l)
-          TODO_COUNT=$(grep -rn "TODO" --include="*.js" --include="*.ts" --include="*.java" . --exclude-dir=node_modules 2>/dev/null | wc -l)
-          TEST_FILES=$(find . -name "*.test.js" -o -name "*.spec.js" | grep -v node_modules | wc -l)
-          
-          # Check for recent commits indicating development focus
-          RECENT_COMMITS=$(git log --oneline -10 | head -10)
-          
-          # Check for dependencies that might need updating
-          OUTDATED_DEPS=$(npm outdated 2>/dev/null | wc -l || echo "0")
-          
-          # Analyze code complexity indicators
-          LONG_FUNCTIONS=$(find ./app ./web -name "*.js" 2>/dev/null | grep -v node_modules | xargs grep -l "function\|=>" 2>/dev/null | wc -l || echo "0")
-          
-          # Check documentation freshness
-          DOC_FILES=$(find . -name "*.md" | wc -l)
-          README_AGE=$(stat -c %Y README.md 2>/dev/null || echo "0")
-          CURRENT_TIME=$(date +%s)
-          README_DAYS_OLD=$(( (CURRENT_TIME - README_AGE) / 86400 ))
-          
-          # Create repository state summary
-          REPOSITORY_STATE="Repository Analysis:
-          - JavaScript/TypeScript files: $TOTAL_JS_FILES
-          - Java files: $TOTAL_JAVA_FILES  
-          - TODO comments: $TODO_COUNT
-          - Test files: $TEST_FILES
-          - Documentation files: $DOC_FILES
-          - README last modified: $README_DAYS_OLD days ago
-          - Potentially outdated dependencies: $OUTDATED_DEPS
-          - Files with functions: $LONG_FUNCTIONS
-          
-          Recent development activity:
-          $RECENT_COMMITS"
-          
-          echo "repository_state<<EOF" >> $GITHUB_OUTPUT
-          echo "$REPOSITORY_STATE" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          
-          # Auto-recommend prompt based on analysis
-          RECOMMENDED_PROMPT="expand-capabilities"  # Default
-          
-          if [ "$TODO_COUNT" -gt 20 ]; then
-            RECOMMENDED_PROMPT="prune-focus"
-          elif [ "$LONG_FUNCTIONS" -gt 50 ]; then
-            RECOMMENDED_PROMPT="abstract-libraries"
-          elif [ "$README_DAYS_OLD" -gt 90 ]; then
-            RECOMMENDED_PROMPT="refresh-documentation"
-          elif [ "$TOTAL_JS_FILES" -gt 100 ]; then
-            RECOMMENDED_PROMPT="increase-consistency"
-          fi
-          
-          echo "recommended_prompt=$RECOMMENDED_PROMPT" >> $GITHUB_OUTPUT
-          echo "analysis_complete=true" >> $GITHUB_OUTPUT
-          
-          echo "::group::Repository Analysis"
-          echo "$REPOSITORY_STATE"
-          echo "Recommended prompt: $RECOMMENDED_PROMPT"
-          echo "::endgroup::"
 
   setup-github-cli:
     name: 'Setup GitHub CLI'
-    needs: analyze-repository
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -150,8 +62,7 @@ jobs:
 
   create-copilot-issue:
     name: 'Create Issue for GitHub Copilot Agent'
-    needs: [analyze-repository, setup-github-cli]
-    if: needs.analyze-repository.outputs.analysis_complete == 'true'
+    needs: [setup-github-cli]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -177,45 +88,15 @@ jobs:
           echo "Creating GitHub issue for Copilot Agent with prompt selection: ${{ env.PROMPT_SELECTION }}"
           echo "Trigger type: ${{ env.TRIGGER_TYPE }}"
           
-          # Determine which prompt to use
-          if [ "${{ env.PROMPT_SELECTION }}" = "auto-select" ]; then
-            SELECTED_PROMPT="${{ needs.analyze-repository.outputs.recommended_prompt }}"
-            echo "Auto-selected prompt: $SELECTED_PROMPT based on repository analysis"
-          else
-            SELECTED_PROMPT="${{ env.PROMPT_SELECTION }}"
-            echo "Using user-selected prompt: $SELECTED_PROMPT"
-          fi
-          
+          SELECTED_PROMPT="${{ env.PROMPT_SELECTION }}"
+          echo "Using user-selected prompt: $SELECTED_PROMPT"
           echo "selected_prompt=$SELECTED_PROMPT" >> $GITHUB_OUTPUT
           
-          # Load the appropriate prompt content
-          case "$SELECTED_PROMPT" in
-            "expand-capabilities")
-              PROMPT_FILE="expand-capabilities.md"
-              ;;
-            "prune-focus") 
-              PROMPT_FILE="prune-focus.md"
-              ;;
-            "abstract-libraries")
-              PROMPT_FILE="abstract-libraries.md"
-              ;;
-            "increase-consistency")
-              PROMPT_FILE="increase-consistency.md"
-              ;;
-            "refresh-documentation")
-              PROMPT_FILE="refresh-documentation.md"
-              ;;
-            *)
-              echo "Unknown prompt selection: $SELECTED_PROMPT"
-              exit 1
-              ;;
-          esac
-          
+          PROMPT_FILE="${SELECTED_PROMPT?}.md"
           if [ ! -f "prompts/$PROMPT_FILE" ]; then
             echo "Prompt file not found: prompts/$PROMPT_FILE"
             exit 1
           fi
-          
           echo "Using prompt file: prompts/$PROMPT_FILE"
           
           # Create issue title and body for Copilot Agent

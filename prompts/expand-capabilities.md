@@ -11,13 +11,12 @@ Focus on:
 - Security enhancements and monitoring improvements
 - Performance optimizations and scalability improvements
 
-Consider the existing patterns:
-- AWS serverless architecture (Lambda, S3, CloudFront, API Gateway)
-- Express.js server with multi-environment support (.env.ci, .env.prod, .env.proxy)
-- Comprehensive testing suite (unit, integration, system, behavior tests)
-- GitHub Actions workflows for CI/CD
-- Java CDK infrastructure as code
-- VAT submission and accounting features
+Consider the existing patterns and technologies used in the repository, such as:
+- deployment architecture
+- multi-environment support
+- testing suites
+- end user tax submission features
+- end user account management features
 
 Provide specific, actionable suggestions that:
 - Build upon existing foundations

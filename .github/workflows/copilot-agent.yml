@@ -255,13 +255,13 @@ jobs:
           
           # Create issue assigned to Copilot Agent
           if [ "${{ needs.setup-github-cli.outputs.gh_available }}" = "true" ]; then
-            echo "Creating issue assigned to @copilot..."
+            echo "Creating issue assigned to copilot..."
             
             # Create the issue and capture the full output
             ISSUE_OUTPUT=$(gh issue create \
               --title "$ISSUE_TITLE" \
               --body-file issue_body.md \
-              --assignee @copilot \
+              --assignee copilot \
               --label "enhancement,copilot-agent" 2>&1)
             
             # Extract issue number from the output
@@ -325,7 +325,7 @@ jobs:
           elif [ "${{ needs.setup-github-cli.outputs.gh_available }}" != "true" ]; then
             echo "- **Result**: ❌ GitHub CLI unavailable" >> $GITHUB_STEP_SUMMARY
           elif [ "${{ needs.create-copilot-issue.outputs.issue_created }}" = "true" ]; then
-            echo "- **Result**: ✅ Successfully created issue [#${{ needs.create-copilot-issue.outputs.issue_number }}](https://github.com/${{ github.repository }}/issues/${{ needs.create-copilot-issue.outputs.issue_number }}) assigned to @copilot" >> $GITHUB_STEP_SUMMARY
+            echo "- **Result**: ✅ Successfully created issue [#${{ needs.create-copilot-issue.outputs.issue_number }}](https://github.com/${{ github.repository }}/issues/${{ needs.create-copilot-issue.outputs.issue_number }}) assigned to copilot" >> $GITHUB_STEP_SUMMARY
             echo "- **Next Steps**: Copilot Agent will analyze the issue and create a pull request automatically" >> $GITHUB_STEP_SUMMARY
           else
             echo "- **Result**: ❌ Issue creation failed" >> $GITHUB_STEP_SUMMARY
@@ -344,7 +344,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### How It Works" >> $GITHUB_STEP_SUMMARY
           echo "1. **Analysis**: Workflow analyzes repository state and selects appropriate prompt" >> $GITHUB_STEP_SUMMARY
-          echo "2. **Issue Creation**: Creates GitHub issue assigned to @copilot with detailed context" >> $GITHUB_STEP_SUMMARY
+          echo "2. **Issue Creation**: Creates GitHub issue assigned to copilot with detailed context" >> $GITHUB_STEP_SUMMARY
           echo "3. **Agent Processing**: Copilot coding agent processes the issue automatically" >> $GITHUB_STEP_SUMMARY
           echo "4. **PR Creation**: Agent creates pull request with proposed changes" >> $GITHUB_STEP_SUMMARY
           echo "5. **Iteration**: Comment on the PR mentioning @copilot for further changes" >> $GITHUB_STEP_SUMMARY

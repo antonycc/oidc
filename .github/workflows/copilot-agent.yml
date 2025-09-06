@@ -234,6 +234,7 @@ jobs:
         id: assign
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           script: |
             const issueNumber = ${{ needs.create-issue.outputs.issue_number }};
             const issueId = '${{ needs.create-issue.outputs.issue_id }}';

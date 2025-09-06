@@ -23,12 +23,18 @@ on:
         required: false
         default: 'main'
         type: string
+      copilot_agent_login:
+        description: 'GitHub login name of the Copilot agent to assign issues to'
+        required: false
+        default: 'copilot-swe-agent'
+        type: string
   #schedule:
   #  - cron: '15 6 * * 1'  # Weekly on Mondays at 6:15 AM UTC
 
 env:
   PROMPT_SELECTION: ${{ inputs.prompt_selection || 'auto-select' }}
   TARGET_BRANCH: ${{ inputs.target_branch || 'main' }}
+  COPILOT_AGENT_LOGIN: ${{ inputs.copilot_agent_login || 'copilot-swe-agent' }}
   TRIGGER_TYPE: manual
 
 jobs:
@@ -71,6 +77,7 @@ jobs:
       issue_created: ${{ steps.create.outputs.issue_created }}
       issue_number: ${{ steps.create.outputs.issue_number }}
       issue_id: ${{ steps.create.outputs.issue_id }}
+      issue_url: ${{ steps.create.outputs.issue_url }}
       selected_prompt: ${{ steps.create.outputs.selected_prompt }}
     steps:
       - name: Checkout repository  
@@ -199,12 +206,19 @@ jobs:
               core.setOutput('issue_created', 'true');
               core.setOutput('issue_number', issue.number.toString());
               core.setOutput('issue_id', issue.id);
+              core.setOutput('issue_url', issue.url);
               
             } catch (error) {
               console.error('Failed to create issue:', error);
               core.setFailed(`Failed to create issue: ${error.message}`);
               core.setOutput('issue_created', 'false');
             }
+
+      - name: Display issue link
+        if: steps.create.outputs.issue_created == 'true'
+        run: |
+          echo "✅ **Issue Created:** #${{ steps.create.outputs.issue_number }}"
+          echo "🔗 **Issue Link:** ${{ steps.create.outputs.issue_url }}"
 
   assign-issue:
     name: 'Assign Issue to GitHub Copilot Agent'
@@ -254,9 +268,9 @@ jobs:
               
               console.log('Available suggested actors:', actorsResult.repository.suggestedActors.nodes.map(n => n.login));
               
-              // Find the copilot-swe-agent
+              // Find the copilot agent
               const copilotBot = actorsResult.repository.suggestedActors.nodes.find(
-                actor => actor.login === 'copilot-swe-agent'
+                actor => actor.login === '${{ env.COPILOT_AGENT_LOGIN }}'
               );
               
               if (!copilotBot) {
@@ -308,35 +322,10 @@ jobs:
               // Don't fail the workflow - the issue was created successfully
             }
 
-  workflow-summary:
-    name: 'Workflow Summary'
-    needs: [create-issue, assign-issue]
-    runs-on: ubuntu-latest
-    if: always()
-    steps:
-      - name: Generate workflow summary
+      - name: Display assignment status
         run: |
-          echo "## GitHub Copilot Agent Workflow Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Prompt Selection:** ${{ needs.create-issue.outputs.selected_prompt }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Target Branch:** ${{ env.TARGET_BRANCH }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          if [ "${{ needs.create-issue.outputs.issue_created }}" = "true" ]; then
-            echo "✅ **Issue Created:** #${{ needs.create-issue.outputs.issue_number }}" >> $GITHUB_STEP_SUMMARY
-            echo "🔗 **Issue Link:** https://github.com/${{ github.repository }}/issues/${{ needs.create-issue.outputs.issue_number }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.assign.outputs.issue_assigned }}" = "true" ]; then
+            echo "✅ **Assignment:** Successfully assigned to ${{ env.COPILOT_AGENT_LOGIN }}"
           else
-            echo "❌ **Issue Creation:** Failed" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **Assignment:** Failed or ${{ env.COPILOT_AGENT_LOGIN }} not available (issue still created)"
           fi
-          
-          if [ "${{ needs.assign-issue.outputs.issue_assigned }}" = "true" ]; then
-            echo "✅ **Assignment:** Successfully assigned to Copilot Agent" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "⚠️ **Assignment:** Failed or not available (issue still created)" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
-          echo "- Monitor the issue for Copilot Agent activity (👀 reaction)" >> $GITHUB_STEP_SUMMARY
-          echo "- Review the pull request created by Copilot Agent" >> $GITHUB_STEP_SUMMARY
-          echo "- Provide feedback by commenting on the PR with @copilot mentions" >> $GITHUB_STEP_SUMMARY

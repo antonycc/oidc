@@ -15,7 +15,12 @@ Review the existing prompts and their focus areas:
 
 Based on your analysis of the repository structure, codebase, architecture, and existing prompts, create a new prompt that addresses an important gap or opportunity that would provide significant value.
 
-**CRITICAL**: Before creating any new prompt, you must conduct rigorous multi-perspective analysis following the repository's coding guidelines:
+**CRITICAL**: Before creating any new prompt, you must conduct rigorous multi-perspective analysis following these coding guidelines:
+- Adhere to AWS Well-Architected principles
+- Apply security best practices (IAM least privilege, encryption, logging)
+- Use infrastructure-as-code best practices for CDK code
+- Follow modern ES2022+ patterns for Node.js code
+- Ensure comprehensive error handling and logging
 
 ### Required Multi-Scenario Evaluation
 Evaluate AT LEAST 3 different approaches for the new prompt:

@@ -47,6 +47,7 @@ gh workflow run copilot-agent.yml \
 - `abstract-libraries`: Find opportunities to abstract to libraries
 - `increase-consistency`: Improve consistency across the codebase
 - `refresh-documentation`: Update and improve documentation
+- `security-production-readiness`: Implement security best practices and production readiness features
 
 ## Iteration
 

@@ -100,7 +100,7 @@ jobs:
           echo "Using prompt file: prompts/$PROMPT_FILE"
           
           # Create issue title and body for Copilot Agent
-          TRIGGER_INFO="${{ env.TRIGGER_TYPE == 'scheduled' && 'Scheduled Weekly Run' || 'Manual Trigger' }}"
+          TRIGGER_INFO="Manual Trigger"
           ISSUE_TITLE="Repository Enhancement: $SELECTED_PROMPT - $TRIGGER_INFO ($(date +%Y-%m-%d))"
           
           cat > issue_body.md << EOF

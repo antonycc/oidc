@@ -257,12 +257,22 @@ jobs:
           if [ "${{ needs.setup-github-cli.outputs.gh_available }}" = "true" ]; then
             echo "Creating issue assigned to copilot..."
             
-            # Create the issue and capture the full output
+            # Try to create the issue with copilot assignee first
             ISSUE_OUTPUT=$(gh issue create \
               --title "$ISSUE_TITLE" \
               --body-file issue_body.md \
               --assignee copilot \
               --label "enhancement,copilot-agent" 2>&1)
+            
+            # If that fails, try without assignee as fallback
+            if [ $? -ne 0 ]; then
+              echo "Failed to create issue with assignee, trying without assignee..."
+              echo "Original error: $ISSUE_OUTPUT"
+              ISSUE_OUTPUT=$(gh issue create \
+                --title "$ISSUE_TITLE" \
+                --body-file issue_body.md \
+                --label "enhancement,copilot-agent" 2>&1)
+            fi
             
             # Extract issue number from the output
             ISSUE_NUMBER=$(echo "$ISSUE_OUTPUT" | grep -o '#[0-9]*' | sed 's/#//' | head -1)
@@ -273,7 +283,7 @@ jobs:
             if [ -n "$ISSUE_NUMBER" ]; then
               echo "issue_created=true" >> $GITHUB_OUTPUT
               echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
-              echo "Successfully created issue #$ISSUE_NUMBER assigned to Copilot Agent"
+              echo "Successfully created issue #$ISSUE_NUMBER for Copilot Agent"
               
               if [ -n "$ISSUE_URL" ]; then
                 echo "Issue URL: $ISSUE_URL"

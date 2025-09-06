@@ -40,6 +40,13 @@ gh workflow run copilot-agent.yml \
   -f target_branch=main
 ```
 
+### Create New Prompt Example
+```bash
+gh workflow run copilot-agent.yml \
+  -f prompt_selection=create-new-prompt \
+  -f target_branch=main
+```
+
 ### Available Prompts
 - `auto-select`: Automatically choose based on repository analysis
 - `expand-capabilities`: Suggest ways to expand repository capabilities
@@ -47,7 +54,7 @@ gh workflow run copilot-agent.yml \
 - `abstract-libraries`: Find opportunities to abstract to libraries
 - `increase-consistency`: Improve consistency across the codebase
 - `refresh-documentation`: Update and improve documentation
-- `security-production-readiness`: Implement security best practices and production readiness features
+- `create-new-prompt`: Analyze repository gaps and create a new strategic prompt
 
 ## Iteration
 

@@ -9,7 +9,7 @@ import {
   validateScopes,
   isPkceRequired,
 } from "../lib/clients.mjs";
-import { log, logError, maskSensitive, parseFormBody, createErrorResponse } from "../lib/utils.mjs";
+import { log, logError, maskSensitive, parseFormBody, createJsonResponse } from "../lib/utils.mjs";
 
 // Create a safe version of query params for logging (mask sensitive fields)
 const createSafeQpForLogging = (qp) => {
@@ -42,7 +42,7 @@ export const handler = async (event) => {
 
     // Only support POST method for security and OAuth2 best practices
     if (method !== "POST") {
-      return createErrorResponse(405, "method_not_allowed");
+      return createJsonResponse(405, { error: "method_not_allowed" });
     }
 
     const body = parseFormBody(event);
@@ -58,33 +58,33 @@ export const handler = async (event) => {
       // nonce is optional, but recommended
       // code_challenge and code_challenge_method are optional unless client requires PKCE
     ];
-    for (const k of req) if (!qp[k]) return createErrorResponse(400, "missing " + k);
-    if (qp.response_type !== "code") return createErrorResponse(400, "unsupported_response_type");
+    for (const k of req) if (!qp[k]) return createJsonResponse(400, { error: "invalid_request", error_description: `Missing required parameter: ${k}` });
+    if (qp.response_type !== "code") return createJsonResponse(400, { error: "unsupported_response_type" });
 
     // Client registry validation
     const client = getClient(qp.client_id);
-    if (!client) return createErrorResponse(400, "invalid_client");
+    if (!client) return createJsonResponse(400, { error: "invalid_client" });
 
     // Validate redirect URI is allowed for this client
     if (!validateRedirectUri(qp.client_id, qp.redirect_uri)) {
-      return createErrorResponse(400, "invalid_redirect_uri");
+      return createJsonResponse(400, { error: "invalid_redirect_uri" });
     }
 
     // Validate scopes are allowed for this client
     if (!validateScopes(qp.client_id, qp.scope)) {
-      return createErrorResponse(400, "invalid_scope");
+      return createJsonResponse(400, { error: "invalid_scope" });
     }
 
     // Validate PKCE if required by client or if provided
     if (isPkceRequired(qp.client_id)) {
       if (!qp.code_challenge || !qp.code_challenge_method) {
-        return createErrorResponse(400, "pkce_required");
+        return createJsonResponse(400, { error: "invalid_request", error_description: "PKCE required but code_challenge or code_challenge_method missing" });
       }
     }
 
     // If PKCE provided, validate it's correct format
     if (qp.code_challenge && qp.code_challenge_method !== "S256") {
-      return createErrorResponse(400, "invalid_request");
+      return createJsonResponse(400, { error: "invalid_request", error_description: "Only S256 code_challenge_method is supported" });
     }
 
     const username = qp.username || "test-user";
@@ -124,6 +124,6 @@ export const handler = async (event) => {
     return { statusCode: 302, headers: { Location: location }, body: "" };
   } catch (e) {
     logError("authorize_error", e);
-    return createErrorResponse(500, "server_error");
+    return createJsonResponse(500, { error: "server_error" });
   }
 };

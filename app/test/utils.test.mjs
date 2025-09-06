@@ -6,7 +6,6 @@ import {
   maskSensitive,
   parseFormBody,
   createJsonResponse,
-  createErrorResponse,
 } from "../lib/utils.mjs";
 
 describe("utils", () => {
@@ -176,17 +175,6 @@ describe("utils", () => {
       expect(response.headers["cache-control"]).toBe("public, max-age=3600");
       expect(response.headers["custom-header"]).toBe("value");
       expect(response.headers["content-type"]).toBe("application/json");
-    });
-  });
-
-  describe("createErrorResponse", () => {
-    it("creates standard error response", () => {
-      const response = createErrorResponse(400, "invalid_request");
-
-      expect(response.statusCode).toBe(400);
-      expect(response.headers["content-type"]).toBe("text/plain");
-      expect(response.headers["cache-control"]).toBe("no-store");
-      expect(response.body).toBe("invalid_request");
     });
   });
 });

@@ -26,7 +26,8 @@ describe("authorize", () => {
     };
     const r = await authorize(e);
     expect(r.statusCode).toBe(405);
-    expect(r.body).toBe("method_not_allowed");
+    const body = JSON.parse(r.body);
+    expect(body.error).toBe("method_not_allowed");
   });
 
   it("returns invalid_client for unknown client_id", async () => {
@@ -36,7 +37,8 @@ describe("authorize", () => {
     };
     const r = await authorize(e);
     expect(r.statusCode).toBe(400);
-    expect(r.body).toBe("invalid_client");
+    const body = JSON.parse(r.body);
+    expect(body.error).toBe("invalid_client");
   });
 
   it("returns invalid_redirect_uri for unauthorized redirect_uri", async () => {
@@ -46,7 +48,8 @@ describe("authorize", () => {
     };
     const r = await authorize(e);
     expect(r.statusCode).toBe(400);
-    expect(r.body).toBe("invalid_redirect_uri");
+    const body = JSON.parse(r.body);
+    expect(body.error).toBe("invalid_redirect_uri");
   });
 
   it("returns invalid_scope for unauthorized scopes", async () => {
@@ -56,7 +59,8 @@ describe("authorize", () => {
     };
     const r = await authorize(e);
     expect(r.statusCode).toBe(400);
-    expect(r.body).toBe("invalid_scope");
+    const body = JSON.parse(r.body);
+    expect(body.error).toBe("invalid_scope");
   });
 
   it("rejects self-client with invalid redirect URI", async () => {
@@ -71,7 +75,8 @@ describe("authorize", () => {
       };
       const r = await authorize(e);
       expect(r.statusCode).toBe(400);
-      expect(r.body).toBe("invalid_redirect_uri");
+      const body = JSON.parse(r.body);
+      expect(body.error).toBe("invalid_redirect_uri");
     } finally {
       // Restore original BASE_URL
       if (originalBaseUrl !== undefined) {

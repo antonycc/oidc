@@ -109,15 +109,3 @@ export const createJsonResponse = (statusCode, body, headers = {}) => ({
   },
   body: JSON.stringify(body),
 });
-
-/**
- * Create error response with consistent format
- * @param {number} statusCode - HTTP status code
- * @param {string} error - Error code or message
- * @returns {object} Lambda response object
- */
-export const createErrorResponse = (statusCode, error) => ({
-  statusCode,
-  headers: { "content-type": "text/plain", "cache-control": "no-store" },
-  body: error,
-});

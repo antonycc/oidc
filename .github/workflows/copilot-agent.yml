@@ -122,7 +122,7 @@ jobs:
             
             console.log("Issue Content:");
             console.log(`Title: ${issueTitle}`);
-            console.log(`Body: ${issueBody}
+            console.log(`Body: ${issueBody});
             
             try {
               // Get repository ID first

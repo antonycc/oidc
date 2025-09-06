@@ -133,25 +133,16 @@ jobs:
         run: |
           echo "Setting up GitHub CLI..."
           
-          # Install GitHub CLI if not available
-          if ! command -v gh &> /dev/null; then
-            echo "Installing GitHub CLI..."
-            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-            sudo apt update
-            sudo apt install gh
-          fi
+          # GitHub CLI is pre-installed on Ubuntu runners
+          # No installation needed, just verify availability and authentication
           
-          # Authenticate with GitHub CLI
-          echo "$GITHUB_TOKEN" | gh auth login --with-token
-          
-          # Test GitHub CLI availability
-          if gh --version &> /dev/null; then
+          # Test GitHub CLI availability and authentication
+          if gh auth status &> /dev/null; then
             echo "gh_available=true" >> $GITHUB_OUTPUT
-            echo "GitHub CLI is available"
+            echo "GitHub CLI is available and authenticated"
           else
             echo "gh_available=false" >> $GITHUB_OUTPUT
-            echo "GitHub CLI is not available"
+            echo "GitHub CLI is not available or not authenticated"
           fi
 
   create-copilot-issue:

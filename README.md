@@ -1,50 +1,63 @@
-# OIDC Provider - Serverless Debugging Utility
+# OpenID Connect Provider
 
-> **🔧 This is a debugging and testing utility with a production deployment at `https://oidc.antonycc.com` for integration testing.**
+**Mission:** A production-ready OpenID Connect provider that is fully functional for direct use or integration behind AWS Cognito, while maintaining complete transparency and inspectability at every level of implementation.
 
-## What This Is
+This serverless OIDC provider delivers standards-compliant authentication with comprehensive logging, structured for both standalone deployment and enterprise integration scenarios. The implementation prioritizes code clarity, operational transparency, and zero-cost-at-rest economics.
 
-A **lightweight, inspectable OIDC provider** designed for developers who need to:
-- **Debug OAuth2/OIDC flows** with comprehensive logging
-- **Test authentication integrations** with a real OIDC provider
-- **Learn OIDC implementations** by examining working code
-- **Clone and customize** for specific testing scenarios
+## Features
 
-## Quick Start: Fork → Configure → Deploy → Test
+**Production OIDC Provider:**
+- **Standards-compliant** OAuth2/OpenID Connect implementation
+- **Direct deployment** as standalone authentication service
+- **Cognito integration** as external identity provider
+- **Comprehensive logging** for operational transparency
+
+**Developer-Focused Design:**
+- **Complete code inspection** across all layers
+- **Minimal dependencies** for easy understanding
+- **Clear architecture** separating concerns
+- **Extensive testing** with Playwright scenarios
+
+## Quick Start: Deploy Your OIDC Provider
 
 1. **Fork this repository** to your GitHub account
-2. **Set up your domain** and AWS credentials (see [Setup](#setup))
+2. **Configure your domain** and AWS credentials (see [Setup](#setup))
 3. **Deploy via GitHub Actions**:
-   - **Production**: Pushes to `main` branch auto-deploy to `oidc.antonycc.com` / `auth.oidc.antonycc.com`
-   - **CI Testing**: Use manual dispatch with `deploymentName: ci` to deploy to `ci.oidc.antonycc.com` / `ci.auth.oidc.antonycc.com`
-   - **Branch Testing**: Any branch push deploys to `ci-{branch}.oidc.antonycc.com` / `ci-{branch}.auth.oidc.antonycc.com` and auto-cleans up after tests
-4. **Test with included Playwright scenarios** (screenshots, videos, traces)
+   - **Production**: Push to `main` branch → deploys to your configured domain
+   - **CI Testing**: Manual dispatch with `deploymentName: ci` → deploys to CI subdomain  
+   - **Branch Testing**: Any branch push → temporary deployment with auto-cleanup
+4. **Validate with Playwright tests** (screenshots, videos, traces included)
 
-**Or test immediately against the production deployment:**
-- URL: `https://oidc.antonycc.com`
-- Test credentials: `test-user` / `****`
-- Try the [direct login flow](https://oidc.antonycc.com/login.html)
+**Test immediately against production deployment:**
+- **Live instance**: https://oidc.antonycc.com
+- **Test credentials**: `test-user` / `****`
+- **Direct login flow**: [Try it now](https://oidc.antonycc.com/login.html)
 
 ## Architecture
 
-**Tech Stack:** CDK Java v2, Node.js 22 ESM Lambdas, CloudFront+S3 (OAC), DynamoDB TTL, Cognito User Pool integration
+**Core Stack:**
+- **CDK Java v2**: Infrastructure as code with explicit resource definitions
+- **Node.js 22 ESM Lambda**: Authorization, token, userinfo, and JWKS endpoints  
+- **DynamoDB**: User store, authorization codes, and JWKS with TTL policies
+- **CloudFront + S3**: Static content delivery with Origin Access Control
 
-**Why Serverless:** Pay-per-request pricing, automatic scaling, comprehensive CloudWatch logging (7-day retention), infrastructure-as-code with destroy-on-delete for safe testing environments.
+**Design Principles:**
+- **Pay-per-request**: Zero cost at rest, scales automatically under load
+- **Complete transparency**: Structured logging captures every decision point
+- **Standards compliance**: OAuth2 RFC 6749 and OpenID Connect Core 1.0
+- **Dual deployment**: Direct authentication service or Cognito integration
 
 ## Performance
 
-The OIDC provider has been load tested and demonstrates excellent reliability and performance characteristics:
+Production-ready performance characteristics validated through load testing:
 
 **Load Test Results (20 Virtual Users):**
-- **Success Rate:** 100% (0 failures across all OIDC flow endpoints)
-- **Total Iterations:** 65 successful complete authentication flows
-- **Average Flow Duration:** ~861ms (end-to-end authorize → token → userinfo)
-- **Median HTTP Response Time:** ~107ms 
-- **95th Percentile Response Time:** ~717ms
-- **All OIDC Endpoints:** Authorize, Token, and UserInfo all maintain 100% success rate
-- **Request Volume:** 195 total HTTP requests processed with zero errors
+- **Success Rate:** 100% across 65 complete authentication flows
+- **Response Times:** ~107ms median, ~717ms 95th percentile
+- **Flow Duration:** ~861ms end-to-end (authorize → token → userinfo)
+- **Zero Errors:** 195 HTTP requests processed without failures
 
-The provider handles concurrent authentication flows reliably with consistent performance, making it suitable for testing and development workloads. The serverless architecture automatically scales to handle demand spikes while maintaining cost efficiency during idle periods.
+The serverless architecture scales automatically from zero to peak demand while maintaining consistent response times and reliability.
 
 ## Screenshots
 

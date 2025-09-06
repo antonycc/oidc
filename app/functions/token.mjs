@@ -1,7 +1,7 @@
 import * as crypto from "node:crypto";
 import { get, conditionalDelete, put, update, tables } from "../lib/db.mjs";
 import { signJwt } from "../lib/crypto.mjs";
-import { validateClientAuth } from "../lib/clients.mjs";
+import { validateClientAuth, isPkceRequired } from "../lib/clients.mjs";
 const safeStringify = (val) => {
   try {
     if (val instanceof Error) {
@@ -73,15 +73,20 @@ export const handler = async (event) => {
     const clientId = body.get("client_id");
     const redirectUri = body.get("redirect_uri");
 
-    //log("token_request", clientId, redirectUri, code ? `has_code: ${maskSensitive(code)}` : "no_code", verifier ? `has_verifier: ${maskSensitive(verifier)}` : "no_verifier");
     log("token_request", clientId, redirectUri, code ? `has_code: ${maskSensitive(code)}` : "no_code");
-    //if (!code || !verifier || !clientId || !redirectUri) return json(400, { error: "invalid_request" });
-    // TODO: Conditionally check for verifier if PKCE is enabled
+    
+    // Validate required parameters
     if (!code || !clientId || !redirectUri) {
         return json(400, { error: `invalid_request (!code${code} || !clientId${clientId} || !redirectUri${redirectUri})` });
-    } else {
-        log("token_request_parameters_present", clientId, { hasCode: !!code, hasRedirect: !!redirectUri }, maskSensitive(code));
     }
+    
+    // Check if PKCE is required for this client
+    const pkceRequired = isPkceRequired(clientId);
+    if (pkceRequired && !verifier) {
+        return json(400, { error: "invalid_request (PKCE required but no code_verifier provided)" });
+    }
+    
+    log("token_request_parameters_present", clientId, { hasCode: !!code, hasRedirect: !!redirectUri, hasPkceVerifier: !!verifier, pkceRequired }, maskSensitive(code));
 
     // Validate client authentication (for public clients, no secret needed)
     const clientSecret = body.get("client_secret");
@@ -127,11 +132,20 @@ export const handler = async (event) => {
       log("token_redirect_uri_validated", redirectUri, { redirectValidated: true }, maskSensitive(code));
     }
 
-    if(verifier && row.Item.ccm) {
-        const expect = crypto.createHash("sha256").update(verifier).digest("base64url");
-        if (expect !== row.Item.ch) return json(400, {error: `invalid_grant (crypto.createHash("sha256").update(${verifier}).digest("base64url") !== row.Item.ch)`});
+    // Validate PKCE challenge if present in authorization code
+    if (row.Item.ccm) {
+        // If we have a challenge method, we must have a verifier
+        if (!verifier) {
+            return json(400, { error: "invalid_grant (PKCE challenge present but no code_verifier provided)" });
+        }
+        
+        const expectedChallenge = crypto.createHash("sha256").update(verifier).digest("base64url");
+        if (expectedChallenge !== row.Item.ch) {
+            return json(400, { error: "invalid_grant (PKCE challenge verification failed)" });
+        }
+        log("pkce_verification_success", { challengeMethod: row.Item.ccm });
     } else {
-        log("no_pkce_verifier_to_validate", { hasVerifier: !!verifier, hasChallenge: !!row.Item.ch });
+        log("no_pkce_challenge_to_verify", { hasVerifier: !!verifier, hasChallenge: !!row.Item.ch });
     }
 
     // Use conditional delete to ensure one-time use

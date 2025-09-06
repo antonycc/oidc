@@ -50,7 +50,7 @@ jobs:
           node-version: 22
           cache: 'npm'
 
-      - run: npm install --ignore-engines
+      - run: npm ci
 
       - name: Analyze repository state
         id: analyze

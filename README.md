@@ -150,18 +150,7 @@ Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ### Client Configuration
 
-The provider supports two pre-configured clients:
-
-#### `cognito-web` - For Cognito Integration
-```javascript
-{
-  "redirectUris": ["https://${COGNITO_DOMAIN}/oauth2/idpresponse"],
-  "grantTypes": ["authorization_code"],
-  "scopes": ["openid", "email", "profile"],
-  "pkceRequired": true,
-  "clientSecret": null // Public client
-}
-```
+TODO: Add more
 
 #### `self-client` - For Direct Testing  
 ```javascript
@@ -299,49 +288,6 @@ In your target account, create a role that can assume cross-account permissions:
     }
   ]
 }
-```
-
-**3. Reference Production Resources**
-Use the production Cognito resources in your CloudFormation/CDK:
-
-```typescript
-// Reference existing Cognito User Pool from production account
-const existingUserPool = cognito.UserPool.fromUserPoolId(
-  this, 'ProductionUserPool',
-  'us-east-1_XXXXXXXXX'  // Production User Pool ID
-);
-
-// Create client in your account that uses the production pool
-const userPoolClient = new cognito.UserPoolClient(this, 'MyAppClient', {
-  userPool: existingUserPool,
-  generateSecret: false,
-  authFlows: {
-    userSrp: true,
-    userPassword: true
-  }
-});
-```
-
-**4. Configure Federation (Alternative Approach)**
-Instead of cross-account resource sharing, use OIDC federation:
-
-```typescript
-// Create OIDC Identity Provider pointing to production
-const oidcProvider = new cognito.CfnIdentityProvider(this, 'OidcProvider', {
-  userPoolId: yourUserPool.userPoolId,
-  providerName: 'ProductionOIDC',
-  providerType: 'OIDC',
-  providerDetails: {
-    oidc_issuer: 'https://oidc.antonycc.com',
-    client_id: 'cognito-web',
-    authorize_scopes: 'openid email profile'
-  },
-  attributeMapping: {
-    email: 'email',
-    email_verified: 'email_verified',
-    name: 'name'
-  }
-});
 ```
 
 ### Testing Your Integration

@@ -75,10 +75,8 @@ C) Behaviour tests (Playwright)
 - Config: playwright.config.js uses testDir: ./tests, artifacts always on.
 - Env required at runtime:
   BASE_URL — e.g., https://oidc.example.com (from CDK BaseUrl output)
-  COGNITO_DOMAIN — e.g., xyz.auth.us-east-1.amazoncognito.com (from CognitoAuthDomain)
-  COGNITO_CLIENT_ID — user pool client id (from UserPoolClientId)
 - Run headless Chromium only:
-  BASE_URL="https://…" COGNITO_DOMAIN="…" COGNITO_CLIENT_ID="…" npx playwright test --project=chromium
+  BASE_URL="https://…" npx playwright test --project=chromium
 - Developer modes:
   npm run test:e2e:ui     # Playwright UI runner
   npm run test:e2e:headed # Headed browser without UI runner
@@ -96,7 +94,6 @@ Additional development notes
 - Coding style: ESM modules only (.mjs for tests). Keep unit tests under app/oidc/test. Avoid CommonJS.
 - Java: Target 21; tests use JUnit Jupiter via Surefire 3.2.5. Do not relocate Java sources unless you also update pom.xml (nonstandard infra paths are intentional).
 - CDK specifics:
-  - The Cognito OIDC IdP client_id is a static value ("cognito-web") by design to avoid a CloudFormation dependency cycle with the UserPoolClient. Do not wire it to UserPoolClientId.
   - OIDC endpoints (authorize/token/userinfo) are served behind CloudFront using the domain configured via DOMAIN_NAME; BaseUrl output uses https://{DOMAIN_NAME}.
 - Debugging:
   - Playwright: set DEBUG=pw:api for verbose logs; open traces with npx playwright show-trace test-results/**/trace.zip; run with --headed/--ui locally.

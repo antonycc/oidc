@@ -149,7 +149,8 @@ describe("Concurrent auth->token->userinfo flows", () => {
 
     expect(getRes.status).toBe(405);
     const text = await getRes.text();
-    expect(text).toBe("method_not_allowed");
+    const body = JSON.parse(text);
+    expect(body.error).toBe("method_not_allowed");
   });
 
   it("rejects invalid client_id in concurrent requests", async () => {
@@ -179,7 +180,8 @@ describe("Concurrent auth->token->userinfo flows", () => {
       results.map(async (res) => {
         expect(res.status).toBe(400);
         const text = await res.text();
-        expect(text).toBe("invalid_client");
+        const body = JSON.parse(text);
+        expect(body.error).toBe("invalid_client");
       }),
     );
   });

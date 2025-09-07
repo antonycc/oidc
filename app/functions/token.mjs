@@ -2,7 +2,7 @@ import * as crypto from "node:crypto";
 import { get, conditionalDelete, put, update, tables } from "../lib/db.mjs";
 import { signJwt } from "../lib/crypto.mjs";
 import { validateClientAuth, isPkceRequired } from "../lib/clients.mjs";
-import { log, logError, maskSensitive, parseFormBody, createJsonResponse, createErrorResponse } from "../lib/utils.mjs";
+import { log, logError, maskSensitive, parseFormBody, createJsonResponse } from "../lib/utils.mjs";
 
 /**
  * OIDC Token endpoint handler

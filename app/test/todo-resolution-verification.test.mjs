@@ -17,7 +17,8 @@ describe("TODO Resolution Verification", () => {
 
     // Should return 405 Method Not Allowed instead of 200 login form
     expect(response.statusCode).toBe(405);
-    expect(response.body).toBe("method_not_allowed");
+    const body = JSON.parse(response.body);
+    expect(body.error).toBe("method_not_allowed");
   });
 
   it("confirms POST method validation works correctly", async () => {
@@ -35,7 +36,8 @@ describe("TODO Resolution Verification", () => {
     // Should not return 405 (method not allowed) but rather 400 (invalid client)
     // This proves POST is accepted and processed
     expect(response.statusCode).toBe(400);
-    expect(response.body).toBe("invalid_client");
+    const body = JSON.parse(response.body);
+    expect(body.error).toBe("invalid_client");
   });
 
   it("confirms security improvement: no credentials in URLs", async () => {
@@ -50,6 +52,7 @@ describe("TODO Resolution Verification", () => {
 
     // Credentials in URL are rejected, preventing exposure in logs
     expect(response.statusCode).toBe(405);
-    expect(response.body).toBe("method_not_allowed");
+    const body = JSON.parse(response.body);
+    expect(body.error).toBe("method_not_allowed");
   });
 });

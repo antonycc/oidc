@@ -359,6 +359,12 @@
   async function performOidcDiscovery() {
     if (!document.getElementById("terminal-output")) return; // Only run on home page
     
+    // Skip OIDC discovery in test environments (JSDOM)
+    if (typeof window.navigator?.userAgent === 'string' && window.navigator.userAgent.includes('jsdom')) {
+      addTimestampLine("Skipping OIDC discovery in test environment");
+      return;
+    }
+    
     terminalStartTime = Date.now();
     // Use configurable OIDC provider base URL for discovery demo.
     // Set window.OIDC_BASE_URL in your HTML or build config for development.

@@ -49,15 +49,7 @@ This serverless OIDC provider delivers standards-compliant authentication with c
 
 ## Performance
 
-Production-ready performance characteristics validated through load testing:
-
-**Load Test Results (20 Virtual Users):**
-- **Success Rate:** 100% across 65 complete authentication flows
-- **Response Times:** ~107ms median, ~717ms 95th percentile
-- **Flow Duration:** ~861ms end-to-end (authorize → token → userinfo)
-- **Zero Errors:** 195 HTTP requests processed without failures
-
-The serverless architecture scales automatically from zero to peak demand while maintaining consistent response times and reliability.
+The serverless architecture scales automatically from zero to peak demand while maintaining consistent response times and reliability through AWS Lambda's built-in scaling.
 
 ## Screenshots
 
@@ -321,14 +313,6 @@ npx playwright test
 
 **3. Load Testing**
 The provider supports concurrent authentication flows. For production-like testing:
-
-```bash
-# Run load test against production
-BASE_URL=https://oidc.antonycc.com \
-TEST_USERNAME=test-user \
-TEST_PASSWORD=**** \
-node scripts/load-test.mjs small
-```
 
 ---
 
@@ -647,7 +631,7 @@ Let me know if you’d like help fine‑tuning the ramp patterns or integrating 
 run the 5k test against your deployment:
 ```bash
 
-BASE_URL=https://oidc.antonycc.com TEST_USERNAME=test-user TEST_PASSWORD=**** node scripts/load-test.mjs small
+BASE_URL=https://oidc.antonycc.com TEST_USERNAME=test-user TEST_PASSWORD=**** npx playwright test tests/load.live.test.ts
 ```
 
 ---

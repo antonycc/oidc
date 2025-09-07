@@ -303,15 +303,6 @@ footer {
   color: #00cc88;
 }
 
-.terminal-cursor {
-  animation: blink 1s infinite;
-  color: #00ff00;
-}
-
-@keyframes blink {
-  0%, 50% { opacity: 1; }
-  51%, 100% { opacity: 0; }
-}
 
 .terminal-content {
   padding: 12px;

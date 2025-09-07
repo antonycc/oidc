@@ -19,6 +19,7 @@ on:
           - abstract-libraries
           - increase-consistency
           - refresh-documentation
+          - security-compliance-hardening
           - create-new-prompt
       target_branch:
         description: 'Target branch to create PR against'

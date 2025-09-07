@@ -55,6 +55,13 @@ gh workflow run copilot-agent.yml \
   -f target_branch=main
 ```
 
+### Security & Compliance Hardening Example
+```bash
+gh workflow run copilot-agent.yml \
+  -f prompt_selection=security-compliance-hardening \
+  -f target_branch=main
+```
+
 ### Available Prompts
 - `auto-select`: Automatically choose based on repository analysis
 - `expand-capabilities`: Suggest ways to expand repository capabilities
@@ -62,6 +69,7 @@ gh workflow run copilot-agent.yml \
 - `abstract-libraries`: Find opportunities to abstract to libraries
 - `increase-consistency`: Improve consistency across the codebase
 - `refresh-documentation`: Update and improve documentation
+- `security-compliance-hardening`: Enhance security posture and compliance readiness
 - `create-new-prompt`: Analyze repository gaps and create a new strategic prompt
 
 ## Issue Management
@@ -92,6 +100,32 @@ gh pr comment <PR_NUMBER> -b "Please add tests for edge cases @copilot"
 ```
 
 The `@copilot` mention will trigger a new agent run to address the feedback.
+
+## Prompt Details
+
+### Security & Compliance Hardening
+
+The `security-compliance-hardening` prompt focuses on enhancing the security posture and compliance readiness of the OIDC provider for production deployment. This is particularly critical for authentication services that handle sensitive identity data.
+
+**Key Focus Areas:**
+- **OIDC-Specific Security**: Token security, OAuth 2.0 flow protection, federation security
+- **Compliance Frameworks**: SOC2, GDPR, PCI DSS, HIPAA readiness
+- **Infrastructure Hardening**: AWS serverless security, Lambda, DynamoDB, CloudFront
+- **Threat Protection**: Advanced monitoring, incident response, vulnerability management
+
+**When to Use:**
+- Preparing for production deployment of the OIDC provider
+- Implementing enterprise security requirements
+- Addressing compliance and regulatory needs
+- Enhancing security monitoring and incident response
+- Following security audit recommendations
+
+**Expected Outcomes:**
+- Enhanced security controls and documentation
+- Compliance framework implementation guidance
+- Advanced threat detection and monitoring setup
+- Security incident response procedures
+- Penetration testing and vulnerability management processes
 
 ## Benefits
 

@@ -20,8 +20,6 @@
     } catch (e) {
       console.warn("Error checking login status:", e);
       localStorage.removeItem("oidc_tokens");
-      localStorage.removeItem("cognito_tokens");
-      localStorage.removeItem("cognito_auth");
       return { isLoggedIn: false, status: "Not logged in" };
     }
   }
@@ -68,10 +66,8 @@
         logoutBtn.className = "logout-btn nav";
         logoutBtn.style.marginLeft = "10px";
         logoutBtn.addEventListener("click", () => {
-          // Clear all types of authentication
+          // Clear OIDC authentication
           localStorage.removeItem("oidc_tokens");
-          localStorage.removeItem("cognito_tokens");
-          localStorage.removeItem("cognito_auth");
           location.reload();
         });
         authSection.appendChild(logoutBtn);

@@ -5,7 +5,7 @@ import globals from "globals";
 import promise from "eslint-plugin-promise";
 import security from "eslint-plugin-security";
 import sonarjs from "eslint-plugin-sonarjs";
-import react from "eslint-plugin-react";
+
 import importPlugin from "eslint-plugin-import";
 
 const modifiedGoogleConfig = { ...google, rules: { ...google.rules } };
@@ -22,7 +22,6 @@ export default [
       promise,
       security,
       sonarjs,
-      react,
       import: importPlugin,
     },
     languageOptions: {
@@ -81,13 +80,6 @@ export default [
     rules: {
       // Allow eval in tests for testing purposes
       "sonarjs/code-eval": "off",
-    },
-  },
-  {
-    settings: {
-      react: {
-        version: "18",
-      },
     },
   },
   {

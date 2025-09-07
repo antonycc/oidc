@@ -5,27 +5,32 @@ import { join } from "node:path";
 
 function loadHtmlAndScripts(filePath) {
   const html = readFileSync(filePath, "utf8");
-  // Set document HTML without executing scripts automatically
   document.documentElement.innerHTML = html;
-  // Extract <script> tags and evaluate them (including external src)
+  
   const scripts = Array.from(document.querySelectorAll("script"));
-  for (const s of scripts) {
-    let code = s.textContent || "";
-    if (s.src) {
-      // Resolve relative to the HTML file's directory without require (ESM-safe)
-      const baseDir = filePath.includes("/") ? filePath.slice(0, filePath.lastIndexOf("/")) : process.cwd();
-      const srcAttr = s.getAttribute("src") || "";
-      const isAbsolute = srcAttr.startsWith("/") || /^[a-zA-Z]:\\\\/.test(srcAttr);
-      const resolved = isAbsolute ? srcAttr : baseDir + "/" + srcAttr.replace(/^\.\//, "");
+  for (const script of scripts) {
+    let code = script.textContent || "";
+    
+    // Load external scripts relative to the HTML file
+    if (script.src && !code) {
+      const htmlDir = filePath.substring(0, filePath.lastIndexOf("/"));
+      
+      // Handle relative paths properly - JSDOM converts to absolute URLs
+      let relativeUrl = script.src;
+      if (script.src.startsWith("http://") || script.src.startsWith("https://")) {
+        // Extract just the filename if it's been converted to absolute URL
+        relativeUrl = script.src.split("/").pop();
+      }
+      
+      const scriptPath = join(htmlDir, relativeUrl.replace(/^\.\//, ""));
       try {
-        code = readFileSync(resolved, "utf8");
+        code = readFileSync(scriptPath, "utf8");
       } catch (e) {
-        // If file cannot be read, skip
-        continue;
+        continue; // Skip if script file not found
       }
     }
+    
     if (code.trim()) {
-      // Execute script in window context
       // eslint-disable-next-line no-new-func
       const fn = new Function(code);
       fn.call(window);

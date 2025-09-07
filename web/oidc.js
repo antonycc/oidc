@@ -360,7 +360,10 @@
     if (!document.getElementById("terminal-output")) return; // Only run on home page
     
     terminalStartTime = Date.now();
-    const baseUrl = window.location.origin;
+    // Use production OIDC provider for discovery demo
+    const baseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+      ? 'https://oidc.antonycc.com' 
+      : window.location.origin;
     
     try {
       addTimestampLine("Starting OIDC Discovery Process");

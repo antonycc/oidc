@@ -244,7 +244,7 @@ jobs:
         run: |
           echo "BASE_URL=${BASE_URL}"
           echo "TEST_USERNAME=${TEST_USERNAME}"
-          npm run test:load -- --summary-export=load-test-summary.json
+          k6 run tests/load.live.test.js --summary-export=load-test-summary.json
 
       - name: Upload artifacts (report, trace, screenshots, videos)
         if: ${{ !cancelled() }}

@@ -21,6 +21,10 @@ infra/.settings
 infra/.idea
 infra/.vscode
 
+# IDE files
+.idea
+.vscode
+
 # CDK
 cdk.out
 /cdk.out/cdk-outputs.json

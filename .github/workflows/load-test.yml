@@ -55,7 +55,7 @@ jobs:
         run: |
           echo "BASE_URL: $BASE_URL"
           echo "TEST_USERNAME: $TEST_USERNAME"
-          npm run test:load -- --summary-export=summary.json
+          k6 run tests/load.live.test.js --summary-export=summary.json
 
       - name: Upload k6 summary
         uses: actions/upload-artifact@v4

@@ -30,6 +30,11 @@ on:
         required: false
         default: 'copilot-swe-agent'
         type: string
+      skip_if_open_issues:
+        description: 'Skip creating new issue if there are already open issues (can be overridden for manual operation)'
+        required: false
+        default: true
+        type: boolean
   #schedule:
   #  - cron: '15 6 * * 1'  # Weekly on Mondays at 6:15 AM UTC
 
@@ -37,12 +42,69 @@ env:
   PROMPT_SELECTION: ${{ inputs.prompt_selection || 'auto-select' }}
   TARGET_BRANCH: ${{ inputs.target_branch || 'main' }}
   COPILOT_AGENT_LOGIN: ${{ inputs.copilot_agent_login || 'copilot-swe-agent' }}
+  SKIP_IF_OPEN_ISSUES: ${{ inputs.skip_if_open_issues == null && 'true' || inputs.skip_if_open_issues }}
   TRIGGER_TYPE: manual
 
 jobs:
 
+  check-open-issues:
+    name: 'Check for Existing Open Issues'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+    outputs:
+      has_open_issues: ${{ steps.check.outputs.has_open_issues }}
+      open_issues_count: ${{ steps.check.outputs.open_issues_count }}
+      should_create_issue: ${{ steps.check.outputs.should_create_issue }}
+    steps:
+      - name: Check for open issues
+        id: check
+        uses: actions/github-script@v8
+        with:
+          script: |
+            console.log("Checking for existing open issues...");
+            console.log("SKIP_IF_OPEN_ISSUES setting: ${{ env.SKIP_IF_OPEN_ISSUES }}");
+            
+            try {
+              const { data: issues } = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+                per_page: 1
+              });
+              
+              const openIssuesCount = issues.length > 0 ? 'unknown' : '0'; // We only fetch 1 to check existence
+              const hasOpenIssues = issues.length > 0;
+              
+              console.log(`Found ${hasOpenIssues ? '1 or more' : '0'} open issues`);
+              
+              const skipIfOpenIssues = '${{ env.SKIP_IF_OPEN_ISSUES }}' === 'true';
+              const shouldCreateIssue = !skipIfOpenIssues || !hasOpenIssues;
+              
+              console.log(`Skip if open issues: ${skipIfOpenIssues}`);
+              console.log(`Should create issue: ${shouldCreateIssue}`);
+              
+              core.setOutput('has_open_issues', hasOpenIssues.toString());
+              core.setOutput('open_issues_count', openIssuesCount);
+              core.setOutput('should_create_issue', shouldCreateIssue.toString());
+              
+              if (!shouldCreateIssue) {
+                console.log("⏭️ Skipping issue creation due to existing open issues and skip_if_open_issues=true");
+              }
+              
+            } catch (error) {
+              console.error('Failed to check for open issues:', error);
+              // On error, default to creating the issue
+              core.setOutput('has_open_issues', 'false');
+              core.setOutput('open_issues_count', '0');
+              core.setOutput('should_create_issue', 'true');
+            }
+
   create-issue:
     name: 'Create Issue for GitHub Copilot Agent'
+    needs: [check-open-issues]
+    if: needs.check-open-issues.outputs.should_create_issue == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -90,8 +152,7 @@ jobs:
             const promptContent = fs.readFileSync(promptPath, 'utf8');
             
             // Create issue title and body for Copilot Agent
-            const triggerInfo = "Manual Trigger";
-            const issueTitle = `Repository Enhancement: ${selectedPrompt} - ${triggerInfo} (${new Date().toISOString().split('T')[0]})`;
+            const issueTitle = `Repository Enhancement: ${selectedPrompt}`;
             
             const envConfig = [
               `- AWS_CERTIFICATE_ARN: ${{ vars.AWS_CERTIFICATE_ARN && 'configured' || 'not set' }}`,
@@ -103,7 +164,7 @@ jobs:
 
             **Prompt Type:** ${selectedPrompt}  
             **Target Branch:** ${{ env.TARGET_BRANCH }}  
-            **Triggered by:** ${triggerInfo} (${{ github.workflow }} workflow)
+            **Triggered by:** ${{ github.workflow }} workflow
             **Run ID:** ${{ github.run_id }}
             
             ### Task Description
@@ -199,7 +260,8 @@ jobs:
 
   assign-issue:
     name: 'Assign Issue to GitHub Copilot Agent'
-    needs: [create-issue]
+    needs: [check-open-issues, create-issue]
+    if: needs.check-open-issues.outputs.should_create_issue == 'true' && needs.create-issue.outputs.issue_created == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -306,4 +368,41 @@ jobs:
             echo "✅ **Assignment:** Successfully assigned to ${{ env.COPILOT_AGENT_LOGIN }}"
           else
             echo "⚠️ **Assignment:** Failed or ${{ env.COPILOT_AGENT_LOGIN }} not available (issue still created)"
+          fi
+
+  workflow-summary:
+    name: 'Workflow Summary'
+    needs: [check-open-issues, create-issue, assign-issue]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Display workflow summary
+        run: |
+          echo "## Copilot Agent Workflow Summary"
+          echo ""
+          echo "**Prompt Selection:** ${{ env.PROMPT_SELECTION }}"
+          echo "**Target Branch:** ${{ env.TARGET_BRANCH }}"
+          echo "**Skip if Open Issues:** ${{ env.SKIP_IF_OPEN_ISSUES }}"
+          echo ""
+          echo "### Issue Check Results"
+          echo "**Has Open Issues:** ${{ needs.check-open-issues.outputs.has_open_issues }}"
+          echo "**Should Create Issue:** ${{ needs.check-open-issues.outputs.should_create_issue }}"
+          echo ""
+          if [ "${{ needs.check-open-issues.outputs.should_create_issue }}" = "true" ]; then
+            echo "### Issue Creation"
+            if [ "${{ needs.create-issue.outputs.issue_created }}" = "true" ]; then
+              echo "✅ **Issue Created:** #${{ needs.create-issue.outputs.issue_number }}"
+              echo "🔗 **Issue Link:** ${{ needs.create-issue.outputs.issue_url }}"
+              if [ "${{ needs.assign-issue.outputs.issue_assigned }}" = "true" ]; then
+                echo "✅ **Assignment:** Successfully assigned to ${{ env.COPILOT_AGENT_LOGIN }}"
+              else
+                echo "⚠️ **Assignment:** Failed or ${{ env.COPILOT_AGENT_LOGIN }} not available"
+              fi
+            else
+              echo "❌ **Issue Creation:** Failed"
+            fi
+          else
+            echo "⏭️ **Issue Creation:** Skipped due to existing open issues"
+            echo ""
+            echo "💡 **Tip:** To override this behavior, set 'skip_if_open_issues' to 'false' when manually triggering the workflow."
           fi

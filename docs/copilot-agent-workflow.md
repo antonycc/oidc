@@ -20,11 +20,12 @@ The `copilot-agent.yml` workflow has been updated to use the new GitHub Copilot 
 
 ## Workflow Steps
 
-1. **Repository Analysis**: Analyzes repository state to select appropriate prompt
-2. **GitHub CLI Setup**: Authenticates with GitHub CLI (no extensions needed)
-3. **Issue Creation**: Creates detailed GitHub issue assigned to `@copilot`
-4. **Automatic Processing**: Copilot agent processes issue and creates PR
-5. **Summary Generation**: Reports workflow results and next steps
+1. **Issue Check**: Checks for existing open issues and determines whether to create a new one
+2. **Repository Analysis**: Analyzes repository state to select appropriate prompt
+3. **GitHub CLI Setup**: Authenticates with GitHub CLI (no extensions needed)
+4. **Issue Creation**: Creates detailed GitHub issue assigned to `@copilot` (if allowed)
+5. **Automatic Processing**: Copilot agent processes issue and creates PR
+6. **Summary Generation**: Reports workflow results and next steps
 
 ## Usage
 
@@ -38,6 +39,13 @@ gh workflow run copilot-agent.yml
 gh workflow run copilot-agent.yml \
   -f prompt_selection=refresh-documentation \
   -f target_branch=main
+```
+
+### Override Skip Behavior
+```bash
+gh workflow run copilot-agent.yml \
+  -f prompt_selection=auto-select \
+  -f skip_if_open_issues=false
 ```
 
 ### Create New Prompt Example
@@ -55,6 +63,25 @@ gh workflow run copilot-agent.yml \
 - `increase-consistency`: Improve consistency across the codebase
 - `refresh-documentation`: Update and improve documentation
 - `create-new-prompt`: Analyze repository gaps and create a new strategic prompt
+
+## Issue Management
+
+### Default Behavior
+By default, the workflow will **skip creating new issues** if there are already open issues in the repository. This prevents issue spam and allows focus on addressing existing items.
+
+### Overriding the Default
+To force issue creation even when open issues exist, set the `skip_if_open_issues` parameter to `false`:
+
+```bash
+gh workflow run copilot-agent.yml \
+  -f skip_if_open_issues=false \
+  -f prompt_selection=auto-select
+```
+
+### Issue Titles
+Issue titles now use a clean format: `Repository Enhancement: [prompt-type]`
+
+Previous format (deprecated): `Repository Enhancement: [prompt-type] - Manual Trigger (YYYY-MM-DD)`
 
 ## Iteration
 

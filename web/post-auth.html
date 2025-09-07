@@ -101,6 +101,13 @@
             document.querySelector(".login-status").textContent = "Logged in";
           }
 
+          // Delayed refresh to ensure login status is properly updated after all processing
+          setTimeout(() => {
+            if (typeof refreshLoginStatusText === "function") {
+              refreshLoginStatusText();
+            }
+          }, 500);
+
           // Call userinfo endpoint if we have an access token
           if (obj.access_token && typeof obj.access_token === "string" && obj.access_token.trim() !== "") {
             try {
@@ -132,6 +139,13 @@
                 } else {
                   document.querySelector(".login-status").textContent = "Logged in";
                 }
+
+                // Delayed refresh to ensure login status is properly updated after userinfo processing
+                setTimeout(() => {
+                  if (typeof refreshLoginStatusText === "function") {
+                    refreshLoginStatusText();
+                  }
+                }, 500);
               } else {
                 console.warn("Failed to fetch userinfo:", userinfoRes.status);
                 document.getElementById("status").textContent =
@@ -143,6 +157,13 @@
                 } else {
                   document.querySelector(".login-status").textContent = "Logged in";
                 }
+
+                // Delayed refresh to ensure login status is properly updated
+                setTimeout(() => {
+                  if (typeof refreshLoginStatusText === "function") {
+                    refreshLoginStatusText();
+                  }
+                }, 500);
               }
             } catch (e) {
               console.warn("Error fetching userinfo:", e);
@@ -154,6 +175,13 @@
               } else {
                 document.querySelector(".login-status").textContent = "Logged in";
               }
+
+              // Delayed refresh to ensure login status is properly updated
+              setTimeout(() => {
+                if (typeof refreshLoginStatusText === "function") {
+                  refreshLoginStatusText();
+                }
+              }, 500);
             }
           }
         } else {

@@ -43,6 +43,9 @@
     }
   }
 
+  // Make refreshLoginStatusText globally available
+  window.refreshLoginStatusText = refreshLoginStatusText;
+
   function initAuthStatus() {
     const loginStatus = checkLoginStatus();
     const loginElement = document.querySelector(".login-status");
@@ -263,6 +266,18 @@
     return btn;
   }
 
+  // -------- JWT Decoding --------
+  function decodeJwtNoVerify(jwt) {
+    try {
+      const [, payload] = jwt.split(".");
+      const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+      const paddedBase64 = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+      return JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(paddedBase64), (c) => c.charCodeAt(0))));
+    } catch {
+      return null;
+    }
+  }
+
   // -------- Local Storage Viewer/Clear --------
   function getLocalStorageDump() {
     const out = {};
@@ -299,7 +314,80 @@
       } catch {}
     });
 
-    openModal("Local storage", pre, [copyBtn]);
+    // JWT Decoding buttons
+    const decodeAccessTokenBtn = makeButton("Decode Access Token", () => {
+      try {
+        const tokenData = localStorage.getItem("oidc_tokens");
+        if (!tokenData) {
+          alert("No OIDC tokens found in localStorage");
+          return;
+        }
+        const tokens = JSON.parse(tokenData);
+        if (!tokens.access_token) {
+          alert("No access_token found in OIDC tokens");
+          return;
+        }
+        const decoded = decodeJwtNoVerify(tokens.access_token);
+        if (!decoded) {
+          alert("Failed to decode access token - invalid JWT format");
+          return;
+        }
+        localStorage.setItem("access_token_json", JSON.stringify(decoded, null, 2));
+        decodeAccessTokenBtn.textContent = "Decoded";
+        setTimeout(() => (decodeAccessTokenBtn.textContent = "Decode Access Token"), 1500);
+        
+        // Refresh modal content
+        setTimeout(() => {
+          // Close current modal and reopen with updated content
+          const overlay = pre.closest(".modal-overlay");
+          if (overlay && overlay.parentElement) {
+            overlay.parentElement.removeChild(overlay);
+            showLocalStorageModal();
+          }
+        }, 100);
+      } catch (error) {
+        console.error("Error decoding access token:", error);
+        alert("Error decoding access token: " + error.message);
+      }
+    });
+
+    const decodeIdTokenBtn = makeButton("Decode ID Token", () => {
+      try {
+        const tokenData = localStorage.getItem("oidc_tokens");
+        if (!tokenData) {
+          alert("No OIDC tokens found in localStorage");
+          return;
+        }
+        const tokens = JSON.parse(tokenData);
+        if (!tokens.id_token) {
+          alert("No id_token found in OIDC tokens");
+          return;
+        }
+        const decoded = decodeJwtNoVerify(tokens.id_token);
+        if (!decoded) {
+          alert("Failed to decode ID token - invalid JWT format");
+          return;
+        }
+        localStorage.setItem("id_token_json", JSON.stringify(decoded, null, 2));
+        decodeIdTokenBtn.textContent = "Decoded";
+        setTimeout(() => (decodeIdTokenBtn.textContent = "Decode ID Token"), 1500);
+        
+        // Refresh modal content
+        setTimeout(() => {
+          // Close current modal and reopen with updated content
+          const overlay = pre.closest(".modal-overlay");
+          if (overlay && overlay.parentElement) {
+            overlay.parentElement.removeChild(overlay);
+            showLocalStorageModal();
+          }
+        }, 100);
+      } catch (error) {
+        console.error("Error decoding ID token:", error);
+        alert("Error decoding ID token: " + error.message);
+      }
+    });
+
+    openModal("Local storage", pre, [copyBtn, decodeAccessTokenBtn, decodeIdTokenBtn]);
   }
 
   function clearLocalStorageAction() {

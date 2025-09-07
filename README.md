@@ -631,7 +631,7 @@ Let me know if you’d like help fine‑tuning the ramp patterns or integrating 
 run the 5k test against your deployment:
 ```bash
 
-BASE_URL=https://oidc.antonycc.com TEST_USERNAME=test-user TEST_PASSWORD=**** npx playwright test tests/load.live.test.ts
+BASE_URL=https://oidc.antonycc.com TEST_USERNAME=test-user TEST_PASSWORD=**** node scripts/load-test.mjs
 ```
 
 ---

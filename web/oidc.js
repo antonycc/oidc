@@ -465,15 +465,24 @@
   }
 
   // -------- Init --------
+  function waitForTerminalOutput(callback) {
+    function check() {
+      if (document.getElementById("terminal-output")) {
+        callback();
+      } else {
+        requestAnimationFrame(check);
+      }
+    }
+    check();
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
     initHamburgers();
     initAuthStatus();
     
-    // Start OIDC discovery process on home page after a short delay
-    if (document.getElementById("terminal-output")) {
-      setTimeout(() => {
-        performOidcDiscovery();
-      }, 1000); // 1 second delay to show the page first
-    }
+    // Start OIDC discovery process on home page when terminal-output is ready
+    waitForTerminalOutput(() => {
+      performOidcDiscovery();
+    });
   });
 })();

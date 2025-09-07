@@ -439,7 +439,7 @@
               
               if (key.n) {
                 const nLength = key.n.length;
-                addTerminalLine(`  Modulus (n): ${nLength} chars - RSA public key modulus (${Math.floor(nLength * 6 / 8)} bits approx)`, "decoded");
+                addTerminalLine(`  Modulus (n): ${nLength} chars - RSA public key modulus (${Math.floor((nLength * 3 / 4) * 8)} bits approx)`, "decoded");
               }
               if (key.e) {
                 addTerminalLine(`  Exponent (e): ${key.e} - RSA public key exponent (typically 65537 in base64url: AQAB)`, "decoded");

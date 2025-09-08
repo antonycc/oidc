@@ -1,5 +1,6 @@
 package com.antonycc.oidc;
 
+import java.util.List;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.Duration;
@@ -20,8 +21,6 @@ import software.amazon.awscdk.services.s3.BucketEncryption;
 import software.amazon.awscdk.services.xray.CfnGroup;
 import software.constructs.Construct;
 
-import java.util.List;
-
 public class ObservabilityStack extends Stack {
   public final Bucket logsBucket;
   public final LogGroup trailLogGroup;
@@ -32,12 +31,14 @@ public class ObservabilityStack extends Stack {
   public final MetricFilter securityEventMetricFilter;
   public final Alarm securityEventAlarm;
 
-  public ObservabilityStack(final Construct scope, final String id, final ObservabilityStackProps props) {
+  public ObservabilityStack(
+      final Construct scope, final String id, final ObservabilityStackProps props) {
     super(scope, id, props);
 
     // Generate predictable resource name prefix based on domain and environment
     String resourceNamePrefix = generateResourceNamePrefix(props.domainName, props.envName);
-    String compressedResourceNamePrefix = generateCompressedResourceNamePrefix(props.domainName, props.envName);
+    String compressedResourceNamePrefix =
+        generateCompressedResourceNamePrefix(props.domainName, props.envName);
 
     // Log bucket for CloudFront and S3 access logs
     this.logsBucket =
@@ -80,25 +81,25 @@ public class ObservabilityStack extends Stack {
             .build();
 
     // Security Monitoring: Metric Filters and Alarms for authentication failures
-    this.authFailureMetricFilter = 
+    this.authFailureMetricFilter =
         MetricFilter.Builder.create(this, resourceNamePrefix + "-AuthFailureMetricFilter")
             .logGroup(this.trailLogGroup)
             .metricNamespace("OIDC/Security")
             .metricName("AuthenticationFailures")
             .filterPattern(
-                FilterPattern.anyTerm("invalid_client", "invalid_grant", "invalid_request")
-            )
+                FilterPattern.anyTerm("invalid_client", "invalid_grant", "invalid_request"))
             .metricValue("1")
             .build();
 
-    this.authFailureAlarm = 
+    this.authFailureAlarm =
         Alarm.Builder.create(this, resourceNamePrefix + "-AuthFailureAlarm")
-            .metric(Metric.Builder.create()
-                .namespace("OIDC/Security")
-                .metricName("AuthenticationFailures")
-                .statistic("Sum")
-                .period(Duration.minutes(5))
-                .build())
+            .metric(
+                Metric.Builder.create()
+                    .namespace("OIDC/Security")
+                    .metricName("AuthenticationFailures")
+                    .statistic("Sum")
+                    .period(Duration.minutes(5))
+                    .build())
             .threshold(5.0) // Alert on 5+ auth failures in 5 minutes
             .comparisonOperator(ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD)
             .evaluationPeriods(1)
@@ -107,25 +108,26 @@ public class ObservabilityStack extends Stack {
             .build();
 
     // Security Monitoring: Metric Filter for general security events
-    this.securityEventMetricFilter = 
+    this.securityEventMetricFilter =
         MetricFilter.Builder.create(this, resourceNamePrefix + "-SecurityEventMetricFilter")
             .logGroup(this.trailLogGroup)
             .metricNamespace("OIDC/Security")
             .metricName("SecurityEvents")
             .filterPattern(
-                FilterPattern.anyTerm("client_not_found", "redirect_validation", "scope_validation")
-            )
+                FilterPattern.anyTerm(
+                    "client_not_found", "redirect_validation", "scope_validation"))
             .metricValue("1")
             .build();
 
-    this.securityEventAlarm = 
+    this.securityEventAlarm =
         Alarm.Builder.create(this, resourceNamePrefix + "-SecurityEventAlarm")
-            .metric(Metric.Builder.create()
-                .namespace("OIDC/Security")
-                .metricName("SecurityEvents")
-                .statistic("Sum")
-                .period(Duration.minutes(15))
-                .build())
+            .metric(
+                Metric.Builder.create()
+                    .namespace("OIDC/Security")
+                    .metricName("SecurityEvents")
+                    .statistic("Sum")
+                    .period(Duration.minutes(15))
+                    .build())
             .threshold(10.0) // Alert on 10+ security events in 15 minutes
             .comparisonOperator(ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD)
             .evaluationPeriods(1)
@@ -135,28 +137,28 @@ public class ObservabilityStack extends Stack {
 
     // Outputs for the created observability resources
     new CfnOutput(
-        this, 
-        "LogsBucketArn", 
+        this,
+        "LogsBucketArn",
         CfnOutputProps.builder().value(this.logsBucket.getBucketArn()).build());
     new CfnOutput(
-        this, 
-        "LogsBucketName", 
+        this,
+        "LogsBucketName",
         CfnOutputProps.builder().value(this.logsBucket.getBucketName()).build());
     new CfnOutput(
-        this, 
-        "TrailLogGroupArn", 
+        this,
+        "TrailLogGroupArn",
         CfnOutputProps.builder().value(this.trailLogGroup.getLogGroupArn()).build());
     new CfnOutput(
-        this, 
-        "TrailLogGroupName", 
+        this,
+        "TrailLogGroupName",
         CfnOutputProps.builder().value(this.trailLogGroup.getLogGroupName()).build());
     new CfnOutput(
-        this, 
-        "AuditTrailArn", 
+        this,
+        "AuditTrailArn",
         CfnOutputProps.builder().value(this.auditTrail.getTrailArn()).build());
     new CfnOutput(
-        this, 
-        "XRayGroupName", 
+        this,
+        "XRayGroupName",
         CfnOutputProps.builder().value(this.xrayGroup.getGroupName()).build());
   }
 

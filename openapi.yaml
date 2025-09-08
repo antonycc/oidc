@@ -4,23 +4,23 @@ info:
   version: 0.1.0
   description: |
     A production-ready OpenID Connect provider that is fully functional for direct use or integration behind AWS Cognito.
-    
+
     This serverless OIDC provider delivers standards-compliant authentication with comprehensive logging, structured for both standalone deployment and enterprise integration scenarios.
-    
+
     ## Features
     - **Standards-compliant** OAuth2/OpenID Connect implementation
     - **PKCE support** for enhanced security
     - **Comprehensive logging** for operational transparency
     - **AWS Cognito integration** as external identity provider
     - **Serverless architecture** with pay-per-request pricing
-    
+
     ## Authentication Flow
     1. Client redirects user to `/authorize` endpoint
     2. User authenticates and grants consent
     3. Authorization code is returned to client's redirect URI
     4. Client exchanges code for tokens at `/token` endpoint
     5. Client can fetch user information from `/userinfo` endpoint using access token
-    
+
     ## Production Instance
     - **Live deployment**: https://oidc.antonycc.com
     - **Test credentials**: `test-user` / `c810fb39-86a9-4d2f-8107-119ade9605f8`
@@ -47,19 +47,19 @@ paths:
       description: |
         Returns the OpenID Connect provider metadata document containing
         endpoints, supported scopes, response types, and capabilities.
-        
+
         This is the standard OIDC discovery endpoint that clients use to
         automatically configure themselves for authentication flows.
       operationId: getDiscoveryDocument
       tags:
         - Discovery
       responses:
-        '200':
+        "200":
           description: OpenID Connect discovery document
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DiscoveryDocument'
+                $ref: "#/components/schemas/DiscoveryDocument"
               example:
                 issuer: "https://oidc.antonycc.com"
                 authorization_endpoint: "https://oidc.antonycc.com/authorize"
@@ -73,26 +73,39 @@ paths:
                 id_token_signing_alg_values_supported: ["RS256"]
                 token_endpoint_auth_methods_supported: ["none"]
                 code_challenge_methods_supported: ["S256"]
-                claims_supported: ["sub", "email", "email_verified", "name", "given_name", "family_name", "aud", "exp", "iat", "iss", "nonce"]
-        '500':
-          $ref: '#/components/responses/ServerError'
+                claims_supported:
+                  [
+                    "sub",
+                    "email",
+                    "email_verified",
+                    "name",
+                    "given_name",
+                    "family_name",
+                    "aud",
+                    "exp",
+                    "iat",
+                    "iss",
+                    "nonce",
+                  ]
+        "500":
+          $ref: "#/components/responses/ServerError"
 
   /authorize:
     post:
       summary: Authorization Endpoint
       description: |
         Processes authorization requests and issues authorization codes.
-        
+
         This endpoint handles the OAuth2 authorization flow. Users authenticate
         and grant consent, after which an authorization code is issued and
         returned to the client's redirect URI.
-        
+
         **Security Features:**
         - PKCE (Proof Key for Code Exchange) support for enhanced security
         - State parameter validation to prevent CSRF attacks
         - Comprehensive redirect URI validation
         - Scope validation against client configuration
-        
+
         **Flow:**
         1. Client redirects user to this endpoint with authorization parameters
         2. User authenticates with username/password
@@ -105,7 +118,7 @@ paths:
         content:
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/AuthorizationRequest'
+              $ref: "#/components/schemas/AuthorizationRequest"
             example:
               response_type: "code"
               client_id: "web-client"
@@ -118,7 +131,7 @@ paths:
               username: "test-user"
               password: "user-password"
       responses:
-        '302':
+        "302":
           description: Successful authorization - redirect with authorization code
           headers:
             Location:
@@ -126,35 +139,35 @@ paths:
               schema:
                 type: string
               example: "https://example.com/callback?code=ABC123&state=random-state-value"
-        '400':
-          $ref: '#/components/responses/InvalidRequest'
-        '405':
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "405":
           description: Method not allowed - only POST is supported
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
               example:
                 error: "method_not_allowed"
-        '500':
-          $ref: '#/components/responses/ServerError'
+        "500":
+          $ref: "#/components/responses/ServerError"
 
   /token:
     post:
       summary: Token Endpoint
       description: |
         Exchanges authorization codes for access tokens and ID tokens.
-        
+
         This endpoint implements the OAuth2 token exchange flow, validating
         the authorization code and returning access tokens, refresh tokens,
         and ID tokens as appropriate.
-        
+
         **Security Features:**
         - PKCE verification for code challenge/verifier pairs
         - Client authentication (currently supports public clients)
         - Authorization code single-use enforcement
         - Comprehensive parameter validation
-        
+
         **Token Types Issued:**
         - **Access Token**: JWT for accessing protected resources
         - **ID Token**: JWT containing user authentication information
@@ -167,7 +180,7 @@ paths:
         content:
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/TokenRequest'
+              $ref: "#/components/schemas/TokenRequest"
             example:
               grant_type: "authorization_code"
               code: "ABC123"
@@ -175,43 +188,43 @@ paths:
               client_id: "web-client"
               code_verifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
       responses:
-        '200':
+        "200":
           description: Successful token exchange
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TokenResponse'
+                $ref: "#/components/schemas/TokenResponse"
               example:
                 access_token: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
                 token_type: "Bearer"
                 expires_in: 3600
                 id_token: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
                 scope: "openid email profile"
-        '400':
-          $ref: '#/components/responses/InvalidRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '405':
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "405":
           description: Method not allowed - only POST is supported
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
               example:
                 error: "method_not_allowed"
-        '500':
-          $ref: '#/components/responses/ServerError'
+        "500":
+          $ref: "#/components/responses/ServerError"
 
   /userinfo:
     get:
       summary: UserInfo Endpoint
       description: |
         Returns user information based on the provided access token.
-        
+
         This endpoint provides user claims and attributes based on the
         scopes granted during authorization and the information available
         in the user database.
-        
+
         **Supported Claims:**
         - `sub`: Subject identifier (always present)
         - `email`: User's email address (if email scope granted)
@@ -219,7 +232,7 @@ paths:
         - `name`: Full name (if profile scope granted)
         - `given_name`: First name
         - `family_name`: Last name
-        
+
         **Authentication:**
         - Requires valid Bearer access token in Authorization header
         - Token must be obtained from `/token` endpoint
@@ -230,12 +243,12 @@ paths:
       security:
         - bearerAuth: []
       responses:
-        '200':
+        "200":
           description: User information successfully retrieved
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserInfoResponse'
+                $ref: "#/components/schemas/UserInfoResponse"
               example:
                 sub: "test-user"
                 email: "test@example.com"
@@ -243,26 +256,26 @@ paths:
                 name: "Test User"
                 given_name: "Test"
                 family_name: "User"
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/ServerError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/ServerError"
 
   /jwks:
     get:
       summary: JSON Web Key Set (JWKS)
       description: |
         Returns the public keys used for token verification.
-        
+
         This endpoint provides the cryptographic public keys that clients
         and resource servers use to verify the authenticity and integrity
         of JWT tokens issued by this provider.
-        
+
         **Caching:**
         - Keys are cached for 1 hour (max-age=3600)
         - Keys are rotated periodically for security
         - Clients should refresh JWKS when token verification fails
-        
+
         **Key Information:**
         - Algorithm: RS256 (RSA Signature with SHA-256)
         - Key usage: Signature verification
@@ -271,7 +284,7 @@ paths:
       tags:
         - Cryptography
       responses:
-        '200':
+        "200":
           description: JSON Web Key Set
           headers:
             Cache-Control:
@@ -282,7 +295,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JwksResponse'
+                $ref: "#/components/schemas/JwksResponse"
               example:
                 keys:
                   - kty: "RSA"
@@ -291,8 +304,8 @@ paths:
                     n: "0vx7agoebGcQSuuPiLJXZptN9nndrQmbPFRP_gdHPfBBCjlHstfn5_NjvQoaq30cINhw..."
                     e: "AQAB"
                     alg: "RS256"
-        '500':
-          $ref: '#/components/responses/ServerError'
+        "500":
+          $ref: "#/components/responses/ServerError"
 
 components:
   securitySchemes:
@@ -302,7 +315,7 @@ components:
       bearerFormat: JWT
       description: |
         JWT access token obtained from the `/token` endpoint.
-        
+
         Include in Authorization header as: `Bearer <access_token>`
 
   schemas:
@@ -518,7 +531,7 @@ components:
           type: array
           description: Array of public keys
           items:
-            $ref: '#/components/schemas/JsonWebKey'
+            $ref: "#/components/schemas/JsonWebKey"
 
     JsonWebKey:
       type: object
@@ -571,7 +584,7 @@ components:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ErrorResponse'
+            $ref: "#/components/schemas/ErrorResponse"
           examples:
             missing_parameter:
               value:
@@ -591,7 +604,7 @@ components:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ErrorResponse'
+            $ref: "#/components/schemas/ErrorResponse"
           examples:
             invalid_token:
               value:
@@ -607,7 +620,7 @@ components:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ErrorResponse'
+            $ref: "#/components/schemas/ErrorResponse"
           example:
             error: "server_error"
             error_description: "Internal server error occurred"
@@ -626,21 +639,21 @@ x-documentation:
   examples:
     complete_flow: |
       # Complete OAuth2/OIDC Flow Example
-      
+
       ## 1. Authorization Request
       ```bash
       curl -X POST https://oidc.antonycc.com/authorize \
         -H "Content-Type: application/x-www-form-urlencoded" \
         -d "response_type=code&client_id=web-client&redirect_uri=https://example.com/callback&scope=openid email profile&state=abc123&nonce=xyz789&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256&username=test-user&password=your-password"
       ```
-      
+
       ## 2. Token Exchange
       ```bash
       curl -X POST https://oidc.antonycc.com/token \
         -H "Content-Type: application/x-www-form-urlencoded" \
         -d "grant_type=authorization_code&code=ABC123&redirect_uri=https://example.com/callback&client_id=web-client&code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
       ```
-      
+
       ## 3. UserInfo Request
       ```bash
       curl -X GET https://oidc.antonycc.com/userinfo \
@@ -650,9 +663,9 @@ x-documentation:
   integration_guides:
     cognito: |
       # AWS Cognito Integration
-      
+
       This OIDC provider can be integrated as an external identity provider in AWS Cognito:
-      
+
       ```bash
       aws cognito-idp create-identity-provider \
         --user-pool-id us-east-1_XXXXXXXXX \

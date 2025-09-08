@@ -1,12 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import {
-  safeStringify,
-  log,
-  logError,
-  maskSensitive,
-  parseFormBody,
-  createJsonResponse,
-} from "../lib/utils.mjs";
+import { safeStringify, log, logError, maskSensitive, parseFormBody, createJsonResponse } from "../lib/utils.mjs";
 
 describe("utils", () => {
   describe("safeStringify", () => {

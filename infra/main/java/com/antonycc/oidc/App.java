@@ -10,28 +10,32 @@ public class App {
     String deploymentName = System.getenv().getOrDefault("DEPLOYMENT_NAME", envName);
     String hostedZoneName = System.getenv().getOrDefault("HOSTED_ZONE_NAME", "example.com");
     String hostedZoneId = System.getenv().getOrDefault("HOSTED_ZONE_ID", "Z000EXAMPLE");
-    
+
     // Compute domain name based on deployment pattern
     String domainName;
-    //String authDomainName;
+    // String authDomainName;
     if ("prod".equals(deploymentName)) {
       domainName = System.getenv().getOrDefault("DOMAIN_NAME", "oidc.example.com");
-      //authDomainName = System.getenv().getOrDefault("AUTH_DOMAIN_NAME", "auth.oidc.example.com");
+      // authDomainName = System.getenv().getOrDefault("AUTH_DOMAIN_NAME", "auth.oidc.example.com");
     } else if ("ci".equals(deploymentName)) {
       domainName = System.getenv().getOrDefault("DOMAIN_NAME", "ci.oidc.example.com");
-      //authDomainName = System.getenv().getOrDefault("AUTH_DOMAIN_NAME", "ci.auth.oidc.example.com");
+      // authDomainName = System.getenv().getOrDefault("AUTH_DOMAIN_NAME",
+      // "ci.auth.oidc.example.com");
     } else {
       // For branch deployments like ci-branchname
-      domainName = System.getenv().getOrDefault("DOMAIN_NAME", deploymentName + ".oidc.example.com");
-      //authDomainName = System.getenv().getOrDefault("AUTH_DOMAIN_NAME", deploymentName + ".auth.oidc.example.com");
+      domainName =
+          System.getenv().getOrDefault("DOMAIN_NAME", deploymentName + ".oidc.example.com");
+      // authDomainName = System.getenv().getOrDefault("AUTH_DOMAIN_NAME", deploymentName +
+      // ".auth.oidc.example.com");
     }
-    
+
     String certificateArn =
         System.getenv()
             .getOrDefault("CERTIFICATE_ARN", "arn:aws:acm:us-east-1:123456789012:certificate/abc");
-    //String authCertificateArn =
+    // String authCertificateArn =
     //      System.getenv()
-    //              .getOrDefault("AUTH_CERTIFICATE_ARN", "arn:aws:acm:us-east-1:123456789012:certificate/xyz");
+    //              .getOrDefault("AUTH_CERTIFICATE_ARN",
+    // "arn:aws:acm:us-east-1:123456789012:certificate/xyz");
 
     Environment env =
         Environment.builder()

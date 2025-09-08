@@ -8,6 +8,9 @@ This serverless OIDC provider delivers standards-compliant authentication with c
 
 **Production OIDC Provider:**
 - **Standards-compliant** OAuth2/OpenID Connect implementation
+- **Complete API Documentation** - Comprehensive OpenAPI 3.0 specification with examples
+- **Developer-friendly** - Extensive inline documentation, error guides, and troubleshooting
+- **Integration-ready** - Direct deployment or AWS Cognito external identity provider
 - **Direct deployment** as standalone authentication service
 - **Cognito integration** as external identity provider
 - **Comprehensive logging** for operational transparency
@@ -30,8 +33,24 @@ This serverless OIDC provider delivers standards-compliant authentication with c
 
 **Test immediately against production deployment:**
 - **Live instance**: https://oidc.antonycc.com
-- **Test credentials**: `test-user` / `****`
+- **Test credentials**: `test-user` / `c810fb39-86a9-4d2f-8107-119ade9605f8`
 - **Direct login flow**: [Try it now](https://oidc.antonycc.com/login.html)
+- **API Documentation**: [OpenAPI 3.0 Specification](./openapi.yaml)
+
+## Documentation
+
+**Comprehensive Developer Resources:**
+- **[OpenAPI Specification](./openapi.yaml)** - Complete API documentation with examples and schemas
+- **[Error Reference Guide](./docs/error-reference.md)** - Detailed error codes, causes, and solutions
+- **[Troubleshooting Guide](#troubleshooting-guide)** - Common issues and step-by-step resolution
+- **[GitHub Actions Workflow](./docs/copilot-agent-workflow.md)** - CI/CD setup and debugging
+- **Inline Documentation** - Enhanced JSDoc comments throughout codebase
+
+**Quick References:**
+- All Lambda functions have comprehensive JSDoc documentation
+- Security features and authentication flows fully documented
+- Error handling patterns with examples and best practices
+- Integration guides for AWS Cognito and direct OIDC usage
 
 ## Architecture
 

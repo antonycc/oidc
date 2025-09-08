@@ -36,54 +36,59 @@ public class S3OriginBucket extends Construct {
     String resourceNamePrefix = extractResourceNamePrefix(id);
 
     // Create the S3 bucket with common configuration
-    this.bucket = Bucket.Builder.create(this, id + "-Bucket")
-        .bucketName(resourceNamePrefix + "-" + props.bucketNameSuffix)
-        .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
-        .enforceSsl(true)
-        .encryption(BucketEncryption.S3_MANAGED) // Explicit SSE-S3 encryption (zero cost)
-        .autoDeleteObjects(true)
-        .removalPolicy(RemovalPolicy.DESTROY)
-        .serverAccessLogsBucket(props.logsBucket)
-        .serverAccessLogsPrefix(props.logsPrefix)
-        .build();
+    this.bucket =
+        Bucket.Builder.create(this, id + "-Bucket")
+            .bucketName(resourceNamePrefix + "-" + props.bucketNameSuffix)
+            .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
+            .enforceSsl(true)
+            .encryption(BucketEncryption.S3_MANAGED) // Explicit SSE-S3 encryption (zero cost)
+            .autoDeleteObjects(true)
+            .removalPolicy(RemovalPolicy.DESTROY)
+            .serverAccessLogsBucket(props.logsBucket)
+            .serverAccessLogsPrefix(props.logsPrefix)
+            .build();
 
     // Create the OriginAccessIdentity for CloudFront access
-    this.originAccessIdentity = OriginAccessIdentity.Builder.create(this, id + "-OriginAccessIdentity")
-        .comment(props.oaiComment)
-        .build();
+    this.originAccessIdentity =
+        OriginAccessIdentity.Builder.create(this, id + "-OriginAccessIdentity")
+            .comment(props.oaiComment)
+            .build();
 
     // Grant read access to the OAI
     this.bucket.grantRead(this.originAccessIdentity);
 
     // Create the S3BucketOrigin
-    this.origin = S3BucketOrigin.withOriginAccessIdentity(
-        this.bucket,
-        S3BucketOriginWithOAIProps.builder()
-            .originAccessIdentity(this.originAccessIdentity)
-            .build());
+    this.origin =
+        S3BucketOrigin.withOriginAccessIdentity(
+            this.bucket,
+            S3BucketOriginWithOAIProps.builder()
+                .originAccessIdentity(this.originAccessIdentity)
+                .build());
 
     // Create cache policy if needed for WELL_KNOWN bucket type
     if (props.bucketType == S3OriginBucketType.WELL_KNOWN) {
-      this.cachePolicy = CachePolicy.Builder.create(this, resourceNamePrefix + "-ShortTTL")
-          .cachePolicyName(resourceNamePrefix + "-short-ttl")
-          .defaultTtl(Duration.seconds(60))
-          .minTtl(Duration.seconds(0))
-          .maxTtl(Duration.minutes(5))
-          .enableAcceptEncodingBrotli(true)
-          .enableAcceptEncodingGzip(true)
-          .build();
+      this.cachePolicy =
+          CachePolicy.Builder.create(this, resourceNamePrefix + "-ShortTTL")
+              .cachePolicyName(resourceNamePrefix + "-short-ttl")
+              .defaultTtl(Duration.seconds(60))
+              .minTtl(Duration.seconds(0))
+              .maxTtl(Duration.minutes(5))
+              .enableAcceptEncodingBrotli(true)
+              .enableAcceptEncodingGzip(true)
+              .build();
     } else {
       this.cachePolicy = null;
     }
 
     // Create BehaviorOptions based on bucket type
-    BehaviorOptions.Builder behaviorBuilder = BehaviorOptions.builder()
-        .origin(this.origin)
-        .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
-        .originRequestPolicy(OriginRequestPolicy.CORS_S3_ORIGIN)
-        .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
-        .responseHeadersPolicy(
-            ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS_WITH_PREFLIGHT_AND_SECURITY_HEADERS);
+    BehaviorOptions.Builder behaviorBuilder =
+        BehaviorOptions.builder()
+            .origin(this.origin)
+            .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
+            .originRequestPolicy(OriginRequestPolicy.CORS_S3_ORIGIN)
+            .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
+            .responseHeadersPolicy(
+                ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS_WITH_PREFLIGHT_AND_SECURITY_HEADERS);
 
     // Add type-specific behavior options
     if (props.bucketType == S3OriginBucketType.WEB) {

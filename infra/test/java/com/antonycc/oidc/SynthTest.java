@@ -8,7 +8,7 @@ import software.amazon.awscdk.StageSynthesisOptions;
 class SynthTest {
   @Test
   void cdkSynthCompiles() {
-      var app = new App();
+    var app = new App();
 
     Environment env = Environment.builder().account("123456789012").region("us-east-1").build();
 
@@ -42,10 +42,8 @@ class SynthTest {
                 .xrayGroup(observabilityStack.xrayGroup)
                 .build());
 
-    StageSynthesisOptions options = StageSynthesisOptions.builder()
-              .skipValidation(false)
-              .validateOnSynthesis(true)
-              .build();
+    StageSynthesisOptions options =
+        StageSynthesisOptions.builder().skipValidation(false).validateOnSynthesis(true).build();
     app.synth(options); // should not throw
   }
 }

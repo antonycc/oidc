@@ -1,5 +1,8 @@
 package com.antonycc.oidc;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import software.amazon.awscdk.AssetHashType;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
@@ -8,6 +11,10 @@ import software.amazon.awscdk.Expiration;
 import software.amazon.awscdk.Fn;
 import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
+import software.amazon.awscdk.customresources.AwsCustomResource;
+import software.amazon.awscdk.customresources.AwsCustomResourcePolicy;
+import software.amazon.awscdk.customresources.AwsSdkCall;
+import software.amazon.awscdk.customresources.PhysicalResourceId;
 import software.amazon.awscdk.services.certificatemanager.Certificate;
 import software.amazon.awscdk.services.cloudfront.AllowedMethods;
 import software.amazon.awscdk.services.cloudfront.BehaviorOptions;
@@ -20,6 +27,8 @@ import software.amazon.awscdk.services.dynamodb.Attribute;
 import software.amazon.awscdk.services.dynamodb.AttributeType;
 import software.amazon.awscdk.services.dynamodb.BillingMode;
 import software.amazon.awscdk.services.dynamodb.Table;
+import software.amazon.awscdk.services.iam.Effect;
+import software.amazon.awscdk.services.iam.PolicyStatement;
 import software.amazon.awscdk.services.iam.ServicePrincipal;
 import software.amazon.awscdk.services.lambda.FunctionUrl;
 import software.amazon.awscdk.services.lambda.FunctionUrlAuthType;
@@ -38,17 +47,7 @@ import software.amazon.awscdk.services.s3.assets.AssetOptions;
 import software.amazon.awscdk.services.s3.deployment.BucketDeployment;
 import software.amazon.awscdk.services.s3.deployment.Source;
 import software.amazon.awscdk.services.xray.CfnGroup;
-import software.amazon.awscdk.customresources.AwsCustomResource;
-import software.amazon.awscdk.customresources.AwsCustomResourcePolicy;
-import software.amazon.awscdk.customresources.PhysicalResourceId;
-import software.amazon.awscdk.customresources.AwsSdkCall;
-import software.amazon.awscdk.services.iam.PolicyStatement;
-import software.amazon.awscdk.services.iam.Effect;
 import software.constructs.Construct;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 public class OidcProviderStack extends Stack {
   public final String baseUrl;
@@ -81,10 +80,11 @@ public class OidcProviderStack extends Stack {
     super(scope, id, props);
 
     var additionalOriginsBehaviourMappings = new HashMap<String, BehaviorOptions>();
-    
+
     // Generate predictable resource name prefix based on domain and deployment name
     String resourceNamePrefix = generateResourceNamePrefix(props.domainName, props.deploymentName);
-    String compressedResourceNamePrefix = generateCompressedResourceNamePrefix(props.domainName, props.deploymentName);
+    String compressedResourceNamePrefix =
+        generateCompressedResourceNamePrefix(props.domainName, props.deploymentName);
 
     // Use observability resources from the passed props
     this.logsBucket = props.logsBucket;
@@ -114,38 +114,43 @@ public class OidcProviderStack extends Stack {
     this.baseUrl = "https://" + domainName;
 
     // TLS certificate from existing ACM (must be in us-east-1 for CloudFront)
-    var cert = Certificate.fromCertificateArn(this, resourceNamePrefix + "-WebCert", props.certificateArn);
+    var cert =
+        Certificate.fromCertificateArn(this, resourceNamePrefix + "-WebCert", props.certificateArn);
 
     // Buckets
 
     // Web origin bucket
-    this.webOriginBucket = new S3OriginBucket(
-        this,
-        resourceNamePrefix + "-WebBucket",
-        S3OriginBucketProps.builder()
-            .bucketNameSuffix("web")
-            .logsPrefix("s3/web/")
-            .oaiComment("Identity created for access to the website origin bucket via the CloudFront"
-                + " distribution")
-            .logsBucket(this.logsBucket)
-            .bucketType(S3OriginBucketType.WEB)
-            .build());
+    this.webOriginBucket =
+        new S3OriginBucket(
+            this,
+            resourceNamePrefix + "-WebBucket",
+            S3OriginBucketProps.builder()
+                .bucketNameSuffix("web")
+                .logsPrefix("s3/web/")
+                .oaiComment(
+                    "Identity created for access to the website origin bucket via the CloudFront"
+                        + " distribution")
+                .logsBucket(this.logsBucket)
+                .bucketType(S3OriginBucketType.WEB)
+                .build());
     this.webBucket = this.webOriginBucket.bucket;
     this.webOriginAccessIdentity = this.webOriginBucket.originAccessIdentity;
     BehaviorOptions webOriginBehaviorOptions = this.webOriginBucket.behaviorOptions;
 
     // Well-known origin bucket
-    this.wellKnownOriginBucket = new S3OriginBucket(
-        this,
-        resourceNamePrefix + "-WellKnownBucket",
-        S3OriginBucketProps.builder()
-            .bucketNameSuffix("well-known")
-            .logsPrefix("s3/well-known/")
-            .oaiComment("Identity created for access to the Well Known origin bucket via the CloudFront"
-                + " distribution")
-            .logsBucket(this.logsBucket)
-            .bucketType(S3OriginBucketType.WELL_KNOWN)
-            .build());
+    this.wellKnownOriginBucket =
+        new S3OriginBucket(
+            this,
+            resourceNamePrefix + "-WellKnownBucket",
+            S3OriginBucketProps.builder()
+                .bucketNameSuffix("well-known")
+                .logsPrefix("s3/well-known/")
+                .oaiComment(
+                    "Identity created for access to the Well Known origin bucket via the CloudFront"
+                        + " distribution")
+                .logsBucket(this.logsBucket)
+                .bucketType(S3OriginBucketType.WELL_KNOWN)
+                .build());
     this.wellKnownBucket = this.wellKnownOriginBucket.bucket;
     this.wellKnownOriginAccessIdentity = this.wellKnownOriginBucket.originAccessIdentity;
     this.shortTtl = this.wellKnownOriginBucket.cachePolicy;
@@ -182,41 +187,43 @@ public class OidcProviderStack extends Stack {
     // Lambda functions
 
     // Authorize endpoint via construct
-    this.authorizeEndpoint = new OidcEndpointFunction(
-        this,
-        resourceNamePrefix + "-AuthorizeEndpoint",
-        OidcEndpointFunctionProps.builder()
-            .functionName(compressedResourceNamePrefix + "-authorize")
-            .dockerfilePath("infra/runtimes/authorize.Dockerfile")
-            .cmd(List.of("app/functions/authorize.handler"))
-            .pathPattern("/authorize")
-            .allowedMethods(AllowedMethods.ALLOW_ALL)
-            .extraEnv(Map.of(
-                "USERS_TABLE", this.usersTable.getTableName(),
-                "CODES_TABLE", this.authCodesTable.getTableName()
-            ))
-            .build());
+    this.authorizeEndpoint =
+        new OidcEndpointFunction(
+            this,
+            resourceNamePrefix + "-AuthorizeEndpoint",
+            OidcEndpointFunctionProps.builder()
+                .functionName(compressedResourceNamePrefix + "-authorize")
+                .dockerfilePath("infra/runtimes/authorize.Dockerfile")
+                .cmd(List.of("app/functions/authorize.handler"))
+                .pathPattern("/authorize")
+                .allowedMethods(AllowedMethods.ALLOW_ALL)
+                .extraEnv(
+                    Map.of(
+                        "USERS_TABLE", this.usersTable.getTableName(),
+                        "CODES_TABLE", this.authCodesTable.getTableName()))
+                .build());
     this.authorizeEndpoint.function.addEnvironment("ISSUER", "https://" + domainName);
     additionalOriginsBehaviourMappings.put("/authorize", this.authorizeEndpoint.behaviorOptions);
     this.usersTable.grantReadData(this.authorizeEndpoint.function);
     this.authCodesTable.grantReadWriteData(this.authorizeEndpoint.function);
 
     // Token endpoint via construct
-    this.tokenEndpoint = new OidcEndpointFunction(
-        this,
-        resourceNamePrefix + "-TokenEndpoint",
-        OidcEndpointFunctionProps.builder()
-            .functionName(compressedResourceNamePrefix + "-token")
-            .dockerfilePath("infra/runtimes/token.Dockerfile")
-            .cmd(List.of("app/functions/token.handler"))
-            .pathPattern("/token")
-            .allowedMethods(AllowedMethods.ALLOW_ALL)
-            .extraEnv(Map.of(
-                "USERS_TABLE", this.usersTable.getTableName(),
-                "REFRESH_TABLE", this.refreshTokensTable.getTableName(),
-                "CODES_TABLE", this.authCodesTable.getTableName()
-            ))
-            .build());
+    this.tokenEndpoint =
+        new OidcEndpointFunction(
+            this,
+            resourceNamePrefix + "-TokenEndpoint",
+            OidcEndpointFunctionProps.builder()
+                .functionName(compressedResourceNamePrefix + "-token")
+                .dockerfilePath("infra/runtimes/token.Dockerfile")
+                .cmd(List.of("app/functions/token.handler"))
+                .pathPattern("/token")
+                .allowedMethods(AllowedMethods.ALLOW_ALL)
+                .extraEnv(
+                    Map.of(
+                        "USERS_TABLE", this.usersTable.getTableName(),
+                        "REFRESH_TABLE", this.refreshTokensTable.getTableName(),
+                        "CODES_TABLE", this.authCodesTable.getTableName()))
+                .build());
     this.tokenEndpoint.function.addEnvironment("ISSUER", "https://" + domainName);
     additionalOriginsBehaviourMappings.put("/token", this.tokenEndpoint.behaviorOptions);
     this.authCodesTable.grantReadWriteData(this.tokenEndpoint.function);
@@ -225,37 +232,35 @@ public class OidcProviderStack extends Stack {
     this.usersTable.grantReadData(this.tokenEndpoint.function);
 
     // UserInfo endpoint via construct
-    this.userinfoEndpoint = new OidcEndpointFunction(
-        this,
-        resourceNamePrefix + "-UserInfoEndpoint",
-        OidcEndpointFunctionProps.builder()
-            .functionName(compressedResourceNamePrefix + "-userinfo")
-            .dockerfilePath("infra/runtimes/userinfo.Dockerfile")
-            .cmd(List.of("app/functions/userinfo.handler"))
-            .pathPattern("/userinfo")
-            .allowedMethods(AllowedMethods.ALLOW_ALL)
-            .extraEnv(Map.of(
-                "USERS_TABLE", this.usersTable.getTableName()
-            ))
-            .build());
+    this.userinfoEndpoint =
+        new OidcEndpointFunction(
+            this,
+            resourceNamePrefix + "-UserInfoEndpoint",
+            OidcEndpointFunctionProps.builder()
+                .functionName(compressedResourceNamePrefix + "-userinfo")
+                .dockerfilePath("infra/runtimes/userinfo.Dockerfile")
+                .cmd(List.of("app/functions/userinfo.handler"))
+                .pathPattern("/userinfo")
+                .allowedMethods(AllowedMethods.ALLOW_ALL)
+                .extraEnv(Map.of("USERS_TABLE", this.usersTable.getTableName()))
+                .build());
     this.userinfoEndpoint.function.addEnvironment("ISSUER", "https://" + domainName);
     additionalOriginsBehaviourMappings.put("/userinfo", this.userinfoEndpoint.behaviorOptions);
     this.usersTable.grantReadData(this.userinfoEndpoint.function);
 
     // JWKS endpoint via construct
-    this.jwksEndpoint = new OidcEndpointFunction(
-        this,
-        resourceNamePrefix + "-JwksEndpoint",
-        OidcEndpointFunctionProps.builder()
-            .functionName(compressedResourceNamePrefix + "-jwks")
-            .dockerfilePath("infra/runtimes/jwks.Dockerfile")
-            .cmd(List.of("app/functions/jwks.handler"))
-            .pathPattern("/jwks")
-            .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
-            .extraEnv(Map.of(
-                "CODES_TABLE", this.authCodesTable.getTableName()
-            ))
-            .build());
+    this.jwksEndpoint =
+        new OidcEndpointFunction(
+            this,
+            resourceNamePrefix + "-JwksEndpoint",
+            OidcEndpointFunctionProps.builder()
+                .functionName(compressedResourceNamePrefix + "-jwks")
+                .dockerfilePath("infra/runtimes/jwks.Dockerfile")
+                .cmd(List.of("app/functions/jwks.handler"))
+                .pathPattern("/jwks")
+                .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
+                .extraEnv(Map.of("CODES_TABLE", this.authCodesTable.getTableName()))
+                .build());
     this.jwksEndpoint.function.addEnvironment("ISSUER", "https://" + domainName);
     additionalOriginsBehaviourMappings.put("/jwks", this.jwksEndpoint.behaviorOptions);
     this.authCodesTable.grantReadWriteData(this.jwksEndpoint.function);
@@ -283,10 +288,14 @@ public class OidcProviderStack extends Stack {
             .functionUrlAuthType(FunctionUrlAuthType.NONE)
             .sourceArn(this.distribution.getDistributionArn())
             .build();
-    this.authorizeEndpoint.function.addPermission(compressedResourceNamePrefix + "-cf-auth", invokeFunctionUrlPermission);
-    this.tokenEndpoint.function.addPermission(compressedResourceNamePrefix + "-cf-token", invokeFunctionUrlPermission);
-    this.userinfoEndpoint.function.addPermission(compressedResourceNamePrefix + "-cf-userinfo", invokeFunctionUrlPermission);
-    this.jwksEndpoint.function.addPermission(compressedResourceNamePrefix + "-cf-jwks", invokeFunctionUrlPermission);
+    this.authorizeEndpoint.function.addPermission(
+        compressedResourceNamePrefix + "-cf-auth", invokeFunctionUrlPermission);
+    this.tokenEndpoint.function.addPermission(
+        compressedResourceNamePrefix + "-cf-token", invokeFunctionUrlPermission);
+    this.userinfoEndpoint.function.addPermission(
+        compressedResourceNamePrefix + "-cf-userinfo", invokeFunctionUrlPermission);
+    this.jwksEndpoint.function.addPermission(
+        compressedResourceNamePrefix + "-cf-jwks", invokeFunctionUrlPermission);
 
     var deployPostfix = java.util.UUID.randomUUID().toString().substring(0, 8);
 
@@ -294,11 +303,11 @@ public class OidcProviderStack extends Stack {
     var webDocRootSource =
         Source.asset("web", AssetOptions.builder().assetHashType(AssetHashType.SOURCE).build());
     var webDeploymentLogGroup =
-          LogGroup.Builder.create(this, resourceNamePrefix + "-WebDeploymentLogGroup")
-              .logGroupName("/deployment/" + resourceNamePrefix + "-web-deployment-" + deployPostfix)
-              .retention(RetentionDays.ONE_DAY)
-              .removalPolicy(RemovalPolicy.DESTROY)
-              .build();
+        LogGroup.Builder.create(this, resourceNamePrefix + "-WebDeploymentLogGroup")
+            .logGroupName("/deployment/" + resourceNamePrefix + "-web-deployment-" + deployPostfix)
+            .retention(RetentionDays.ONE_DAY)
+            .removalPolicy(RemovalPolicy.DESTROY)
+            .build();
     this.webDeployment =
         BucketDeployment.Builder.create(this, resourceNamePrefix + "-DocRootToWebOriginDeployment")
             .sources(List.of(webDocRootSource))
@@ -311,19 +320,22 @@ public class OidcProviderStack extends Stack {
             .prune(true)
             .build();
 
-    // Deploy the well-known website files to the well-known bucket under /.well-known/ with a random suffix on the log group name
+    // Deploy the well-known website files to the well-known bucket under /.well-known/ with a
+    // random suffix on the log group name
     var wellKnownRootSource =
         Source.asset(
             "well-known", AssetOptions.builder().assetHashType(AssetHashType.SOURCE).build());
 
     var wellKnownDeploymentLogGroup =
-          LogGroup.Builder.create(this, resourceNamePrefix + "-WellKnownDeploymentLogGroup")
-                  .logGroupName("/deployment/" + resourceNamePrefix + "-well-known-deployment-" + deployPostfix)
-                  .retention(RetentionDays.ONE_DAY)
-                  .removalPolicy(RemovalPolicy.DESTROY)
-                  .build();
+        LogGroup.Builder.create(this, resourceNamePrefix + "-WellKnownDeploymentLogGroup")
+            .logGroupName(
+                "/deployment/" + resourceNamePrefix + "-well-known-deployment-" + deployPostfix)
+            .retention(RetentionDays.ONE_DAY)
+            .removalPolicy(RemovalPolicy.DESTROY)
+            .build();
     this.wellKnownDeployment =
-        BucketDeployment.Builder.create(this, resourceNamePrefix + "-DocRootToWellKnownOriginDeployment")
+        BucketDeployment.Builder.create(
+                this, resourceNamePrefix + "-DocRootToWellKnownOriginDeployment")
             .sources(List.of(wellKnownRootSource))
             .destinationBucket(this.wellKnownBucket)
             .destinationKeyPrefix(".well-known/")
@@ -339,19 +351,22 @@ public class OidcProviderStack extends Stack {
     createWellKnownConfigFix(resourceNamePrefix, domainName);
 
     // A record
-    this.aliasRecord = new ARecord(
-        this,
-        resourceNamePrefix + "-AliasRecord",
-        ARecordProps.builder()
-            .recordName(recordName)
-            .zone(zone)
-            .target(RecordTarget.fromAlias(new CloudFrontTarget(this.distribution)))
-            .build());
+    this.aliasRecord =
+        new ARecord(
+            this,
+            resourceNamePrefix + "-AliasRecord",
+            ARecordProps.builder()
+                .recordName(recordName)
+                .zone(zone)
+                .target(RecordTarget.fromAlias(new CloudFrontTarget(this.distribution)))
+                .build());
 
     // Outputs
     new CfnOutput(this, "BaseUrl", CfnOutputProps.builder().value("https://" + domainName).build());
     new CfnOutput(
-        this, "WebBucketName", CfnOutputProps.builder().value(this.webBucket.getBucketName()).build());
+        this,
+        "WebBucketName",
+        CfnOutputProps.builder().value(this.webBucket.getBucketName()).build());
     new CfnOutput(
         this,
         "WellKnownBucketName",
@@ -391,132 +406,143 @@ public class OidcProviderStack extends Stack {
     return dashedDomainName + "-" + deploymentName;
   }
 
-    /**
-     * Generate a shortened predictable resource name prefix based on domain and deployment name.
-     * Steps:
-     * 1. Replace dots with dashes.
-     * 2. Split on dashes.
-     * 3. Keep segment "oidc" intact; compress all other non-empty segments to their first letter.
-     * 4. Append '-' + deployment name (deployment name kept whole).
-     *
-     * Examples:
-     *   domain=oidc.example.com, deployment=dev  -> oidc-e-c-dev
-     *   domain=login.auth.service.example.com, deployment=prod -> l-a-s-e-c-prod
-     *
-     * @param domainName fully qualified domain name (e.g. "oidc.example.com")
-     * @param deploymentName deployment name (e.g. "dev", "ci", "ci-branchname")
-     * @return compressed resource name prefix
-     */
-    private static String generateCompressedResourceNamePrefix(String domainName, String deploymentName) {
-        if (domainName == null || domainName.isBlank()) {
-            throw new IllegalArgumentException("domainName must be non-empty");
-        }
-        if (deploymentName == null || deploymentName.isBlank()) {
-            throw new IllegalArgumentException("deploymentName must be non-empty");
-        }
-
-        String dashed = domainName.replace('.', '-').toLowerCase();
-        String[] parts = dashed.split("-+");
-        StringBuilder sb = new StringBuilder();
-        for (String part : parts) {
-            if (part.isEmpty()) {
-                continue;
-            }
-            if (sb.length() > 0) {
-                sb.append('-');
-            }
-            if ("oidc".equals(part)) {
-                sb.append("oidc");
-            } else {
-                sb.append(part.charAt(0));
-            }
-        }
-        sb.append('-').append(deploymentName);
-        return sb.toString();
+  /**
+   * Generate a shortened predictable resource name prefix based on domain and deployment name.
+   * Steps:
+   * 1. Replace dots with dashes.
+   * 2. Split on dashes.
+   * 3. Keep segment "oidc" intact; compress all other non-empty segments to their first letter.
+   * 4. Append '-' + deployment name (deployment name kept whole).
+   *
+   * Examples:
+   *   domain=oidc.example.com, deployment=dev  -> oidc-e-c-dev
+   *   domain=login.auth.service.example.com, deployment=prod -> l-a-s-e-c-prod
+   *
+   * @param domainName fully qualified domain name (e.g. "oidc.example.com")
+   * @param deploymentName deployment name (e.g. "dev", "ci", "ci-branchname")
+   * @return compressed resource name prefix
+   */
+  private static String generateCompressedResourceNamePrefix(
+      String domainName, String deploymentName) {
+    if (domainName == null || domainName.isBlank()) {
+      throw new IllegalArgumentException("domainName must be non-empty");
+    }
+    if (deploymentName == null || deploymentName.isBlank()) {
+      throw new IllegalArgumentException("deploymentName must be non-empty");
     }
 
-    /**
-     * Create a custom resource to fix the well-known configuration with the correct domain
-     */
-    private void createWellKnownConfigFix(String resourceNamePrefix, String domainName) {
-        var configContent = String.format("""
-            {
-              "issuer": "https://%s",
-              "authorization_endpoint": "https://%s/authorize",
-              "token_endpoint": "https://%s/token",
-              "userinfo_endpoint": "https://%s/userinfo",
-              "jwks_uri": "https://%s/jwks",
-              "scopes_supported": ["openid", "email", "profile"],
-              "response_types_supported": ["code"],
-              "grant_types_supported": ["authorization_code"],
-              "subject_types_supported": ["public"],
-              "id_token_signing_alg_values_supported": ["RS256"],
-              "token_endpoint_auth_methods_supported": ["none"],
-              "code_challenge_methods_supported": ["S256"],
-              "claims_supported": ["sub", "email", "email_verified", "name", "given_name", "family_name", "aud", "exp", "iat", "iss", "nonce"]
-            }
-            """, domainName, domainName, domainName, domainName, domainName);
+    String dashed = domainName.replace('.', '-').toLowerCase();
+    String[] parts = dashed.split("-+");
+    StringBuilder sb = new StringBuilder();
+    for (String part : parts) {
+      if (part.isEmpty()) {
+        continue;
+      }
+      if (sb.length() > 0) {
+        sb.append('-');
+      }
+      if ("oidc".equals(part)) {
+        sb.append("oidc");
+      } else {
+        sb.append(part.charAt(0));
+      }
+    }
+    sb.append('-').append(deploymentName);
+    return sb.toString();
+  }
 
-        var wellKnownConfigCall = AwsSdkCall.builder()
+  /**
+   * Create a custom resource to fix the well-known configuration with the correct domain
+   */
+  private void createWellKnownConfigFix(String resourceNamePrefix, String domainName) {
+    var configContent =
+        String.format(
+            """
+{
+  "issuer": "https://%s",
+  "authorization_endpoint": "https://%s/authorize",
+  "token_endpoint": "https://%s/token",
+  "userinfo_endpoint": "https://%s/userinfo",
+  "jwks_uri": "https://%s/jwks",
+  "scopes_supported": ["openid", "email", "profile"],
+  "response_types_supported": ["code"],
+  "grant_types_supported": ["authorization_code"],
+  "subject_types_supported": ["public"],
+  "id_token_signing_alg_values_supported": ["RS256"],
+  "token_endpoint_auth_methods_supported": ["none"],
+  "code_challenge_methods_supported": ["S256"],
+  "claims_supported": ["sub", "email", "email_verified", "name", "given_name", "family_name", "aud", "exp", "iat", "iss", "nonce"]
+}
+""",
+            domainName, domainName, domainName, domainName, domainName);
+
+    var wellKnownConfigCall =
+        AwsSdkCall.builder()
             .service("S3")
             .action("putObject")
-            .parameters(Map.of(
-                "Bucket", this.wellKnownBucket.getBucketName(),
-                "Key", ".well-known/openid-configuration",
-                "Body", configContent,
-                "ContentType", "application/json",
-                "CacheControl", "no-cache"
-            ))
+            .parameters(
+                Map.of(
+                    "Bucket", this.wellKnownBucket.getBucketName(),
+                    "Key", ".well-known/openid-configuration",
+                    "Body", configContent,
+                    "ContentType", "application/json",
+                    "CacheControl", "no-cache"))
             .physicalResourceId(PhysicalResourceId.of("well-known-config-" + resourceNamePrefix))
             .build();
 
-        var wellKnownConfigCustomResource = AwsCustomResource.Builder.create(this, resourceNamePrefix + "-WellKnownConfigFix")
+    var wellKnownConfigCustomResource =
+        AwsCustomResource.Builder.create(this, resourceNamePrefix + "-WellKnownConfigFix")
             .onCreate(wellKnownConfigCall)
             .onUpdate(wellKnownConfigCall)
-            .policy(AwsCustomResourcePolicy.fromStatements(List.of(
-                PolicyStatement.Builder.create()
-                    .effect(Effect.ALLOW)
-                    .actions(List.of("s3:PutObject"))
-                    .resources(List.of(this.wellKnownBucket.getBucketArn() + "/.well-known/*"))
-                    .build()
-            )))
+            .policy(
+                AwsCustomResourcePolicy.fromStatements(
+                    List.of(
+                        PolicyStatement.Builder.create()
+                            .effect(Effect.ALLOW)
+                            .actions(List.of("s3:PutObject"))
+                            .resources(
+                                List.of(this.wellKnownBucket.getBucketArn() + "/.well-known/*"))
+                            .build())))
             .installLatestAwsSdk(false)
             .build();
 
-        // Ensure the custom resource runs after the initial deployment
-        wellKnownConfigCustomResource.getNode().addDependency(this.wellKnownDeployment);
+    // Ensure the custom resource runs after the initial deployment
+    wellKnownConfigCustomResource.getNode().addDependency(this.wellKnownDeployment);
 
-        // Invalidate CloudFront after config is updated
-        var wellKnownInvalidationCall = AwsSdkCall.builder()
+    // Invalidate CloudFront after config is updated
+    var wellKnownInvalidationCall =
+        AwsSdkCall.builder()
             .service("CloudFront")
             .action("createInvalidation")
-            .parameters(Map.of(
-                "DistributionId", this.distribution.getDistributionId(),
-                "InvalidationBatch", Map.of(
-                    "CallerReference", "well-known-config-" + java.time.Instant.now().toEpochMilli(),
-                    "Paths", Map.of(
-                        "Quantity", 1,
-                        "Items", List.of("/.well-known/*")
-                    )
-                )
-            ))
-            .physicalResourceId(PhysicalResourceId.of("well-known-config-invalidation-" + resourceNamePrefix))
+            .parameters(
+                Map.of(
+                    "DistributionId", this.distribution.getDistributionId(),
+                    "InvalidationBatch",
+                        Map.of(
+                            "CallerReference",
+                            "well-known-config-" + java.time.Instant.now().toEpochMilli(),
+                            "Paths",
+                            Map.of("Quantity", 1, "Items", List.of("/.well-known/*")))))
+            .physicalResourceId(
+                PhysicalResourceId.of("well-known-config-invalidation-" + resourceNamePrefix))
             .build();
 
-        var wellKnownInvalidationCustomResource = AwsCustomResource.Builder.create(this, resourceNamePrefix + "-WellKnownConfigInvalidation")
+    var wellKnownInvalidationCustomResource =
+        AwsCustomResource.Builder.create(this, resourceNamePrefix + "-WellKnownConfigInvalidation")
             .onCreate(wellKnownInvalidationCall)
             .onUpdate(wellKnownInvalidationCall)
-            .policy(AwsCustomResourcePolicy.fromStatements(List.of(
-                PolicyStatement.Builder.create()
-                    .effect(Effect.ALLOW)
-                    .actions(List.of("cloudfront:CreateInvalidation"))
-                    .resources(List.of(this.distribution.getDistributionArn()))
-                    .build()
-            )))
+            .policy(
+                AwsCustomResourcePolicy.fromStatements(
+                    List.of(
+                        PolicyStatement.Builder.create()
+                            .effect(Effect.ALLOW)
+                            .actions(List.of("cloudfront:CreateInvalidation"))
+                            .resources(List.of(this.distribution.getDistributionArn()))
+                            .build())))
             .installLatestAwsSdk(false)
             .build();
 
-        // Ensure invalidation runs after config is updated
-        wellKnownInvalidationCustomResource.getNode().addDependency(wellKnownConfigCustomResource);
-    }
+    // Ensure invalidation runs after config is updated
+    wellKnownInvalidationCustomResource.getNode().addDependency(wellKnownConfigCustomResource);
+  }
 }

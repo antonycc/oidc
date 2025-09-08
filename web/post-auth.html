@@ -22,11 +22,11 @@
     <main class="container">
       <h1>OIDC - Post-auth</h1>
       <div class="card">
-        <p id="status" style="display: none;">Looking for authorization code in URL…</p>
-        <pre id="result" class="code" style="display: none;"></pre>
-        <pre id="claims" class="code" style="display: none;"></pre>
+        <p id="status" style="display: none">Looking for authorization code in URL…</p>
+        <pre id="result" class="code" style="display: none"></pre>
+        <pre id="claims" class="code" style="display: none"></pre>
       </div>
-      
+
       <div class="card">
         <div class="terminal">
           <div class="terminal-header">
@@ -43,30 +43,30 @@
     <script>
       // Terminal helper functions (duplicated from oidc.js for post-auth page)
       let terminalStartTime = null;
-      
+
       function getElapsedTime() {
         if (!terminalStartTime) return "0.000s";
         const elapsed = (Date.now() - terminalStartTime) / 1000;
         return elapsed.toFixed(3) + "s";
       }
-      
+
       function addTerminalLine(text, className = "") {
         const terminalContent = document.getElementById("terminal-output");
         if (!terminalContent) return;
-        
+
         const line = document.createElement("div");
         line.className = `terminal-line ${className}`;
         line.textContent = text;
         terminalContent.appendChild(line);
-        
+
         // Auto-scroll to bottom
         terminalContent.scrollTop = terminalContent.scrollHeight;
       }
-      
+
       function addTimestampLine(text) {
         addTerminalLine(`[${getElapsedTime()}] ${text}`, "timestamp");
       }
-      
+
       function formatJson(obj, maxLength = 200) {
         const str = JSON.stringify(obj, null, 2);
         if (str.length > maxLength) {
@@ -88,11 +88,11 @@
 
       async function performOAuthExchange(code, state) {
         terminalStartTime = Date.now();
-        
+
         try {
           addTimestampLine("Starting OAuth/OIDC Token Exchange");
           addTerminalLine("");
-          
+
           // Step 1: Validate authorization code
           addTimestampLine("Step 1: Processing Authorization Code");
           addTerminalLine(`Received authorization code: ${code.substring(0, 20)}...`, "success");
@@ -124,7 +124,10 @@
           addTerminalLine("PKCE Data Retrieved:", "decoded");
           addTerminalLine(`  Client ID: ${client_id}`, "decoded");
           addTerminalLine(`  Redirect URI: ${redirect_uri}`, "decoded");
-          addTerminalLine(`  Code Verifier: ${code_verifier.substring(0, 20)}... (${code_verifier.length} chars)`, "decoded");
+          addTerminalLine(
+            `  Code Verifier: ${code_verifier.substring(0, 20)}... (${code_verifier.length} chars)`,
+            "decoded",
+          );
           addTerminalLine("");
 
           // Step 3: Exchange code for tokens
@@ -155,7 +158,7 @@
           });
 
           addTimestampLine(`Response: ${res.status} ${res.statusText}`);
-          
+
           // Show response headers
           addTerminalLine("Response Headers:", "header");
           for (const [key, value] of res.headers.entries()) {
@@ -179,7 +182,7 @@
               id_token: obj.id_token ? `${obj.id_token.substring(0, 20)}...` : null,
               token_type: obj.token_type,
               expires_in: obj.expires_in,
-              scope: obj.scope
+              scope: obj.scope,
             };
             addTerminalLine(formatJson(displayObj), "payload");
             addTerminalLine("");
@@ -192,7 +195,7 @@
                 addTerminalLine("ID Token Claims:", "decoded");
                 addTerminalLine(formatJson(claims), "payload");
                 addTerminalLine("");
-                
+
                 // Store tokens in localStorage
                 const tokenData = {
                   access_token: obj.access_token,
@@ -224,7 +227,7 @@
                       headers: { authorization: "Bearer " + obj.access_token },
                     });
                     let usedFallback = false;
-                    
+
                     if (userinfoRes.status === 401) {
                       addTerminalLine("Access token rejected, trying ID token fallback...", "error");
                       usedFallback = true;
@@ -234,20 +237,23 @@
                     }
 
                     addTimestampLine(`UserInfo Response: ${userinfoRes.status} ${userinfoRes.statusText}`);
-                    
+
                     if (userinfoRes.ok) {
                       const userinfo = await userinfoRes.json();
                       const method = usedFallback ? "ID Token Fallback" : "Access Token";
                       addTerminalLine(`User Information (via ${method}):`, "success");
                       addTerminalLine(formatJson(userinfo), "payload");
-                      
+
                       // Store userinfo in localStorage
                       tokenData.userinfo = userinfo;
                       localStorage.setItem("oidc_tokens", JSON.stringify(tokenData));
-                      
+
                       addTimestampLine("OAuth/OIDC Exchange Complete - User Authenticated Successfully");
                       addTerminalLine("", "success");
-                      addTerminalLine("Summary: Authorization code exchanged for tokens, user info retrieved", "success");
+                      addTerminalLine(
+                        "Summary: Authorization code exchanged for tokens, user info retrieved",
+                        "success",
+                      );
                       addTerminalLine("User is now authenticated and logged in", "success");
                     } else {
                       addTerminalLine(`UserInfo request failed: ${userinfoRes.status}`, "error");
@@ -289,10 +295,9 @@
             document.querySelector(".login-status").textContent = "Login failed";
             addTimestampLine(`OAuth Exchange Failed (${res.status})`);
           }
-          
+
           // Clean up session data
           sessionStorage.removeItem(key);
-          
         } catch (error) {
           addTerminalLine(`Error: ${error.message}`, "error");
           addTimestampLine(`OAuth Exchange Error: ${error.message}`);
@@ -306,7 +311,7 @@
         const qs = new URL(location.href).searchParams;
         const code = qs.get("code");
         const state = qs.get("state");
-        
+
         if (code) {
           const key = "pkce:" + state;
           if (sessionStorage.getItem(key)) {

@@ -22,10 +22,10 @@ const createSafeQpForLogging = (qp) => {
 
 /**
  * OIDC Authorization endpoint handler
- * 
+ *
  * Processes OAuth2 authorization requests according to RFC 6749 and OpenID Connect Core 1.0.
  * This endpoint handles user authentication, consent, and authorization code generation.
- * 
+ *
  * **Security Features:**
  * - PKCE (Proof Key for Code Exchange) support for enhanced security
  * - Comprehensive parameter validation and sanitization
@@ -33,7 +33,7 @@ const createSafeQpForLogging = (qp) => {
  * - Secure redirect URI validation against client configuration
  * - Password hashing verification using bcrypt
  * - Authorization code generation with TTL and single-use enforcement
- * 
+ *
  * **Flow:**
  * 1. Validates request method (POST only for security)
  * 2. Parses and validates authorization parameters
@@ -41,12 +41,12 @@ const createSafeQpForLogging = (qp) => {
  * 4. Validates client configuration and redirect URI
  * 5. Generates authorization code with metadata
  * 6. Redirects user back to client with code
- * 
+ *
  * **Error Handling:**
  * - Returns structured error responses for all failure cases
  * - Logs comprehensive debugging information (with sensitive data masking)
  * - Handles database connectivity and validation failures gracefully
- * 
+ *
  * @param {Object} event - AWS Lambda event object from Function URL
  * @param {Object} event.requestContext - Request context information
  * @param {Object} event.requestContext.http - HTTP request details
@@ -56,14 +56,14 @@ const createSafeQpForLogging = (qp) => {
  * @param {string} event.body - URL-encoded form body with authorization parameters
  * @param {Object} event.headers - HTTP request headers
  * @returns {Promise<Object>} Lambda response object with redirect (302) or error (400/405/500)
- * 
+ *
  * @example
  * // Expected request body parameters:
  * // response_type=code&client_id=web-client&redirect_uri=https://app.com/callback
  * // &scope=openid email profile&state=random-state&nonce=random-nonce
  * // &code_challenge=base64url-encoded-challenge&code_challenge_method=S256
  * // &username=user&password=secret
- * 
+ *
  * @see {@link https://tools.ietf.org/html/rfc6749#section-4.1.1} OAuth2 Authorization Request
  * @see {@link https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest} OIDC Authorization Request
  * @see {@link https://tools.ietf.org/html/rfc7636} PKCE Specification
@@ -92,7 +92,12 @@ export const handler = async (event) => {
       // nonce is optional, but recommended
       // code_challenge and code_challenge_method are optional unless client requires PKCE
     ];
-    for (const k of req) if (!qp[k]) return createJsonResponse(400, { error: "invalid_request", error_description: `Missing required parameter: ${k}` });
+    for (const k of req)
+      if (!qp[k])
+        return createJsonResponse(400, {
+          error: "invalid_request",
+          error_description: `Missing required parameter: ${k}`,
+        });
     if (qp.response_type !== "code") return createJsonResponse(400, { error: "unsupported_response_type" });
 
     // ===== CLIENT VALIDATION PHASE =====
@@ -116,14 +121,20 @@ export const handler = async (event) => {
     // Prevents authorization code interception attacks by binding the code to the client
     if (isPkceRequired(qp.client_id)) {
       if (!qp.code_challenge || !qp.code_challenge_method) {
-        return createJsonResponse(400, { error: "invalid_request", error_description: "PKCE required but code_challenge or code_challenge_method missing" });
+        return createJsonResponse(400, {
+          error: "invalid_request",
+          error_description: "PKCE required but code_challenge or code_challenge_method missing",
+        });
       }
     }
 
     // If PKCE is provided (even for confidential clients), validate the challenge method
     // Only S256 (SHA256) is supported for security reasons, not "plain" method
     if (qp.code_challenge && qp.code_challenge_method !== "S256") {
-      return createJsonResponse(400, { error: "invalid_request", error_description: "Only S256 code_challenge_method is supported" });
+      return createJsonResponse(400, {
+        error: "invalid_request",
+        error_description: "Only S256 code_challenge_method is supported",
+      });
     }
 
     // ===== USER AUTHENTICATION PHASE =====
@@ -131,12 +142,12 @@ export const handler = async (event) => {
     if (process.env.USERS_TABLE) {
       // Production path: authenticate against DynamoDB users table
       const got = await get(tables.users, { username });
-      
+
       // Security: Use constant-time comparison to prevent timing attacks
       // Always perform bcrypt comparison even if user doesn't exist
       const hash = got.Item?.passwordHash || "$2a$10$zCwQ6QJkQ6QJkQ6QJkQ6QOeQ6QJkQ6QJkQ6QJkQ6QJkQ6QJkQ6QJk"; // bcrypt hash for "dummy"
       const ok = !!qp.password && bcrypt.compareSync(qp.password, hash);
-      
+
       if (!ok || !got.Item?.passwordHash) {
         // Authentication failed - redirect back to login page with error
         // Preserve authorization parameters for retry after successful authentication
@@ -154,7 +165,7 @@ export const handler = async (event) => {
     // Generate cryptographically secure authorization code using ULID for uniqueness and time ordering
     const code = ulid();
     const ttl = Math.floor(Date.now() / 1000) + 180; // 3 minutes expiration per OAuth2 recommendations
-    
+
     // Store authorization code with all validation metadata for token exchange
     await put(tables.codes, {
       code,

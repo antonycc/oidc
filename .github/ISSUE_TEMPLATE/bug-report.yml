@@ -1,0 +1,136 @@
+name: Bug Report
+description: Create a report to help us improve the OIDC Provider
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a bug! Please provide as much detail as possible to help us reproduce and fix the issue.
+
+        **Security Note**: If this is a security vulnerability, please do NOT create a public issue. Instead, email security@antonycc.com.
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      description: Please verify you've completed these steps before submitting
+      options:
+        - label: I have searched existing issues to ensure this is not a duplicate
+          required: true
+        - label: I have read the [troubleshooting guide](../docs/TROUBLESHOOTING.md)
+          required: true
+        - label: This is not a security vulnerability (those should be emailed to security@antonycc.com)
+          required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      description: Which environment are you experiencing the issue in?
+      options:
+        - Production (oidc.antonycc.com)
+        - CI (ci.oidc.antonycc.com)
+        - Local development
+        - Custom deployment
+      default: 0
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: What version of the OIDC Provider are you using?
+      placeholder: "e.g., v0.1.0, main branch, commit SHA"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is
+      placeholder: Describe what happened and what you expected to happen
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Detailed steps to reproduce the behavior
+      placeholder: |
+        1. Navigate to '...'
+        2. Click on '...'
+        3. Fill in '...'
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen
+      placeholder: Describe the expected outcome
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened instead
+      placeholder: Describe what actually occurred
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error Logs
+      description: Any relevant error messages or logs (please sanitize sensitive information)
+      placeholder: Paste error messages, stack traces, or relevant logs here
+      render: text
+
+  - type: textarea
+    id: browser
+    attributes:
+      label: Browser/Client Information
+      description: If this is a browser-related issue, please provide browser details
+      placeholder: |
+        - Browser: Chrome 120.0.0.0
+        - Operating System: macOS 14.1
+        - Device: Desktop
+        - Client Library: (if applicable)
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other context about the problem
+      placeholder: Screenshots, network traces, or other relevant information
+
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Impact Level
+      description: How severe is this issue?
+      options:
+        - Critical - System is completely broken
+        - High - Major functionality is broken
+        - Medium - Some functionality is impaired
+        - Low - Minor issue or cosmetic problem
+      default: 2
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contribution
+      description: Are you willing to help fix this issue?
+      options:
+        - label: I am willing to submit a pull request to fix this issue
+        - label: I can help test a potential fix

@@ -1,0 +1,145 @@
+name: Documentation Issue
+description: Report issues with documentation or suggest improvements
+title: "[Docs]: "
+labels: ["documentation", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve our documentation! Clear, accurate documentation is essential for a good developer experience.
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      description: Please verify you've completed these steps before submitting
+      options:
+        - label: I have searched existing issues to ensure this is not a duplicate
+          required: true
+        - label: I have checked the latest version of the documentation
+          required: true
+
+  - type: dropdown
+    id: doc-type
+    attributes:
+      label: Documentation Type
+      description: What type of documentation is this about?
+      options:
+        - README.md
+        - API Documentation (docs/api-specification.yaml)
+        - Contributing Guidelines (CONTRIBUTING.md)
+        - Troubleshooting Guide (docs/TROUBLESHOOTING.md)
+        - Environment Variables (docs/ENVIRONMENT_VARIABLES.md)
+        - Testing Documentation (docs/TESTING.md)
+        - Architecture Decisions (docs/architecture/)
+        - Code Comments/JSDoc
+        - Security Policy (SECURITY.md)
+        - Other
+      default: 0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: Issue Type
+      description: What kind of documentation issue is this?
+      options:
+        - Incorrect Information
+        - Missing Information
+        - Unclear Instructions
+        - Outdated Content
+        - Typo/Grammar
+        - Broken Links
+        - Missing Examples
+        - Formatting Issues
+        - New Documentation Needed
+      default: 0
+    validations:
+      required: true
+
+  - type: input
+    id: location
+    attributes:
+      label: Document Location
+      description: Specific file and section (if applicable)
+      placeholder: "e.g., CONTRIBUTING.md, line 45 or docs/TROUBLESHOOTING.md, 'Cold Start Issues' section"
+    validations:
+      required: true
+
+  - type: textarea
+    id: current
+    attributes:
+      label: Current Documentation
+      description: What does the current documentation say? (copy/paste the relevant section)
+      placeholder: Paste the current text that needs improvement
+      render: text
+
+  - type: textarea
+    id: issue
+    attributes:
+      label: Issue Description
+      description: What's wrong with the current documentation?
+      placeholder: |
+        - What is incorrect, unclear, or missing?
+        - What confusion did this cause?
+        - What were you trying to accomplish?
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggested
+    attributes:
+      label: Suggested Improvement
+      description: How should the documentation be improved?
+      placeholder: |
+        - Provide corrected text if applicable
+        - Suggest additional information to include
+        - Recommend restructuring if needed
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: User Context
+      description: Help us understand your perspective
+      placeholder: |
+        - What is your experience level? (beginner, intermediate, expert)
+        - What were you trying to achieve?
+        - What documentation would have helped you?
+    validations:
+      required: true
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Examples or References
+      description: Provide examples of good documentation or relevant references
+      placeholder: |
+        - Links to similar projects with good documentation
+        - Specific examples that would be helpful
+        - References to standards or best practices
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority Level
+      description: How important is fixing this documentation issue?
+      options:
+        - Critical - Prevents users from using the project
+        - High - Causes significant confusion
+        - Medium - Causes some confusion
+        - Low - Minor improvement
+      default: 2
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contribution
+      description: Are you willing to help improve the documentation?
+      options:
+        - label: I am willing to submit a pull request to fix this documentation
+        - label: I can help review proposed documentation changes

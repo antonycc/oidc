@@ -1,0 +1,17 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 🔒 Security Vulnerability
+    url: mailto:security@antonycc.com
+    about: Report security vulnerabilities via email (do not create public issues)
+  
+  - name: 💬 Questions & Discussions
+    url: https://github.com/antonycc/oidc/discussions
+    about: Ask questions and discuss ideas with the community
+  
+  - name: 📖 Documentation
+    url: https://github.com/antonycc/oidc/blob/main/README.md
+    about: Read the project documentation and guides
+  
+  - name: 🚀 Production Instance
+    url: https://oidc.antonycc.com
+    about: Test the live OIDC provider deployment

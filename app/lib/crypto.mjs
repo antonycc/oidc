@@ -2,11 +2,21 @@ import * as jose from "jose";
 import { get, put, tables } from "./db.mjs";
 import { log } from "./utils.mjs";
 
+/**
+ * Cryptographic operations for OIDC provider
+ * Manages RSA key pairs for JWT signing and verification
+ * Keys are persisted in DynamoDB for consistency across Lambda invocations
+ */
+
 // Stable keypair with DynamoDB persistence. In production, use S3/KMS for rotation.
 let jwkPrivate,
   jwkPublic,
   kid = "kid-1";
 
+/**
+ * Load RSA key pair from DynamoDB store
+ * @returns {Promise<boolean>} True if keys were successfully loaded
+ */
 async function loadFromStore() {
   if (!tables.codes) return false; // No table available
   try {
@@ -23,6 +33,10 @@ async function loadFromStore() {
   return false;
 }
 
+/**
+ * Save RSA key pair to DynamoDB store
+ * @returns {Promise<void>}
+ */
 async function saveToStore() {
   if (!tables.codes || !jwkPrivate || !jwkPublic) return;
   try {
@@ -38,6 +52,11 @@ async function saveToStore() {
   }
 }
 
+/**
+ * Ensure RSA key pair is available, loading from store or generating if needed
+ * @param {boolean} generateIfMissing - Whether to generate new keys if none exist
+ * @returns {Promise<boolean>} True if keys are available
+ */
 export async function ensureKeys(generateIfMissing = true) {
   if (jwkPrivate && jwkPublic) return true;
 
@@ -65,6 +84,11 @@ export async function ensureKeys(generateIfMissing = true) {
   return true;
 }
 
+/**
+ * Sign a JWT token with the current private key
+ * @param {object} payload - The payload to sign
+ * @returns {Promise<string>} Signed JWT token
+ */
 export async function signJwt(payload) {
   const ok = await ensureKeys(true);
   if (!ok) throw new Error("signJwt: failed to ensure keys");
@@ -72,6 +96,10 @@ export async function signJwt(payload) {
   return await new jose.SignJWT(payload).setProtectedHeader({ alg: "RS256", kid }).sign(key);
 }
 
+/**
+ * Get public JWKS (JSON Web Key Set) for token verification
+ * @returns {Promise<object>} JWKS object containing public keys
+ */
 export async function publicJwks() {
   await ensureKeys(true);
   return { keys: [jwkPublic] };

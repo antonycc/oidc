@@ -56,6 +56,12 @@ export function getClient(clientId) {
   return client;
 }
 
+/**
+ * Validate if a redirect URI is allowed for a client (pattern-based validation)
+ * @param {object} client - The client configuration object
+ * @param {string} redirectUri - The redirect URI to validate
+ * @returns {boolean} True if redirect URI matches client pattern
+ */
 export function isValidRedirectUri(client, redirectUri) {
   if (!client || !redirectUri) return false;
   try {
@@ -105,6 +111,12 @@ export function validateScopes(clientId, scopes) {
   return allValid;
 }
 
+/**
+ * Check if requested scopes are a subset of allowed client scopes
+ * @param {object} client - The client configuration object  
+ * @param {string} requestedScopeStr - Space-separated requested scopes
+ * @returns {boolean} True if all requested scopes are allowed and includes openid
+ */
 export function isScopeSubset(client, requestedScopeStr) {
   if (!client) return false;
   const requested = new Set((requestedScopeStr || "").split(/\s+/).filter(Boolean));

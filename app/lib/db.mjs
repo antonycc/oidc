@@ -1,3 +1,9 @@
+/**
+ * DynamoDB abstraction layer for OIDC provider
+ * Provides both DynamoDB and in-memory storage for testing
+ * Table names prefixed with "mem_" use in-memory storage
+ */
+
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
   DynamoDBDocumentClient,
@@ -20,12 +26,36 @@ export const tables = {
 
 // Simple in-memory store for local/system tests when TableName starts with "mem_"
 const memStores = new Map(); // Map<TableName, Map<string, any>>
+
+/**
+ * Check if table should use in-memory storage (for testing)
+ * @param {string} TableName - DynamoDB table name
+ * @returns {boolean} True if table should use memory storage
+ */
 const isMem = (TableName) => typeof TableName === "string" && TableName.startsWith("mem_");
+
+/**
+ * Get or create in-memory store for a table
+ * @param {string} TableName - Table name
+ * @returns {Map} In-memory store for the table
+ */
 const memGetStore = (TableName) => {
   if (!memStores.has(TableName)) memStores.set(TableName, new Map());
   return memStores.get(TableName);
 };
+
+/**
+ * Convert key object to string for in-memory storage
+ * @param {object} Key - DynamoDB key object
+ * @returns {string} String representation of key
+ */
 const keyString = (Key) => JSON.stringify(Key || {});
+
+/**
+ * Infer primary key from item for in-memory storage
+ * @param {object} Item - DynamoDB item
+ * @returns {object} Inferred key object
+ */
 const inferKeyFromItem = (Item) => {
   if (!Item || typeof Item !== "object") return {};
   if (Item.code) return { code: Item.code };
@@ -35,6 +65,12 @@ const inferKeyFromItem = (Item) => {
   return Item;
 };
 
+/**
+ * Put an item into DynamoDB table or memory store
+ * @param {string} TableName - Table name
+ * @param {object} Item - Item to store
+ * @returns {Promise<object>} DynamoDB response or empty object for memory
+ */
 export const put = (TableName, Item) => {
   if (isMem(TableName)) {
     const store = memGetStore(TableName);
@@ -45,6 +81,12 @@ export const put = (TableName, Item) => {
   return ddb.send(new PutCommand({ TableName, Item }));
 };
 
+/**
+ * Get an item from DynamoDB table or memory store
+ * @param {string} TableName - Table name
+ * @param {object} Key - Primary key of item to retrieve
+ * @returns {Promise<object>} DynamoDB response with Item property
+ */
 export const get = (TableName, Key) => {
   if (isMem(TableName)) {
     const store = memGetStore(TableName);

@@ -1,0 +1,334 @@
+openapi: 3.0.3
+info:
+  title: OpenID Connect Provider API
+  description: |
+    Production-ready OIDC provider compliant with OAuth2 and OpenID Connect specifications.
+    
+    **Base URL**: https://oidc.antonycc.com
+    
+    **Test Credentials**: 
+    - Username: test-user
+    - Password: c810fb39-86a9-4d2f-8107-119ade9605f8
+    
+    **Supported Features**:
+    - Authorization Code flow with PKCE
+    - JWT tokens (RS256 signing)
+    - Standard OIDC scopes (openid, email, profile)
+    - AWS Cognito integration
+    - Comprehensive audit logging
+  version: 0.1.0
+  license:
+    name: MIT
+    url: https://github.com/antonycc/oidc/blob/main/LICENSE
+  contact:
+    name: OIDC Provider Support
+    url: https://github.com/antonycc/oidc
+    email: antony@antonycc.com
+
+servers:
+  - url: https://oidc.antonycc.com
+    description: Production server
+  - url: https://ci.oidc.antonycc.com
+    description: CI/Testing server
+
+paths:
+  /.well-known/openid-configuration:
+    get:
+      summary: OIDC Discovery Document
+      description: Returns the OpenID Connect discovery document containing provider metadata
+      operationId: getOidcConfiguration
+      tags:
+        - Discovery
+      responses:
+        '200':
+          description: OIDC discovery document
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OidcConfiguration'
+
+  /authorize:
+    post:
+      summary: Authorization Endpoint
+      description: |
+        Initiates the OAuth2 authorization code flow. Only POST method is supported for security.
+        
+        **Usage**:
+        1. Generate PKCE code verifier and challenge
+        2. Submit form data with required parameters
+        3. Receive authorization code via redirect
+      operationId: authorize
+      tags:
+        - Authorization
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AuthorizeRequest'
+      responses:
+        '302':
+          description: Redirect to client redirect_uri with authorization code
+          headers:
+            Location:
+              schema:
+                type: string
+                example: "https://example.com/callback?code=01K4MB10BAN69144BW2ZE5Z4WC&state=xyz123"
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /token:
+    post:
+      summary: Token Endpoint
+      description: |
+        Exchanges authorization code for access and ID tokens.
+        
+        **PKCE Verification**: Code verifier must match the challenge from /authorize
+      operationId: token
+      tags:
+        - Token
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRequest'
+      responses:
+        '200':
+          description: Token response with access and ID tokens
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Invalid request or expired authorization code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /userinfo:
+    get:
+      summary: UserInfo Endpoint
+      description: Returns user information based on the provided access token
+      operationId: userinfo
+      tags:
+        - UserInfo
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User information claims
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserInfo'
+        '401':
+          description: Invalid or expired access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /jwks:
+    get:
+      summary: JSON Web Key Set
+      description: Returns public keys for verifying JWT tokens
+      operationId: jwks
+      tags:
+        - Keys
+      responses:
+        '200':
+          description: JSON Web Key Set containing public keys
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JwksResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    OidcConfiguration:
+      type: object
+      properties:
+        issuer:
+          type: string
+          format: uri
+        authorization_endpoint:
+          type: string
+          format: uri
+        token_endpoint:
+          type: string
+          format: uri
+        userinfo_endpoint:
+          type: string
+          format: uri
+        jwks_uri:
+          type: string
+          format: uri
+        response_types_supported:
+          type: array
+          items:
+            type: string
+        grant_types_supported:
+          type: array
+          items:
+            type: string
+        subject_types_supported:
+          type: array
+          items:
+            type: string
+        id_token_signing_alg_values_supported:
+          type: array
+          items:
+            type: string
+        scopes_supported:
+          type: array
+          items:
+            type: string
+        code_challenge_methods_supported:
+          type: array
+          items:
+            type: string
+
+    AuthorizeRequest:
+      type: object
+      required:
+        - response_type
+        - client_id
+        - redirect_uri
+        - scope
+        - code_challenge
+        - code_challenge_method
+        - username
+        - password
+      properties:
+        response_type:
+          type: string
+          enum: [code]
+        client_id:
+          type: string
+        redirect_uri:
+          type: string
+          format: uri
+        scope:
+          type: string
+        state:
+          type: string
+        nonce:
+          type: string
+        code_challenge:
+          type: string
+        code_challenge_method:
+          type: string
+          enum: [S256]
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+
+    TokenRequest:
+      type: object
+      required:
+        - grant_type
+        - code
+        - redirect_uri
+        - client_id
+        - code_verifier
+      properties:
+        grant_type:
+          type: string
+          enum: [authorization_code]
+        code:
+          type: string
+        redirect_uri:
+          type: string
+          format: uri
+        client_id:
+          type: string
+        code_verifier:
+          type: string
+
+    TokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        id_token:
+          type: string
+        token_type:
+          type: string
+          enum: [Bearer]
+        expires_in:
+          type: integer
+
+    UserInfo:
+      type: object
+      properties:
+        sub:
+          type: string
+        email:
+          type: string
+          format: email
+        email_verified:
+          type: boolean
+        name:
+          type: string
+        given_name:
+          type: string
+        family_name:
+          type: string
+
+    JwksResponse:
+      type: object
+      properties:
+        keys:
+          type: array
+          items:
+            $ref: '#/components/schemas/JsonWebKey'
+
+    JsonWebKey:
+      type: object
+      properties:
+        kty:
+          type: string
+        use:
+          type: string
+        alg:
+          type: string
+        kid:
+          type: string
+        n:
+          type: string
+        e:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        error_description:
+          type: string
+
+tags:
+  - name: Discovery
+    description: OIDC discovery and metadata endpoints
+  - name: Authorization  
+    description: OAuth2 authorization endpoints
+  - name: Token
+    description: Token issuance and management
+  - name: UserInfo
+    description: User information endpoints
+  - name: Keys
+    description: Cryptographic key endpoints

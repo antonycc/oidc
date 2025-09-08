@@ -636,6 +636,173 @@ BASE_URL=https://oidc.antonycc.com TEST_USERNAME=test-user TEST_PASSWORD=**** no
 
 ---
 
+## Troubleshooting Guide
+
+### Quick Setup Verification
+
+**1. Environment Check**
+```bash
+# Verify Node.js version (must be 22+)
+node --version  # Should show v22.x.x
+
+# Verify Java version (must be 21+) 
+java -version   # Should show openjdk version "21.x.x"
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+```
+
+**2. Dependency Installation**
+```bash
+# Install dependencies (takes ~2 seconds)
+npm ci
+
+# Install Playwright browsers (takes ~60 seconds, never cancel)
+npx playwright install --with-deps
+```
+
+**3. Build Verification**
+```bash
+# Test unit tests (takes ~1 second)
+npm test
+
+# Test CDK synthesis (takes ~8 seconds, never cancel)
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+npx cdk synth
+```
+
+### Common Issues and Solutions
+
+**Build fails with Java version errors**
+- **Problem**: CDK requires Java 21 but different version is active
+- **Solution**: 
+  ```bash
+  sudo update-alternatives --config java  # Select Java 21
+  export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+  ```
+
+**npm fails with engine version errors**
+- **Problem**: Node.js version < 22 required by package.json engines
+- **Solution**: 
+  ```bash
+  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
+  export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+  nvm install 22 && nvm use 22
+  ```
+
+**CDK synth hangs or times out**
+- **Problem**: Usually Java version/JAVA_HOME issues
+- **Solution**: Verify Java 21 is active and JAVA_HOME is set correctly
+- **Note**: CDK synth takes ~8-10 seconds normally, not instant
+
+**Playwright tests fail locally**
+- **Problem**: Missing environment variables or browser dependencies
+- **Solution**:
+  ```bash
+  export BASE_URL=https://oidc.antonycc.com
+  export TEST_USERNAME=test-user
+  export TEST_PASSWORD=c810fb39-86a9-4d2f-8107-119ade9605f8
+  npx playwright test --project=chromium
+  ```
+
+**Token verification fails**
+- **Problem**: JWT signature verification failing
+- **Solution**: Check JWKS endpoint is accessible and keys are current
+  ```bash
+  curl https://oidc.antonycc.com/.well-known/openid-configuration
+  curl https://oidc.antonycc.com/jwks
+  ```
+
+**Authentication fails with valid credentials**
+- **Problem**: User not provisioned in database or password hash mismatch
+- **Solution**: 
+  ```bash
+  # Check if USERS_TABLE is configured
+  npm run users:provision test-user c810fb39-86a9-4d2f-8107-119ade9605f8
+  ```
+
+### Debugging Authentication Flows
+
+**Enable Verbose Logging**
+All handlers log structured JSON at every step. Check CloudWatch logs for:
+- `authorize_*` events for authorization flow issues
+- `token_*` events for token exchange problems  
+- `userinfo_*` events for user data retrieval issues
+- `jwks_*` events for key management problems
+
+**Common Error Patterns**
+- `invalid_client`: Client ID not found in registry
+- `invalid_redirect_uri`: Redirect URI not in client's allowed list
+- `invalid_scope`: Requested scopes not permitted for client
+- `invalid_request`: Missing required parameters or PKCE issues
+- `invalid_token`: Access token expired or signature invalid
+
+**Manual Flow Testing**
+```bash
+# 1. Test OIDC discovery
+curl https://oidc.antonycc.com/.well-known/openid-configuration
+
+# 2. Test JWKS endpoint
+curl https://oidc.antonycc.com/jwks
+
+# 3. Test authorization (use form data)
+curl -X POST https://oidc.antonycc.com/authorize \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "response_type=code&client_id=web-client&..."
+
+# 4. Test token exchange
+curl -X POST https://oidc.antonycc.com/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=authorization_code&code=..."
+
+# 5. Test userinfo
+curl -H "Authorization: Bearer ACCESS_TOKEN" \
+  https://oidc.antonycc.com/userinfo
+```
+
+### Performance Troubleshooting
+
+**Cold Start Issues**
+- Lambda cold starts are normal (first request ~2-3 seconds)
+- Subsequent requests are fast (~100ms)
+- Use CloudWatch metrics to monitor cold start frequency
+
+**Database Connection Issues**
+- Check DynamoDB table permissions and region configuration
+- Verify AWS credentials and IAM roles
+- Monitor DynamoDB CloudWatch metrics for throttling
+
+### GitHub Actions Troubleshooting
+
+**Deployment Fails**
+- Check AWS credentials and IAM permissions
+- Verify `DEPLOY_ROLE_ARN` repository variable is set
+- Check CDK bootstrap is completed in target AWS account
+
+**Tests Fail in CI**
+- Playwright tests require deployed environment
+- Check `BASE_URL`, `COGNITO_DOMAIN`, `COGNITO_CLIENT_ID` variables
+- Review test artifacts (screenshots, videos, traces) for debugging
+
+**Artifacts Not Generated**
+- Test artifacts are only generated when tests run
+- Check test completion and artifact upload steps in workflow
+- Artifacts expire after 90 days by default
+
+### Getting Help
+
+**Repository Resources**
+- GitHub Issues: https://github.com/antonycc/oidc/issues
+- Documentation: `/docs` folder for detailed guides
+- Examples: `/tests` folder for working integration examples
+
+**Debugging Information to Include**
+- Node.js and Java versions
+- Operating system and environment details
+- Complete error messages and stack traces
+- CloudWatch logs (sanitize sensitive information)
+- Steps to reproduce the issue
+
+---
+
 ## Verbose logging
 
 All handlers log structured JSON on every step (inputs redacted where needed). CloudWatch log groups are set to **ONE_WEEK** retention.

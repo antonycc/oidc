@@ -6,14 +6,55 @@ import { log, logError, maskSensitive, parseFormBody, createJsonResponse } from 
 
 /**
  * OIDC Token endpoint handler
- * Exchanges authorization codes for access tokens and ID tokens
- *
- * @param {Object} event - Lambda event object
- * @param {Object} event.requestContext - Request context
- * @param {Object} event.requestContext.http - HTTP details
- * @param {string} event.requestContext.http.method - HTTP method
- * @param {string} event.body - Request body containing token request parameters
- * @returns {Promise<Object>} Lambda response object with tokens or error
+ * 
+ * Exchanges authorization codes for access tokens and ID tokens according to OAuth2 RFC 6749
+ * and OpenID Connect Core 1.0. This is the second step of the authorization code flow.
+ * 
+ * **Security Features:**
+ * - Single-use authorization code validation with TTL enforcement
+ * - PKCE (Proof Key for Code Exchange) verification for enhanced security
+ * - Client authentication (currently supports public clients only)
+ * - Comprehensive parameter validation and sanitization
+ * - JWT token generation with RS256 signatures
+ * - Automatic code revocation after successful exchange
+ * 
+ * **Token Types Issued:**
+ * - **Access Token**: Short-lived JWT for accessing protected resources (userinfo endpoint)
+ * - **ID Token**: JWT containing user authentication information and claims
+ * - **Refresh Token**: Currently not implemented (future enhancement)
+ * 
+ * **Flow:**
+ * 1. Validates grant type (only 'authorization_code' supported)
+ * 2. Validates required parameters (code, client_id, redirect_uri)
+ * 3. Performs client authentication (public clients only)
+ * 4. Retrieves and validates authorization code from database
+ * 5. Verifies PKCE code_verifier against stored code_challenge
+ * 6. Generates access token and ID token as signed JWTs
+ * 7. Marks authorization code as used (single-use enforcement)
+ * 8. Returns token response with metadata
+ * 
+ * **Error Handling:**
+ * - Comprehensive validation with descriptive error messages
+ * - Secure logging with sensitive data masking
+ * - Database connectivity and cryptographic failure handling
+ * - Standard OAuth2 error response format
+ * 
+ * @param {Object} event - AWS Lambda event object from Function URL
+ * @param {Object} event.requestContext - Request context information
+ * @param {Object} event.requestContext.http - HTTP request details
+ * @param {string} event.requestContext.http.method - HTTP method (must be POST)
+ * @param {string} event.body - URL-encoded form body with token request parameters
+ * @param {Object} event.headers - HTTP request headers (for future client auth)
+ * @returns {Promise<Object>} Lambda response object with tokens (200) or error (400/401/405/500)
+ * 
+ * @example
+ * // Expected request body parameters:
+ * // grant_type=authorization_code&code=ABC123&redirect_uri=https://app.com/callback
+ * // &client_id=web-client&code_verifier=PKCE-verifier-string
+ * 
+ * @see {@link https://tools.ietf.org/html/rfc6749#section-4.1.3} OAuth2 Token Request
+ * @see {@link https://openid.net/specs/openid-connect-core-1_0.html#TokenRequest} OIDC Token Request
+ * @see {@link https://tools.ietf.org/html/rfc7636#section-4.5} PKCE Verification
  */
 export const handler = async (event) => {
   try {

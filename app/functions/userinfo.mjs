@@ -4,12 +4,68 @@ import { log, logError, createJsonResponse } from "../lib/utils.mjs";
 
 /**
  * OIDC UserInfo endpoint handler
- * Returns user information based on the provided access token
- *
- * @param {Object} event - Lambda event object
- * @param {Object} event.headers - Request headers
- * @param {string} event.headers.authorization - Bearer token authorization header
- * @returns {Promise<Object>} Lambda response object with user info or error
+ * 
+ * Returns user information and claims based on the provided access token and originally
+ * granted scopes. This endpoint implements the OpenID Connect UserInfo specification.
+ * 
+ * **Authentication:**
+ * - Requires valid Bearer access token in Authorization header
+ * - Token must be obtained from /token endpoint
+ * - Token signature verification using JWKS public keys
+ * - Automatic token expiration validation
+ * 
+ * **Supported Claims by Scope:**
+ * - **openid** (always): `sub` (subject identifier)
+ * - **email**: `email`, `email_verified`
+ * - **profile**: `name`, `given_name`, `family_name`
+ * 
+ * **Data Sources:**
+ * - Claims returned based on user data from DynamoDB users table
+ * - Fallback to minimal claims if user database not configured
+ * - Scope-based filtering applied to returned claims
+ * 
+ * **Security Features:**
+ * - JWT signature verification against current JWKS
+ * - Access token expiration validation
+ * - Scope-based claim filtering
+ * - Comprehensive request logging for audit trails
+ * - No sensitive data exposure in error responses
+ * 
+ * **Flow:**
+ * 1. Extracts Bearer token from Authorization header
+ * 2. Verifies JWT signature and expiration
+ * 3. Retrieves user record from database (if configured)
+ * 4. Filters claims based on original token scopes
+ * 5. Returns user information as JSON response
+ * 
+ * **Error Handling:**
+ * - Missing/malformed Authorization header → 401 invalid_request
+ * - Invalid/expired access token → 401 invalid_token
+ * - Database connectivity issues → 500 server_error
+ * - Standard OAuth2 error response format
+ * 
+ * @param {Object} event - AWS Lambda event object from Function URL
+ * @param {Object} event.headers - HTTP request headers
+ * @param {string} event.headers.authorization - Bearer token authorization header (required)
+ * @param {string} event.headers.Authorization - Alternative header name (case-insensitive)
+ * @returns {Promise<Object>} Lambda response object with user claims (200) or error (401/500)
+ * 
+ * @example
+ * // Expected Authorization header:
+ * // Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
+ * 
+ * // Example response for full scopes:
+ * // {
+ * //   "sub": "test-user",
+ * //   "email": "user@example.com", 
+ * //   "email_verified": true,
+ * //   "name": "Test User",
+ * //   "given_name": "Test",
+ * //   "family_name": "User"
+ * // }
+ * 
+ * @see {@link https://openid.net/specs/openid-connect-core-1_0.html#UserInfo} OIDC UserInfo Endpoint
+ * @see {@link https://tools.ietf.org/html/rfc6750} OAuth2 Bearer Token Usage
  */
 // Handler expects an event object with headers
 export const handler = async (event) => {

@@ -682,6 +682,39 @@ If a first cold start slows `/authorize`, Playwright has 90s timeout in config. 
 
 ---
 
+## Documentation
+
+This project includes comprehensive documentation to support different stakeholder needs:
+
+### For Developers
+- **[API Reference](api/openapi.yaml)**: Complete OpenAPI 3.0 specification with examples
+- **[Contributing Guide](CONTRIBUTING.md)**: Development setup, workflow, and coding standards  
+- **[Testing Strategy](TESTING.md)**: Unit, system, E2E, and performance testing approach
+- **[Troubleshooting Guide](TROUBLESHOOTING.md)**: Common issues and solutions
+
+### For Operations Teams
+- **[Architecture Documentation](ARCHITECTURE.md)**: System design, decisions, and patterns
+- **[Environment Variables](ENVIRONMENT.md)**: Complete reference for all configuration  
+- **[Operations Manual](OPERATIONS.md)**: Deployment, monitoring, and incident response
+- **[Security Documentation](SECURITY.md)**: Threat model, controls, and compliance
+
+### Quick Reference
+```bash
+# Development
+npm ci && npm test                    # Setup and test
+export JAVA_HOME=/path/to/java21      # Required for CDK
+npx cdk synth                         # Validate infrastructure
+
+# Production deployment  
+npx cdk deploy OidcProviderStack-prod # Deploy to AWS
+curl https://oidc.example.com/.well-known/openid-configuration  # Health check
+
+# Testing
+BASE_URL=https://oidc.example.com npx playwright test  # E2E validation
+```
+
+---
+
 ### Notes
 - Lambda Node.js 22, handler `file.handler` with `.mjs` and `"type":"module"` is valid.
 - Function URL origins and CloudFront OAC are shown with official CDK API examples.

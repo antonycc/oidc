@@ -1,0 +1,411 @@
+openapi: 3.0.3
+info:
+  title: OIDC Provider API
+  description: |
+    A serverless OpenID Connect Provider implementation compliant with OAuth 2.0 and OpenID Connect Core 1.0.
+    
+    This API provides authentication and authorization services with support for:
+    - Authorization Code flow with PKCE
+    - JWT token generation and validation
+    - OpenID Connect discovery
+    - Dynamic client configuration
+    
+    **Production Instance**: https://oidc.antonycc.com
+  version: 0.1.0
+  contact:
+    name: OIDC Provider Support
+    email: security@antonycc.com
+    url: https://github.com/antonycc/oidc
+  license:
+    name: MIT
+    url: https://github.com/antonycc/oidc/blob/main/LICENSE
+servers:
+  - url: https://oidc.antonycc.com
+    description: Production server
+  - url: https://ci.oidc.antonycc.com
+    description: CI/Testing server
+
+paths:
+  /.well-known/openid-configuration:
+    get:
+      summary: OpenID Connect Discovery
+      description: Returns OIDC provider metadata according to RFC 8414
+      operationId: getOpenIDConfiguration
+      tags:
+        - Discovery
+      responses:
+        '200':
+          description: Provider metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenIDConfiguration'
+              example:
+                issuer: "https://oidc.antonycc.com"
+                authorization_endpoint: "https://oidc.antonycc.com/authorize"
+                token_endpoint: "https://oidc.antonycc.com/token"
+                userinfo_endpoint: "https://oidc.antonycc.com/userinfo"
+                jwks_uri: "https://oidc.antonycc.com/jwks"
+                response_types_supported: ["code"]
+                subject_types_supported: ["public"]
+                id_token_signing_alg_values_supported: ["RS256"]
+
+  /authorize:
+    post:
+      summary: Authorization Endpoint
+      description: |
+        Processes authorization requests and issues authorization codes.
+        Supports OAuth 2.0 Authorization Code flow with PKCE.
+      operationId: authorize
+      tags:
+        - OAuth2
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AuthorizeRequest'
+      responses:
+        '302':
+          description: Redirect to client with authorization code
+          headers:
+            Location:
+              schema:
+                type: string
+                example: "https://client.example.com/callback?code=01J6EXAMPLE123&state=abc123"
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /token:
+    post:
+      summary: Token Endpoint
+      description: |
+        Exchanges authorization codes for access tokens and ID tokens.
+        Supports authorization_code grant type with PKCE verification.
+      operationId: getToken
+      tags:
+        - OAuth2
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRequest'
+      responses:
+        '200':
+          description: Token response with access token and ID token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Invalid request or grant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Client authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /userinfo:
+    get:
+      summary: UserInfo Endpoint
+      description: |
+        Returns claims about the authenticated user.
+        Requires a valid access token in the Authorization header.
+      operationId: getUserInfo
+      tags:
+        - OpenID Connect
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User claims
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserInfo'
+        '401':
+          description: Invalid or expired access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /jwks:
+    get:
+      summary: JSON Web Key Set
+      description: |
+        Returns public keys used to verify JWT signatures.
+        Keys are rotated periodically for security.
+      operationId: getJWKS
+      tags:
+        - Discovery
+      responses:
+        '200':
+          description: JSON Web Key Set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JWKS'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    OpenIDConfiguration:
+      type: object
+      properties:
+        issuer:
+          type: string
+          format: uri
+          example: "https://oidc.antonycc.com"
+        authorization_endpoint:
+          type: string
+          format: uri
+          example: "https://oidc.antonycc.com/authorize"
+        token_endpoint:
+          type: string
+          format: uri
+          example: "https://oidc.antonycc.com/token"
+        userinfo_endpoint:
+          type: string
+          format: uri
+          example: "https://oidc.antonycc.com/userinfo"
+        jwks_uri:
+          type: string
+          format: uri
+          example: "https://oidc.antonycc.com/jwks"
+        response_types_supported:
+          type: array
+          items:
+            type: string
+          example: ["code"]
+        subject_types_supported:
+          type: array
+          items:
+            type: string
+          example: ["public"]
+        id_token_signing_alg_values_supported:
+          type: array
+          items:
+            type: string
+          example: ["RS256"]
+        code_challenge_methods_supported:
+          type: array
+          items:
+            type: string
+          example: ["S256"]
+
+    AuthorizeRequest:
+      type: object
+      required:
+        - client_id
+        - redirect_uri
+        - response_type
+        - scope
+        - username
+        - password
+      properties:
+        client_id:
+          type: string
+          description: Client identifier
+          example: "self-client"
+        redirect_uri:
+          type: string
+          format: uri
+          description: Client redirect URI
+          example: "https://client.example.com/callback"
+        response_type:
+          type: string
+          enum: [code]
+          description: OAuth2 response type
+        scope:
+          type: string
+          description: Space-delimited scopes
+          example: "openid email profile"
+        state:
+          type: string
+          description: CSRF protection parameter
+          example: "abc123"
+        nonce:
+          type: string
+          description: OIDC nonce for ID token
+          example: "xyz789"
+        code_challenge:
+          type: string
+          description: PKCE code challenge
+          example: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+        code_challenge_method:
+          type: string
+          enum: [S256]
+          description: PKCE code challenge method
+        username:
+          type: string
+          description: User identifier
+          example: "test-user"
+        password:
+          type: string
+          format: password
+          description: User password
+          example: "Passw0rd!"
+
+    TokenRequest:
+      type: object
+      required:
+        - grant_type
+        - code
+        - client_id
+        - redirect_uri
+      properties:
+        grant_type:
+          type: string
+          enum: [authorization_code]
+          description: OAuth2 grant type
+        code:
+          type: string
+          description: Authorization code from /authorize
+          example: "01J6EXAMPLE123"
+        client_id:
+          type: string
+          description: Client identifier
+          example: "self-client"
+        redirect_uri:
+          type: string
+          format: uri
+          description: Original redirect URI from authorization request
+          example: "https://client.example.com/callback"
+        code_verifier:
+          type: string
+          description: PKCE code verifier
+          example: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+
+    TokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: JWT access token
+          example: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+        token_type:
+          type: string
+          enum: [Bearer]
+          description: Token type
+        expires_in:
+          type: integer
+          description: Token lifetime in seconds
+          example: 3600
+        id_token:
+          type: string
+          description: OIDC ID token
+          example: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+        scope:
+          type: string
+          description: Granted scopes
+          example: "openid email profile"
+
+    UserInfo:
+      type: object
+      properties:
+        sub:
+          type: string
+          description: Subject identifier
+          example: "test-user"
+        email:
+          type: string
+          format: email
+          description: Email address
+          example: "test@example.com"
+        email_verified:
+          type: boolean
+          description: Email verification status
+          example: true
+        name:
+          type: string
+          description: Full name
+          example: "Test User"
+        given_name:
+          type: string
+          description: First name
+          example: "Test"
+        family_name:
+          type: string
+          description: Last name
+          example: "User"
+
+    JWKS:
+      type: object
+      properties:
+        keys:
+          type: array
+          items:
+            $ref: '#/components/schemas/JWK'
+
+    JWK:
+      type: object
+      properties:
+        kty:
+          type: string
+          enum: [RSA]
+          description: Key type
+        use:
+          type: string
+          enum: [sig]
+          description: Key usage
+        alg:
+          type: string
+          enum: [RS256]
+          description: Algorithm
+        kid:
+          type: string
+          description: Key identifier
+          example: "01J6EXAMPLE"
+        n:
+          type: string
+          description: RSA modulus
+        e:
+          type: string
+          description: RSA exponent
+          example: "AQAB"
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error code
+          example: "invalid_request"
+        error_description:
+          type: string
+          description: Human-readable error description
+          example: "Missing required parameter: code"
+
+tags:
+  - name: Discovery
+    description: OpenID Connect discovery endpoints
+  - name: OAuth2
+    description: OAuth 2.0 authorization endpoints
+  - name: OpenID Connect
+    description: OpenID Connect specific endpoints
+
+externalDocs:
+  description: OIDC Provider Documentation
+  url: https://github.com/antonycc/oidc

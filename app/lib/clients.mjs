@@ -1,15 +1,57 @@
-// Client registry for OIDC provider
-// In production, this could be stored in DynamoDB or another data store
+/**
+ * OAuth 2.0 / OpenID Connect Client Registry and Validation
+ * 
+ * This module manages client configurations and provides validation functions
+ * for OAuth 2.0 and OIDC authentication flows. In production deployments,
+ * client configurations could be stored in DynamoDB or external configuration.
+ * 
+ * Security Considerations:
+ * - All clients use PKCE for enhanced security
+ * - Public clients (no client_secret) only for trusted applications
+ * - Redirect URI validation prevents authorization code interception
+ * - Scope validation ensures clients only access permitted resources
+ * 
+ * Client Types:
+ * - Public clients: No client_secret, rely on PKCE and redirect URI validation
+ * - Confidential clients: Have client_secret for additional authentication
+ */
 
 import { log } from "./utils.mjs";
 
-// Get the base URL for self-client redirects (for direct OP login flow)
+/**
+ * Get the base URL for self-client redirects
+ * Used for the built-in test client that allows direct OIDC provider testing
+ * 
+ * @returns {string} Base URL for redirect URI generation
+ */
 const getSelfClientBaseUrl = () => {
   return process.env.BASE_URL || "http://localhost:8080";
 };
 
-// Load this from a yml file in the project root
+/**
+ * OAuth 2.0 Client Registry
+ * 
+ * Each client must define:
+ * - redirectUris: Array of allowed redirect URIs (exact match required)
+ * - grantTypes: Supported OAuth 2.0 grant types
+ * - scopes: Allowed OAuth 2.0/OIDC scopes  
+ * - pkceRequired: Whether PKCE is required for this client
+ * - clientSecret: Secret for confidential clients (null for public clients)
+ * 
+ * Dynamic Properties:
+ * - redirectUris can be computed dynamically based on environment
+ * - Supports localhost development and production domains
+ */
 export const clients = {
+  /**
+   * Production client for submit.diyaccounting.co.uk integration
+   * 
+   * This client configuration supports:
+   * - Local development (localhost:3000)
+   * - Ngrok tunnels for development testing
+   * - CI environment (ci.submit.diyaccounting.co.uk)  
+   * - Production environment (submit.diyaccounting.co.uk)
+   */
   "submit-diyaccounting-co-uk": {
     get redirectUris() {
       return [
@@ -24,6 +66,18 @@ export const clients = {
     pkceRequired: true,
     clientSecret: null,
   },
+  /**
+   * Self-testing client for OIDC provider validation
+   * 
+   * This client enables direct testing of the OIDC provider without
+   * external client applications. Redirect URIs are dynamically computed
+   * based on the deployment environment to support:
+   * - Production: https://oidc.antonycc.com/post-auth.html
+   * - CI: https://ci.oidc.antonycc.com/post-auth.html  
+   * - Development: http://localhost:3000/post-auth.html
+   * 
+   * Security: Uses PKCE and origin-restricted redirects for protection
+   */
   "self-client": {
     // Client for direct login form testing - allows any redirect URI to the same origin
     get redirectUris() {

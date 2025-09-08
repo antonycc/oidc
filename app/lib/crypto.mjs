@@ -2,11 +2,34 @@ import * as jose from "jose";
 import { get, put, tables } from "./db.mjs";
 import { log } from "./utils.mjs";
 
-// Stable keypair with DynamoDB persistence. In production, use S3/KMS for rotation.
-let jwkPrivate,
-  jwkPublic,
-  kid = "kid-1";
+/**
+ * Cryptographic operations for JWT signing and verification
+ * 
+ * This module manages RSA key pairs for JWT token signing and verification.
+ * Keys are persisted in DynamoDB for consistency across Lambda function invocations.
+ * 
+ * Key Management Strategy:
+ * - RSA-2048 keys for RS256 JWT signatures
+ * - Persistent storage in DynamoDB codes table
+ * - Automatic key generation if none exist
+ * - 1-year TTL for key rotation
+ * 
+ * Security Considerations:
+ * - Private keys never logged or exposed
+ * - Public keys served via JWKS endpoint
+ * - Keys generated using Node.js crypto secure random
+ */
 
+// In-memory cache for loaded keys to avoid repeated DynamoDB calls
+let jwkPrivate,  // RSA private key for signing (JWK format)
+  jwkPublic,     // RSA public key for verification (JWK format)
+  kid = "kid-1"; // Key identifier for JWT headers
+
+/**
+ * Load existing key pair from DynamoDB storage
+ * 
+ * @returns {Promise<boolean>} True if keys were successfully loaded from storage
+ */
 async function loadFromStore() {
   if (!tables.codes) return false; // No table available
   try {
@@ -23,6 +46,14 @@ async function loadFromStore() {
   return false;
 }
 
+/**
+ * Save current key pair to DynamoDB for persistence
+ * 
+ * Keys are stored with a 1-year TTL to enable automatic rotation.
+ * Uses the codes table with a special key "jwk-key-store" for identification.
+ * 
+ * @returns {Promise<void>} Resolves when keys are saved or operation fails gracefully
+ */
 async function saveToStore() {
   if (!tables.codes || !jwkPrivate || !jwkPublic) return;
   try {
@@ -38,6 +69,30 @@ async function saveToStore() {
   }
 }
 
+/**
+ * Ensure RSA key pair exists for JWT operations
+ * 
+ * This function implements a multi-step key loading strategy:
+ * 1. Return cached keys if already loaded in memory
+ * 2. Attempt to load existing keys from DynamoDB storage
+ * 3. Generate new keys if none exist and generation is allowed
+ * 
+ * Key Generation:
+ * - Uses RSA-2048 algorithm for RS256 JWT signatures
+ * - Generates both private and public keys in JWK format
+ * - Automatically saves new keys to DynamoDB for persistence
+ * 
+ * @param {boolean} generateIfMissing - Whether to generate new keys if none exist
+ * @returns {Promise<boolean>} True if keys are available for use
+ * 
+ * @example
+ * // In signing context (token endpoint)
+ * await ensureKeys(true);  // Generate if missing
+ * 
+ * @example  
+ * // In verification context (userinfo endpoint)
+ * await ensureKeys(false); // Don't generate, use existing only
+ */
 export async function ensureKeys(generateIfMissing = true) {
   if (jwkPrivate && jwkPublic) return true;
 
@@ -65,6 +120,31 @@ export async function ensureKeys(generateIfMissing = true) {
   return true;
 }
 
+/**
+ * Sign a JWT payload using the current RSA private key
+ * 
+ * Creates a JWT token signed with RS256 algorithm using the stored private key.
+ * Automatically ensures keys exist before signing operation.
+ * 
+ * @param {object} payload - JWT payload object (claims)
+ * @param {string} payload.sub - Subject identifier (required)
+ * @param {string} payload.iss - Issuer URL (typically added by caller)
+ * @param {number} payload.exp - Expiration timestamp (typically added by caller)
+ * @param {number} payload.iat - Issued at timestamp (typically added by caller)
+ * @returns {Promise<string>} Signed JWT token string
+ * 
+ * @throws {Error} If key generation or signing fails
+ * 
+ * @example
+ * const token = await signJwt({
+ *   sub: 'user-123',
+ *   iss: 'https://oidc.example.com',
+ *   aud: 'client-id',
+ *   exp: Math.floor(Date.now() / 1000) + 3600,
+ *   iat: Math.floor(Date.now() / 1000),
+ *   email: 'user@example.com'
+ * });
+ */
 export async function signJwt(payload) {
   const ok = await ensureKeys(true);
   if (!ok) throw new Error("signJwt: failed to ensure keys");
@@ -72,18 +152,49 @@ export async function signJwt(payload) {
   return await new jose.SignJWT(payload).setProtectedHeader({ alg: "RS256", kid }).sign(key);
 }
 
+/**
+ * Generate JSON Web Key Set (JWKS) for public key distribution
+ * 
+ * Returns the public key in JWKS format for client token verification.
+ * This endpoint is called by clients to retrieve verification keys.
+ * 
+ * @returns {Promise<object>} JWKS object containing public keys array
+ * 
+ * @example
+ * const jwks = await publicJwks();
+ * // Returns: { keys: [{ kty: "RSA", use: "sig", alg: "RS256", ... }] }
+ */
 export async function publicJwks() {
   await ensureKeys(true);
   return { keys: [jwkPublic] };
 }
 
+// Cached RemoteJWKSet for efficient key retrieval during verification
 let remoteJwkSet; // cached RemoteJWKSet function
 let remoteJwksUrl; // cached URL string used to build RemoteJWKSet
 
 /**
- * Verify and decode a JWT token
+ * Verify and decode a JWT token using local or remote keys
+ * 
+ * This function implements a two-stage verification process:
+ * 1. Local verification using cached keys (fastest)
+ * 2. Remote JWKS verification if local keys fail (for key rotation scenarios)
+ * 
+ * Security Features:
+ * - Enforces canonical base64url encoding to prevent signature malleability
+ * - Validates issuer claim against expected value
+ * - Only accepts RS256 algorithm for security
+ * - Graceful fallback to remote key verification
+ * 
  * @param {string} token - The JWT token to verify
- * @returns {object|null} Decoded payload or null if invalid
+ * @returns {Promise<object|null>} Decoded payload or null if verification fails
+ * 
+ * @example
+ * const payload = await verifyJwt(accessToken);
+ * if (payload) {
+ *   console.log('User:', payload.sub);
+ *   console.log('Expires:', new Date(payload.exp * 1000));
+ * }
  */
 export async function verifyJwt(token) {
   const issuer = process.env.ISSUER;

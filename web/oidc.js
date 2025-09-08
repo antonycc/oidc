@@ -43,6 +43,9 @@
     }
   }
 
+  // Make refreshLoginStatusText globally available
+  window.refreshLoginStatusText = refreshLoginStatusText;
+
   function initAuthStatus() {
     const loginStatus = checkLoginStatus();
     const loginElement = document.querySelector(".login-status");
@@ -263,6 +266,18 @@
     return btn;
   }
 
+  // -------- JWT Decoding --------
+  function decodeJwtNoVerify(jwt) {
+    try {
+      const [, payload] = jwt.split(".");
+      const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+      const paddedBase64 = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+      return JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(paddedBase64), (c) => c.charCodeAt(0))));
+    } catch {
+      return null;
+    }
+  }
+
   // -------- Local Storage Viewer/Clear --------
   function getLocalStorageDump() {
     const out = {};
@@ -299,7 +314,80 @@
       } catch {}
     });
 
-    openModal("Local storage", pre, [copyBtn]);
+    // JWT Decoding buttons
+    const decodeAccessTokenBtn = makeButton("Decode Access Token", () => {
+      try {
+        const tokenData = localStorage.getItem("oidc_tokens");
+        if (!tokenData) {
+          alert("No OIDC tokens found in localStorage");
+          return;
+        }
+        const tokens = JSON.parse(tokenData);
+        if (!tokens.access_token) {
+          alert("No access_token found in OIDC tokens");
+          return;
+        }
+        const decoded = decodeJwtNoVerify(tokens.access_token);
+        if (!decoded) {
+          alert("Failed to decode access token - invalid JWT format");
+          return;
+        }
+        localStorage.setItem("access_token_json", JSON.stringify(decoded, null, 2));
+        decodeAccessTokenBtn.textContent = "Decoded";
+        setTimeout(() => (decodeAccessTokenBtn.textContent = "Decode Access Token"), 1500);
+        
+        // Refresh modal content
+        setTimeout(() => {
+          // Close current modal and reopen with updated content
+          const overlay = pre.closest(".modal-overlay");
+          if (overlay && overlay.parentElement) {
+            overlay.parentElement.removeChild(overlay);
+            showLocalStorageModal();
+          }
+        }, 100);
+      } catch (error) {
+        console.error("Error decoding access token:", error);
+        alert("Error decoding access token: " + error.message);
+      }
+    });
+
+    const decodeIdTokenBtn = makeButton("Decode ID Token", () => {
+      try {
+        const tokenData = localStorage.getItem("oidc_tokens");
+        if (!tokenData) {
+          alert("No OIDC tokens found in localStorage");
+          return;
+        }
+        const tokens = JSON.parse(tokenData);
+        if (!tokens.id_token) {
+          alert("No id_token found in OIDC tokens");
+          return;
+        }
+        const decoded = decodeJwtNoVerify(tokens.id_token);
+        if (!decoded) {
+          alert("Failed to decode ID token - invalid JWT format");
+          return;
+        }
+        localStorage.setItem("id_token_json", JSON.stringify(decoded, null, 2));
+        decodeIdTokenBtn.textContent = "Decoded";
+        setTimeout(() => (decodeIdTokenBtn.textContent = "Decode ID Token"), 1500);
+        
+        // Refresh modal content
+        setTimeout(() => {
+          // Close current modal and reopen with updated content
+          const overlay = pre.closest(".modal-overlay");
+          if (overlay && overlay.parentElement) {
+            overlay.parentElement.removeChild(overlay);
+            showLocalStorageModal();
+          }
+        }, 100);
+      } catch (error) {
+        console.error("Error decoding ID token:", error);
+        alert("Error decoding ID token: " + error.message);
+      }
+    });
+
+    openModal("Local storage", pre, [copyBtn, decodeAccessTokenBtn, decodeIdTokenBtn]);
   }
 
   function clearLocalStorageAction() {
@@ -322,9 +410,173 @@
     openModal("Confirm", content, [cancelBtn, clearBtn]);
   }
 
+  // -------- OIDC Discovery Terminal --------
+  let terminalStartTime = null;
+  
+  function getElapsedTime() {
+    if (!terminalStartTime) return "0.000s";
+    const elapsed = (Date.now() - terminalStartTime) / 1000;
+    return elapsed.toFixed(3) + "s";
+  }
+  
+  function addTerminalLine(text, className = "") {
+    const terminalContent = document.getElementById("terminal-output");
+    if (!terminalContent) return;
+    
+    const line = document.createElement("div");
+    line.className = `terminal-line ${className}`;
+    line.textContent = text;
+    terminalContent.appendChild(line);
+    
+    // Auto-scroll to bottom
+    terminalContent.scrollTop = terminalContent.scrollHeight;
+  }
+  
+  function addTimestampLine(text) {
+    addTerminalLine(`[${getElapsedTime()}] ${text}`, "timestamp");
+  }
+  
+  function formatJson(obj, maxLength = 100) {
+    const str = JSON.stringify(obj, null, 2);
+    if (str.length > maxLength) {
+      return JSON.stringify(obj);
+    }
+    return str;
+  }
+  
+  async function performOidcDiscovery() {
+    if (!document.getElementById("terminal-output")) return; // Only run on home page
+    
+    // Skip OIDC discovery in test environments (JSDOM)
+    if (typeof window.navigator?.userAgent === 'string' && window.navigator.userAgent.includes('jsdom')) {
+      addTimestampLine("Skipping OIDC discovery in test environment");
+      return;
+    }
+    
+    terminalStartTime = Date.now();
+    // Use configurable OIDC provider base URL for discovery demo.
+    // Set window.OIDC_BASE_URL in your HTML or build config for development.
+    const baseUrl = window.OIDC_BASE_URL || window.location.origin;
+    
+    try {
+      addTimestampLine("Starting OIDC Discovery Process");
+      addTerminalLine("");
+      
+      // Step 1: Fetch well-known configuration
+      addTimestampLine("Step 1: Fetching OIDC Discovery Document");
+      const wellKnownUrl = `${baseUrl}/.well-known/openid-configuration`;
+      addTerminalLine(`GET ${wellKnownUrl}`, "url");
+      
+      const configResponse = await fetch(wellKnownUrl);
+      addTimestampLine(`Response: ${configResponse.status} ${configResponse.statusText}`);
+      
+      // Show response headers
+      addTerminalLine("Response Headers:", "header");
+      for (const [key, value] of configResponse.headers.entries()) {
+        addTerminalLine(`  ${key}: ${value}`, "header");
+      }
+      addTerminalLine("");
+      
+      if (!configResponse.ok) {
+        addTerminalLine(`Error: ${configResponse.status}`, "error");
+        return;
+      }
+      
+      const config = await configResponse.json();
+      addTerminalLine("Discovery Document Payload:", "success");
+      addTerminalLine(formatJson(config), "payload");
+      addTerminalLine("");
+      
+      // Step 2: Extract and display key information
+      addTimestampLine("Step 2: Parsing Discovery Document");
+      addTerminalLine("Key Configuration:", "decoded");
+      addTerminalLine(`  Issuer: ${config.issuer}`, "decoded");
+      addTerminalLine(`  Authorization Endpoint: ${config.authorization_endpoint}`, "decoded");
+      addTerminalLine(`  Token Endpoint: ${config.token_endpoint}`, "decoded");
+      addTerminalLine(`  UserInfo Endpoint: ${config.userinfo_endpoint}`, "decoded");
+      addTerminalLine(`  JWKS URI: ${config.jwks_uri}`, "decoded");
+      addTerminalLine(`  Supported Scopes: ${config.scopes_supported?.join(", ")}`, "decoded");
+      addTerminalLine(`  Supported Response Types: ${config.response_types_supported?.join(", ")}`, "decoded");
+      addTerminalLine("");
+      
+      // Step 3: Fetch JWKS
+      if (config.jwks_uri) {
+        addTimestampLine("Step 3: Fetching JSON Web Key Set (JWKS)");
+        addTerminalLine(`GET ${config.jwks_uri}`, "url");
+        
+        const jwksResponse = await fetch(config.jwks_uri);
+        addTimestampLine(`Response: ${jwksResponse.status} ${jwksResponse.statusText}`);
+        
+        // Show response headers
+        addTerminalLine("Response Headers:", "header");
+        for (const [key, value] of jwksResponse.headers.entries()) {
+          addTerminalLine(`  ${key}: ${value}`, "header");
+        }
+        addTerminalLine("");
+        
+        if (jwksResponse.ok) {
+          const jwks = await jwksResponse.json();
+          addTerminalLine("JWKS Payload:", "success");
+          addTerminalLine(formatJson(jwks), "payload");
+          addTerminalLine("");
+          
+          // Step 4: Decode JWKS
+          addTimestampLine("Step 4: Decoding JWKS Components");
+          if (jwks.keys && jwks.keys.length > 0) {
+            jwks.keys.forEach((key, index) => {
+              addTerminalLine(`Key ${index + 1} Analysis:`, "decoded");
+              addTerminalLine(`  Key Type (kty): ${key.kty} - ${key.kty === 'RSA' ? 'RSA Public Key' : 'Unknown key type'}`, "decoded");
+              addTerminalLine(`  Usage (use): ${key.use} - ${key.use === 'sig' ? 'Digital Signature' : 'Unknown usage'}`, "decoded");
+              addTerminalLine(`  Algorithm (alg): ${key.alg} - ${key.alg === 'RS256' ? 'RSA Signature with SHA-256' : 'Unknown algorithm'}`, "decoded");
+              addTerminalLine(`  Key ID (kid): ${key.kid} - Unique identifier for this key`, "decoded");
+              
+              if (key.n) {
+                const nLength = key.n.length;
+                addTerminalLine(`  Modulus (n): ${nLength} chars - RSA public key modulus (${Math.floor((nLength * 3 / 4) * 8)} bits approx)`, "decoded");
+              }
+              if (key.e) {
+                addTerminalLine(`  Exponent (e): ${key.e} - RSA public key exponent (typically 65537 in base64url: AQAB)`, "decoded");
+              }
+              addTerminalLine("", "decoded");
+            });
+          } else {
+            addTerminalLine("No keys found in JWKS", "error");
+          }
+        } else {
+          addTerminalLine(`Error fetching JWKS: ${jwksResponse.status}`, "error");
+        }
+      }
+      
+      addTimestampLine("OIDC Discovery Process Complete");
+      addTerminalLine("", "success");
+      addTerminalLine("Summary: Successfully discovered OIDC provider configuration", "success");
+      addTerminalLine("This information can be used by OIDC clients to authenticate users", "success");
+      
+    } catch (error) {
+      addTerminalLine(`Error: ${error.message}`, "error");
+      console.error("OIDC Discovery error:", error);
+    }
+  }
+
   // -------- Init --------
+  function waitForTerminalOutput(callback) {
+    function check() {
+      if (document.getElementById("terminal-output")) {
+        callback();
+      } else {
+        requestAnimationFrame(check);
+      }
+    }
+    check();
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
     initHamburgers();
     initAuthStatus();
+    
+    // Start OIDC discovery process on home page when terminal-output is ready
+    waitForTerminalOutput(() => {
+      performOidcDiscovery();
+    });
   });
 })();

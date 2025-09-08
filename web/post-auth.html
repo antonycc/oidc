@@ -22,14 +22,59 @@
     <main class="container">
       <h1>OIDC - Post-auth</h1>
       <div class="card">
-        <p id="status">Looking for authorization code in URL…</p>
-        <pre id="result" class="code"></pre>
-        <pre id="claims" class="code"></pre>
+        <p id="status" style="display: none;">Looking for authorization code in URL…</p>
+        <pre id="result" class="code" style="display: none;"></pre>
+        <pre id="claims" class="code" style="display: none;"></pre>
+      </div>
+      
+      <div class="card">
+        <div class="terminal">
+          <div class="terminal-header">
+            <span>OAuth/OIDC Exchange Process</span>
+          </div>
+          <div class="terminal-content" id="terminal-output">
+            <div class="terminal-line">Initializing OAuth exchange...</div>
+          </div>
+        </div>
       </div>
     </main>
     <div id="modal-root"></div>
     <script src="./oidc.js" defer></script>
     <script>
+      // Terminal helper functions (duplicated from oidc.js for post-auth page)
+      let terminalStartTime = null;
+      
+      function getElapsedTime() {
+        if (!terminalStartTime) return "0.000s";
+        const elapsed = (Date.now() - terminalStartTime) / 1000;
+        return elapsed.toFixed(3) + "s";
+      }
+      
+      function addTerminalLine(text, className = "") {
+        const terminalContent = document.getElementById("terminal-output");
+        if (!terminalContent) return;
+        
+        const line = document.createElement("div");
+        line.className = `terminal-line ${className}`;
+        line.textContent = text;
+        terminalContent.appendChild(line);
+        
+        // Auto-scroll to bottom
+        terminalContent.scrollTop = terminalContent.scrollHeight;
+      }
+      
+      function addTimestampLine(text) {
+        addTerminalLine(`[${getElapsedTime()}] ${text}`, "timestamp");
+      }
+      
+      function formatJson(obj, maxLength = 200) {
+        const str = JSON.stringify(obj, null, 2);
+        if (str.length > maxLength) {
+          return JSON.stringify(obj);
+        }
+        return str;
+      }
+
       function decodeJwtNoVerify(jwt) {
         try {
           const [, payload] = jwt.split(".");
@@ -40,147 +85,253 @@
           return null;
         }
       }
-      async function exchange(code, state) {
-        const key = "pkce:" + state;
-        const stash = sessionStorage.getItem(key);
-        if (!stash) throw new Error("Missing PKCE data for state");
 
-        let pkceData;
+      async function performOAuthExchange(code, state) {
+        terminalStartTime = Date.now();
+        
         try {
-          pkceData = JSON.parse(stash);
-        } catch (e) {
-          throw new Error("Invalid PKCE data format");
-        }
+          addTimestampLine("Starting OAuth/OIDC Token Exchange");
+          addTerminalLine("");
+          
+          // Step 1: Validate authorization code
+          addTimestampLine("Step 1: Processing Authorization Code");
+          addTerminalLine(`Received authorization code: ${code.substring(0, 20)}...`, "success");
+          addTerminalLine(`State parameter: ${state}`, "success");
+          addTerminalLine("");
 
-        const { code_verifier, client_id, redirect_uri } = pkceData;
-
-        // Validate required PKCE parameters
-        if (!code_verifier || !client_id || !redirect_uri) {
-          throw new Error("Missing required PKCE parameters");
-        }
-
-        const body = new URLSearchParams({
-          grant_type: "authorization_code",
-          code,
-          code_verifier,
-          client_id,
-          redirect_uri,
-        });
-        const res = await fetch("/token", {
-          method: "POST",
-          headers: { "content-type": "application/x-www-form-urlencoded" },
-          body,
-        });
-        const txt = await res.text();
-        let obj;
-        try {
-          obj = JSON.parse(txt);
-        } catch {
-          obj = { raw: txt };
-        }
-        document.getElementById("result").textContent = JSON.stringify(obj, null, 2);
-        if (res.ok && obj.id_token) {
-          const claims = decodeJwtNoVerify(obj.id_token);
-          document.getElementById("claims").textContent = JSON.stringify(claims, null, 2);
-          document.getElementById("status").textContent = "Token exchange succeeded";
-
-          // Store tokens in localStorage
-          const tokenData = {
-            access_token: obj.access_token,
-            id_token: obj.id_token,
-            token_type: obj.token_type || "Bearer",
-            expires_at: Date.now() + (obj.expires_in || 300) * 1000, // Convert to absolute timestamp
-            claims: claims,
-          };
-          localStorage.setItem("oidc_tokens", JSON.stringify(tokenData));
-
-          // Update login status using centralized function from oidc.js
-          if (typeof refreshLoginStatusText === "function") {
-            refreshLoginStatusText();
-          } else {
-            document.querySelector(".login-status").textContent = "Logged in";
+          // Step 2: Retrieve PKCE data
+          addTimestampLine("Step 2: Retrieving PKCE Challenge Data");
+          const key = "pkce:" + state;
+          const stash = sessionStorage.getItem(key);
+          if (!stash) {
+            throw new Error("Missing PKCE data for state - session may have expired");
           }
 
-          // Call userinfo endpoint if we have an access token
-          if (obj.access_token && typeof obj.access_token === "string" && obj.access_token.trim() !== "") {
-            try {
-              let userinfoRes = await fetch("/userinfo", {
-                headers: { authorization: "Bearer " + obj.access_token },
-              });
-              let usedFallback = false;
-              if (userinfoRes.status === 401) {
-                // Fallback to id_token like the working API test
-                usedFallback = true;
-                userinfoRes = await fetch("/userinfo", {
-                  headers: { authorization: "Bearer " + obj.id_token },
-                });
-              }
-              if (userinfoRes.ok) {
-                const userinfo = await userinfoRes.json();
-                const header = usedFallback ? "Userinfo (via id_token fallback):" : "Userinfo:";
-                document.getElementById("claims").textContent =
-                  JSON.stringify(claims, null, 2) + "\n\n" + header + "\n" + JSON.stringify(userinfo, null, 2);
-
-                // Store userinfo in localStorage
-                tokenData.userinfo = userinfo;
-                localStorage.setItem("oidc_tokens", JSON.stringify(tokenData));
-                document.getElementById("status").textContent = "Token exchange succeeded; userinfo loaded";
-
-                // Update login status using centralized function from oidc.js
-                if (typeof refreshLoginStatusText === "function") {
-                  refreshLoginStatusText();
-                } else {
-                  document.querySelector(".login-status").textContent = "Logged in";
-                }
-              } else {
-                console.warn("Failed to fetch userinfo:", userinfoRes.status);
-                document.getElementById("status").textContent =
-                  "Token exchange succeeded; userinfo unavailable (" + userinfoRes.status + ")";
-
-                // Update login status using centralized function from oidc.js
-                if (typeof refreshLoginStatusText === "function") {
-                  refreshLoginStatusText();
-                } else {
-                  document.querySelector(".login-status").textContent = "Logged in";
-                }
-              }
-            } catch (e) {
-              console.warn("Error fetching userinfo:", e);
-              document.getElementById("status").textContent = "Token exchange succeeded; userinfo error";
-
-              // Update login status using centralized function from oidc.js
-              if (typeof refreshLoginStatusText === "function") {
-                refreshLoginStatusText();
-              } else {
-                document.querySelector(".login-status").textContent = "Logged in";
-              }
-            }
+          let pkceData;
+          try {
+            pkceData = JSON.parse(stash);
+          } catch (e) {
+            throw new Error("Invalid PKCE data format in session storage");
           }
-        } else {
-          document.querySelector(".login-status").textContent = "Login failed";
-          document.getElementById("status").textContent = "Token exchange failed (" + res.status + ")";
-        }
-        sessionStorage.removeItem(key);
-      }
-      const qs = new URL(location.href).searchParams;
-      const code = qs.get("code");
-      const state = qs.get("state");
-      if (code) {
-        document.getElementById("status").textContent = "Received code=" + code;
-        const key = "pkce:" + state;
-        if (sessionStorage.getItem(key)) {
-          exchange(code, state).catch((e) => {
-            document.getElementById("status").textContent = "Error: " + e.message;
-            document.querySelector(".login-status").textContent = "Login failed";
+
+          const { code_verifier, client_id, redirect_uri } = pkceData;
+
+          // Validate required PKCE parameters
+          if (!code_verifier || !client_id || !redirect_uri) {
+            throw new Error("Missing required PKCE parameters from session");
+          }
+
+          addTerminalLine("PKCE Data Retrieved:", "decoded");
+          addTerminalLine(`  Client ID: ${client_id}`, "decoded");
+          addTerminalLine(`  Redirect URI: ${redirect_uri}`, "decoded");
+          addTerminalLine(`  Code Verifier: ${code_verifier.substring(0, 20)}... (${code_verifier.length} chars)`, "decoded");
+          addTerminalLine("");
+
+          // Step 3: Exchange code for tokens
+          addTimestampLine("Step 3: Exchanging Authorization Code for Tokens");
+          const tokenEndpoint = "/token";
+          addTerminalLine(`POST ${tokenEndpoint}`, "url");
+
+          const body = new URLSearchParams({
+            grant_type: "authorization_code",
+            code,
+            code_verifier,
+            client_id,
+            redirect_uri,
           });
-        } else {
-          // Likely came from Cognito Hosted UI; show code only
-          document.querySelector(".login-status").textContent = "Logged in (via Cognito+OIDC)";
+
+          addTerminalLine("Request Body:", "header");
+          addTerminalLine(`  grant_type: authorization_code`, "header");
+          addTerminalLine(`  code: ${code.substring(0, 20)}...`, "header");
+          addTerminalLine(`  code_verifier: ${code_verifier.substring(0, 20)}...`, "header");
+          addTerminalLine(`  client_id: ${client_id}`, "header");
+          addTerminalLine(`  redirect_uri: ${redirect_uri}`, "header");
+          addTerminalLine("");
+
+          const res = await fetch(tokenEndpoint, {
+            method: "POST",
+            headers: { "content-type": "application/x-www-form-urlencoded" },
+            body,
+          });
+
+          addTimestampLine(`Response: ${res.status} ${res.statusText}`);
+          
+          // Show response headers
+          addTerminalLine("Response Headers:", "header");
+          for (const [key, value] of res.headers.entries()) {
+            addTerminalLine(`  ${key}: ${value}`, "header");
+          }
+          addTerminalLine("");
+
+          const txt = await res.text();
+          let obj;
+          try {
+            obj = JSON.parse(txt);
+          } catch {
+            obj = { raw: txt };
+          }
+
+          if (res.ok && obj.access_token) {
+            addTerminalLine("Token Response:", "success");
+            // Show tokens but mask sensitive parts for security
+            const displayObj = {
+              access_token: obj.access_token ? `${obj.access_token.substring(0, 20)}...` : null,
+              id_token: obj.id_token ? `${obj.id_token.substring(0, 20)}...` : null,
+              token_type: obj.token_type,
+              expires_in: obj.expires_in,
+              scope: obj.scope
+            };
+            addTerminalLine(formatJson(displayObj), "payload");
+            addTerminalLine("");
+
+            // Step 4: Decode ID Token
+            if (obj.id_token) {
+              addTimestampLine("Step 4: Decoding ID Token Claims");
+              const claims = decodeJwtNoVerify(obj.id_token);
+              if (claims) {
+                addTerminalLine("ID Token Claims:", "decoded");
+                addTerminalLine(formatJson(claims), "payload");
+                addTerminalLine("");
+                
+                // Store tokens in localStorage
+                const tokenData = {
+                  access_token: obj.access_token,
+                  id_token: obj.id_token,
+                  token_type: obj.token_type || "Bearer",
+                  expires_at: Date.now() + (obj.expires_in || 300) * 1000,
+                  claims: claims,
+                };
+                localStorage.setItem("oidc_tokens", JSON.stringify(tokenData));
+
+                // Update login status
+                if (typeof refreshLoginStatusText === "function") {
+                  refreshLoginStatusText();
+                } else {
+                  document.querySelector(".login-status").textContent = "Logged in";
+                }
+
+                // Step 5: Fetch UserInfo
+                if (obj.access_token && typeof obj.access_token === "string" && obj.access_token.trim() !== "") {
+                  addTimestampLine("Step 5: Fetching User Information");
+                  const userinfoEndpoint = "/userinfo";
+                  addTerminalLine(`GET ${userinfoEndpoint}`, "url");
+                  addTerminalLine("Request Headers:", "header");
+                  addTerminalLine(`  Authorization: Bearer ${obj.access_token.substring(0, 20)}...`, "header");
+                  addTerminalLine("");
+
+                  try {
+                    let userinfoRes = await fetch(userinfoEndpoint, {
+                      headers: { authorization: "Bearer " + obj.access_token },
+                    });
+                    let usedFallback = false;
+                    
+                    if (userinfoRes.status === 401) {
+                      addTerminalLine("Access token rejected, trying ID token fallback...", "error");
+                      usedFallback = true;
+                      userinfoRes = await fetch(userinfoEndpoint, {
+                        headers: { authorization: "Bearer " + obj.id_token },
+                      });
+                    }
+
+                    addTimestampLine(`UserInfo Response: ${userinfoRes.status} ${userinfoRes.statusText}`);
+                    
+                    if (userinfoRes.ok) {
+                      const userinfo = await userinfoRes.json();
+                      const method = usedFallback ? "ID Token Fallback" : "Access Token";
+                      addTerminalLine(`User Information (via ${method}):`, "success");
+                      addTerminalLine(formatJson(userinfo), "payload");
+                      
+                      // Store userinfo in localStorage
+                      tokenData.userinfo = userinfo;
+                      localStorage.setItem("oidc_tokens", JSON.stringify(tokenData));
+                      
+                      addTimestampLine("OAuth/OIDC Exchange Complete - User Authenticated Successfully");
+                      addTerminalLine("", "success");
+                      addTerminalLine("Summary: Authorization code exchanged for tokens, user info retrieved", "success");
+                      addTerminalLine("User is now authenticated and logged in", "success");
+                    } else {
+                      addTerminalLine(`UserInfo request failed: ${userinfoRes.status}`, "error");
+                      addTimestampLine("OAuth/OIDC Exchange Complete - Tokens Received (UserInfo unavailable)");
+                      addTerminalLine("", "success");
+                      addTerminalLine("Summary: Authorization code exchanged for tokens successfully", "success");
+                      addTerminalLine("User is authenticated but UserInfo endpoint unavailable", "success");
+                    }
+                  } catch (e) {
+                    addTerminalLine(`UserInfo error: ${e.message}`, "error");
+                    addTimestampLine("OAuth/OIDC Exchange Complete - Tokens Received (UserInfo error)");
+                    addTerminalLine("", "success");
+                    addTerminalLine("Summary: Authorization code exchanged for tokens successfully", "success");
+                    addTerminalLine("User is authenticated but UserInfo request failed", "success");
+                  }
+                } else {
+                  addTerminalLine("No access token available for UserInfo request", "error");
+                  addTimestampLine("OAuth/OIDC Exchange Complete - ID Token Only");
+                  addTerminalLine("", "success");
+                  addTerminalLine("Summary: Authorization code exchanged, ID token received", "success");
+                  addTerminalLine("User is authenticated with ID token claims", "success");
+                }
+
+                // Final status updates
+                setTimeout(() => {
+                  if (typeof refreshLoginStatusText === "function") {
+                    refreshLoginStatusText();
+                  }
+                }, 500);
+              } else {
+                addTerminalLine("Failed to decode ID token", "error");
+              }
+            } else {
+              addTerminalLine("No ID token in response", "error");
+            }
+          } else {
+            addTerminalLine("Token Exchange Failed:", "error");
+            addTerminalLine(formatJson(obj), "error");
+            document.querySelector(".login-status").textContent = "Login failed";
+            addTimestampLine(`OAuth Exchange Failed (${res.status})`);
+          }
+          
+          // Clean up session data
+          sessionStorage.removeItem(key);
+          
+        } catch (error) {
+          addTerminalLine(`Error: ${error.message}`, "error");
+          addTimestampLine(`OAuth Exchange Error: ${error.message}`);
+          document.querySelector(".login-status").textContent = "Login failed";
+          console.error("OAuth exchange error:", error);
         }
-      } else {
-        document.getElementById("status").textContent = "No code present";
-        document.querySelector(".login-status").textContent = "Not logged in";
       }
+
+      // Initialize the OAuth exchange process
+      document.addEventListener("DOMContentLoaded", () => {
+        const qs = new URL(location.href).searchParams;
+        const code = qs.get("code");
+        const state = qs.get("state");
+        
+        if (code) {
+          const key = "pkce:" + state;
+          if (sessionStorage.getItem(key)) {
+            // Start OAuth exchange in terminal
+            performOAuthExchange(code, state);
+          } else {
+            // Likely came from Cognito Hosted UI
+            addTimestampLine("External OAuth Flow Detected");
+            addTerminalLine("");
+            addTerminalLine(`Received authorization code: ${code.substring(0, 20)}...`, "success");
+            addTerminalLine("No PKCE data found - likely from external provider (Cognito)", "decoded");
+            addTerminalLine("", "success");
+            addTerminalLine("Summary: External OAuth flow completed", "success");
+            document.querySelector(".login-status").textContent = "Logged in (via Cognito+OIDC)";
+          }
+        } else {
+          addTimestampLine("No Authorization Code Found");
+          addTerminalLine("");
+          addTerminalLine("No 'code' parameter in URL", "error");
+          addTerminalLine("User may have landed here directly or authorization was declined", "error");
+          addTerminalLine("", "error");
+          addTerminalLine("Summary: No OAuth authorization code to process", "error");
+          document.querySelector(".login-status").textContent = "Not logged in";
+        }
+      });
     </script>
     <footer>
       <small>© 2025 <a href="https://github.com/antonycc/oidc">@antonycc/oidc</a></small>

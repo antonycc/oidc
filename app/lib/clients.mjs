@@ -13,10 +13,12 @@ export const clients = {
   "submit-diyaccounting-co-uk": {
     get redirectUris() {
       return [
-        `http://localhost:3000/auth/loginWithAntonyccCallback.html`,
-        `https://wanted-finally-anteater.ngrok-free.app/auth/loginWithAntonyccCallback.html`,
-        `https://ci.submit.diyaccounting.co.uk/auth/loginWithAntonyccCallback.html`,
-        `https://submit.diyaccounting.co.uk/auth/loginWithAntonyccCallback.html`,
+        "http://localhost:3000/auth/loginWithAntonyccCallback.html",
+        "https://wanted-finally-anteater.ngrok-free.app/auth/loginWithAntonyccCallback.html",
+        "https://ci.submit.diyaccounting.co.uk/auth/loginWithAntonyccCallback.html",
+        "https://ci.auth.submit.diyaccounting.co.uk/oauth2/idpresponse",
+        "https://submit.diyaccounting.co.uk/auth/loginWithAntonyccCallback.html",
+        "https://auth.submit.diyaccounting.co.uk/oauth2/idpresponse",
       ];
     },
     grantTypes: ["authorization_code"],

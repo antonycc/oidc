@@ -6,6 +6,7 @@
       <w>jwks</w>
       <w>otel</w>
       <w>parentbased</w>
+      <w>pkce</w>
       <w>traceidratio</w>
     </words>
   </dictionary>

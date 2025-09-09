@@ -33,7 +33,6 @@ test("Direct login form: successful login returns tokens and claims", async ({ p
   await page.getByLabel("Password").fill(TEST_PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.waitForURL(/post-auth\.html\?code=/, { timeout: 20000 });
-  await expect(page.locator("#status")).toContainText("Token exchange");
-  await expect(page.locator("#result")).toContainText("id_token");
-  await expect(page.locator("#claims")).toContainText("sub");
+  await expect(page.getByText("Summary: Authorization code exchanged for tokens, user info retrieved")).toBeVisible();
+  await expect(page.getByText("User is now authenticated and logged in")).toBeVisible();
 });

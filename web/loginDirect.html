@@ -107,6 +107,13 @@
           stateInput.value = stateParam;
       }
 
+      // Pre-fill scope if provided via query param
+      const scopeInput = document.querySelector('input[name="scope"]');
+      const scopeParam = urlParams.get("scope");
+      if (scopeParam && scopeInput) {
+          scopeInput.value = scopeParam;
+      }
+
       // Minimal PKCE helpers
       const rand = (len = 32) =>
         crypto.getRandomValues(new Uint8Array(len)).reduce((s, b) => s + ("0" + (b % 36).toString(36)).slice(-1), "");

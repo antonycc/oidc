@@ -23,7 +23,7 @@ export const clients = {
     },
     grantTypes: ["authorization_code"],
     scopes: ["openid", "email", "profile"],
-    pkceRequired: true,
+    pkceRequired: false,
     clientSecret: null,
   },
   "self-client": {

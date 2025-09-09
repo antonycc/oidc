@@ -41,9 +41,9 @@ export const handler = async (event) => {
     const qp = Object.fromEntries(url.searchParams.entries());
 
     // Only support POST method for security and OAuth2 best practices
-    if (method !== "POST") {
-      return createJsonResponse(405, { error: "method_not_allowed" });
-    }
+    //if (method !== "POST") {
+    //  return createJsonResponse(405, { error: "method_not_allowed" });
+    //}
 
     const body = parseFormBody(event);
     for (const [k, v] of body.entries()) qp[k] = v;
@@ -63,28 +63,28 @@ export const handler = async (event) => {
 
     // Client registry validation
     const client = getClient(qp.client_id);
-    if (!client) return createJsonResponse(400, { error: "invalid_client" });
+    if (!client) return createJsonResponse(400, { error: `invalid_client ${qp.client_id}` });
 
     // Validate redirect URI is allowed for this client
     if (!validateRedirectUri(qp.client_id, qp.redirect_uri)) {
-      return createJsonResponse(400, { error: "invalid_redirect_uri" });
+      return createJsonResponse(400, { error: `invalid_redirect_uri ${qp.client_id} ${qp.redirect_uri}` });
     }
 
     // Validate scopes are allowed for this client
     if (!validateScopes(qp.client_id, qp.scope)) {
-      return createJsonResponse(400, { error: "invalid_scope" });
+      return createJsonResponse(400, { error: `invalid_scope ${p.client_id} ${qp.scope}` });
     }
 
     // Validate PKCE if required by client or if provided
     if (isPkceRequired(qp.client_id)) {
       if (!qp.code_challenge || !qp.code_challenge_method) {
-        return createJsonResponse(400, { error: "invalid_request", error_description: "PKCE required but code_challenge or code_challenge_method missing" });
+        return createJsonResponse(400, { error: `invalid_request ${qp.code_challenge} ${qp.code_challenge_method}`, error_description: "PKCE required but code_challenge or code_challenge_method missing" });
       }
     }
 
     // If PKCE provided, validate it's correct format
     if (qp.code_challenge && qp.code_challenge_method !== "S256") {
-      return createJsonResponse(400, { error: "invalid_request", error_description: "Only S256 code_challenge_method is supported" });
+      return createJsonResponse(400, { error: `invalid_request ${qp.code_challenge} ${qp.code_challenge_method}`, error_description: "Only S256 code_challenge_method is supported" });
     }
 
     const username = qp.username || "test-user";
@@ -124,6 +124,6 @@ export const handler = async (event) => {
     return { statusCode: 302, headers: { Location: location }, body: "" };
   } catch (e) {
     logError("authorize_error", e);
-    return createJsonResponse(500, { error: "server_error" });
+    return createJsonResponse(500, { error: "server_error", e });
   }
 };

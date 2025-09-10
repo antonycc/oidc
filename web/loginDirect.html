@@ -40,14 +40,12 @@
               <input type="text" name="client_id" value="self-client" required title="OIDC client identifier"
             /></label>
             <label>Redirect URI <input type="url" name="redirect_uri" required /></label>
-            <label>Response Type <input type="text" name="response_type" value="code" required readonly /></label>
+            <label>Response Type <input type="text" name="response_type" value="code" required /></label>
             <label>Scope <input type="text" name="scope" value="openid email profile" required /></label>
-            <label>State <input type="text" name="state" required readonly /></label>
-            <label>Nonce <input type="text" name="nonce" required readonly /></label>
-            <label>Code Challenge <input type="text" name="code_challenge" required readonly /></label>
-            <label
-              >Code Challenge Method <input type="text" name="code_challenge_method" value="S256" required readonly
-            /></label>
+            <label>State <input type="text" name="state" required /></label>
+            <label>Nonce <input type="text" name="nonce" required /></label>
+            <label>Code Challenge <input type="text" name="code_challenge" required /></label>
+            <label>Code Challenge Method <input type="text" name="code_challenge_method" value="S256" required /></label>
           </fieldset>
           <button type="submit">Sign in</button>
         </form>
@@ -114,6 +112,34 @@
           scopeInput.value = scopeParam;
       }
 
+      // Pre-fill scope if provided via query param
+      const responseTypeInput = document.querySelector('input[name="response_type"]');
+      const responseTypeParam = urlParams.get("response_type");
+      if (responseTypeParam && responseTypeInput) {
+          responseTypeInput.value = responseTypeParam;
+      }
+
+      // Pre-fill nonce if provided via query param
+      const nonceInput = document.querySelector('input[name="nonce"]');
+      const nonceParam = urlParams.get("nonce");
+      if (nonceParam && nonceInput) {
+          nonceInput.value = nonceParam;
+      }
+
+      // Pre-fill code challenge if provided via query param
+      const codeChallengeInput = document.querySelector('input[name="code_challenge"]');
+      const codeChallengeParam = urlParams.get("code_challenge");
+      if (codeChallengeParam && codeChallengeInput) {
+          codeChallengeInput.value = codeChallengeParam;
+      }
+
+      // Pre-fill code challenge method if provided via query param
+      const codeChallengeMethodInput = document.querySelector('input[name="code_challenge_method"]');
+      const codeChallengeMethodParam = urlParams.get("code_challenge_method");
+      if (codeChallengeMethodParam && codeChallengeMethodInput) {
+          codeChallengeMethodInput.value = codeChallengeMethodParam;
+      }
+
       // Minimal PKCE helpers
       const rand = (len = 32) =>
         crypto.getRandomValues(new Uint8Array(len)).reduce((s, b) => s + ("0" + (b % 36).toString(36)).slice(-1), "");
@@ -151,11 +177,11 @@
       }
 
       // Generate PKCE values on page load and populate form fields
-      async function initializePkceFields(stateInputValue) {
+      async function initializePkceFields(stateInputValue, nonceInputValue, codeChallengeInputValue) {
         const state = stateInputValue ? stateInputValue : rand(16);
-        const nonce = rand(16);
+        const nonce = nonceInputValue ? nonceInputValue : rand(16);
         const code_verifier = rand(64);
-        const code_challenge = await sha256base64url(code_verifier);
+        const code_challenge = codeChallengeInputValue ? codeChallengeInputValue : await sha256base64url(code_verifier);
 
         // Fill visible inputs with generated values
         form.querySelector('input[name="state"]').value = state;
@@ -167,7 +193,11 @@
       }
 
       // Initialize PKCE fields on page load
-      initializePkceFields(stateParam && stateInput ? stateInput.value : null);
+      initializePkceFields(
+          stateParam && stateInput ? stateInput.value : null,
+          nonceParam && nonceInput ? nonceInput.value : null,
+          codeChallengeParam && codeChallengeInput ? codeChallengeInput.value : null
+      );
 
       form.addEventListener("submit", async (e) => {
         e.preventDefault();

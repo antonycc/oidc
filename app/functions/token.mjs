@@ -96,7 +96,7 @@ export const handler = async (event) => {
     }
 
     // Validate PKCE challenge if present in authorization code
-    if (row.Item.ccm) {
+    if (pkceRequired && row.Item.ccm) {
       // If we have a challenge method, we must have a verifier
       if (!verifier) {
         return createJsonResponse(400, {

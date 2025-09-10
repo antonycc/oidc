@@ -91,6 +91,7 @@ D) Provisioning test data
 - Notes: These scripts expect USERS_TABLE to be set and valid AWS credentials/region. CI sets USERS_TABLE; set it locally to target your environment.
 
 Additional development notes
+- Formatting & style: Use ESLint (flat) + Prettier for JS (ESM) and Spotless (Palantir Java Format) for Java. Commands: npm run formatting (check), npm run formatting-fix (fix), npm run formatting:js, npm run formatting:java. See README for IDE setup.
 - Coding style: ESM modules only (.mjs for tests). Keep unit tests under app/oidc/test. Avoid CommonJS.
 - Java: Target 21; tests use JUnit Jupiter via Surefire 3.2.5. Do not relocate Java sources unless you also update pom.xml (nonstandard infra paths are intentional).
 - CDK specifics:

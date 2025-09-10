@@ -45,7 +45,9 @@
             <label>State <input type="text" name="state" required /></label>
             <label>Nonce <input type="text" name="nonce" required /></label>
             <label>Code Challenge <input type="text" name="code_challenge" required /></label>
-            <label>Code Challenge Method <input type="text" name="code_challenge_method" value="S256" required /></label>
+            <label
+              >Code Challenge Method <input type="text" name="code_challenge_method" value="S256" required
+            /></label>
           </fieldset>
           <button type="submit">Sign in</button>
         </form>
@@ -102,42 +104,42 @@
       const stateInput = document.querySelector('input[name="state"]');
       const stateParam = urlParams.get("state");
       if (stateParam && stateInput) {
-          stateInput.value = stateParam;
+        stateInput.value = stateParam;
       }
 
       // Pre-fill scope if provided via query param
       const scopeInput = document.querySelector('input[name="scope"]');
       const scopeParam = urlParams.get("scope");
       if (scopeParam && scopeInput) {
-          scopeInput.value = scopeParam;
+        scopeInput.value = scopeParam;
       }
 
       // Pre-fill scope if provided via query param
       const responseTypeInput = document.querySelector('input[name="response_type"]');
       const responseTypeParam = urlParams.get("response_type");
       if (responseTypeParam && responseTypeInput) {
-          responseTypeInput.value = responseTypeParam;
+        responseTypeInput.value = responseTypeParam;
       }
 
       // Pre-fill nonce if provided via query param
       const nonceInput = document.querySelector('input[name="nonce"]');
       const nonceParam = urlParams.get("nonce");
       if (nonceParam && nonceInput) {
-          nonceInput.value = nonceParam;
+        nonceInput.value = nonceParam;
       }
 
       // Pre-fill code challenge if provided via query param
       const codeChallengeInput = document.querySelector('input[name="code_challenge"]');
       const codeChallengeParam = urlParams.get("code_challenge");
       if (codeChallengeParam && codeChallengeInput) {
-          codeChallengeInput.value = codeChallengeParam;
+        codeChallengeInput.value = codeChallengeParam;
       }
 
       // Pre-fill code challenge method if provided via query param
       const codeChallengeMethodInput = document.querySelector('input[name="code_challenge_method"]');
       const codeChallengeMethodParam = urlParams.get("code_challenge_method");
       if (codeChallengeMethodParam && codeChallengeMethodInput) {
-          codeChallengeMethodInput.value = codeChallengeMethodParam;
+        codeChallengeMethodInput.value = codeChallengeMethodParam;
       }
 
       // Minimal PKCE helpers
@@ -194,9 +196,9 @@
 
       // Initialize PKCE fields on page load
       initializePkceFields(
-          stateParam && stateInput ? stateInput.value : null,
-          nonceParam && nonceInput ? nonceInput.value : null,
-          codeChallengeParam && codeChallengeInput ? codeChallengeInput.value : null
+        stateParam && stateInput ? stateInput.value : null,
+        nonceParam && nonceInput ? nonceInput.value : null,
+        codeChallengeParam && codeChallengeInput ? codeChallengeInput.value : null,
       );
 
       form.addEventListener("submit", async (e) => {

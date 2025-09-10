@@ -1,12 +1,14 @@
 # Create New Prompt
 
+> Formatting and style: Follow the repo’s formatters — ESLint (flat) + Prettier for JS (ESM) and Spotless (Palantir Java Format) for Java. Use npm run formatting / npm run formatting-fix. See README for IDE setup and links.
+
 Analyze the current repository and the existing prompts in the `prompts/` directory to identify gaps or opportunities that are not currently covered by the existing prompt types.
 
 ## Current Prompts Analysis
 
 Review the existing prompts and their focus areas:
 - `expand-capabilities.md` - New features and integrations
-- `prune-focus.md` - Code cleanup and simplification  
+- `prune-focus.md` - Code cleanup and simplification
 - `abstract-libraries.md` - Library adoption and abstraction
 - `increase-consistency.md` - Standardization across codebase
 - `refresh-documentation.md` - Documentation improvements
@@ -25,7 +27,7 @@ Based on your analysis of the repository structure, codebase, architecture, and 
 ### Required Multi-Scenario Evaluation
 Evaluate AT LEAST 3 different approaches for the new prompt:
 - **Scenario A**: Conservative/minimal change approach
-- **Scenario B**: Optimized/refactored approach  
+- **Scenario B**: Optimized/refactored approach
 - **Scenario C**: Alternative architectural approach
 
 For each scenario, analyze:
@@ -46,7 +48,7 @@ Before executing the prompt creation, conduct this internal review:
 - Does the Node.js code follow modern ES2022+ patterns?
 - Are error cases properly handled with comprehensive logging?
 
-#### Quality Review  
+#### Quality Review
 - Are tests comprehensive (unit, integration, e2e)?
 - Is logging verbose enough for debugging auth flows?
 - Does the change maintain backward compatibility?
@@ -100,7 +102,7 @@ Your new prompt should:
 ## Success Criteria
 
 The new prompt must meet these mandatory requirements:
-- Address a genuine gap not covered by existing prompts  
+- Address a genuine gap not covered by existing prompts
 - Be strategically valuable for the repository's OIDC provider goals
 - Follow AWS Well-Architected principles (security, reliability, performance, cost optimization, operational excellence)
 - Include security best practices assessment (IAM least privilege, encryption, logging)

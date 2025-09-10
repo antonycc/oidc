@@ -138,7 +138,7 @@ export function validateClientAuth(clientId, clientSecret = null) {
   }
 
   // For public clients (like Cognito), no secret is required
-  if (client.clientSecret === null && clientSecret === null) {
+  if (!client.clientSecret) {
     log("client_auth_success", "public_client", clientId);
     return true;
   }

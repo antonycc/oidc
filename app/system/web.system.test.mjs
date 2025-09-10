@@ -76,4 +76,49 @@ describe("system(jsdom): web UI basics without Playwright", () => {
     }
     expect(localStorage.getItem("oidc_tokens")).toBeNull();
   });
+
+  it("post-auth.html shows login status and button state changes when user becomes logged in", async () => {
+    const filePath = join(process.cwd(), "web", "post-auth.html");
+
+    // Initial state: not logged in
+    loadHtmlAndScripts(filePath);
+    document.dispatchEvent(new Event("DOMContentLoaded"));
+
+    const status = document.querySelector(".login-status");
+    // After DOMContentLoaded, initAuthStatus() runs and sets status to "Not logged in"
+    expect(status?.textContent || "").toBe("Not logged in");
+
+    // Should have a login button initially (created by initAuthStatus)
+    let loginBtn = document.querySelector(".login-btn");
+    let logoutBtn = document.querySelector(".logout-btn");
+    expect(loginBtn).toBeTruthy();
+    expect(logoutBtn).toBeFalsy();
+
+    // Simulate successful authentication by setting tokens
+    const future = Date.now() + 60_000;
+    localStorage.setItem(
+      "oidc_tokens",
+      JSON.stringify({ 
+        access_token: "access_token_value", 
+        id_token: "id_token_value", 
+        expires_at: future, 
+        userinfo: { name: "Test User" } 
+      }),
+    );
+
+    // Call refreshLoginStatusText (this simulates what happens after successful auth)
+    if (typeof window.refreshLoginStatusText === "function") {
+      window.refreshLoginStatusText();
+    }
+
+    // Check that status text is updated
+    expect(status?.textContent || "").toContain("Logged in as Test User");
+
+    // Check that button state has changed: login button removed, logout button added
+    loginBtn = document.querySelector(".login-btn");
+    logoutBtn = document.querySelector(".logout-btn");
+    expect(loginBtn).toBeFalsy();
+    expect(logoutBtn).toBeTruthy();
+    expect(logoutBtn?.textContent).toBe("Logout");
+  });
 });

@@ -1,5 +1,7 @@
 # Abstract and Delegate to Libraries Prompt
 
+> Formatting and style: Follow the repository configuration — ESLint (flat config) + Prettier for JavaScript (ESM) and Spotless (Palantir Java Format) for Java. Use npm run formatting / npm run formatting-fix. See the README section “Code style, formatting, and IDE setup.”
+
 Analyze the current repository and identify opportunities to abstract common patterns and delegate functionality to well-established libraries.
 
 Focus on:

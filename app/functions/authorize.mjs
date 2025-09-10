@@ -58,7 +58,12 @@ export const handler = async (event) => {
       // nonce is optional, but recommended
       // code_challenge and code_challenge_method are optional unless client requires PKCE
     ];
-    for (const k of req) if (!qp[k]) return createJsonResponse(400, { error: "invalid_request", error_description: `Missing required parameter: ${k}` });
+    for (const k of req)
+      if (!qp[k])
+        return createJsonResponse(400, {
+          error: "invalid_request",
+          error_description: `Missing required parameter: ${k}`,
+        });
     if (qp.response_type !== "code") return createJsonResponse(400, { error: "unsupported_response_type" });
 
     // Client registry validation
@@ -78,13 +83,19 @@ export const handler = async (event) => {
     // Validate PKCE if required by client or if provided
     if (isPkceRequired(qp.client_id)) {
       if (!qp.code_challenge || !qp.code_challenge_method) {
-        return createJsonResponse(400, { error: `invalid_request ${qp.code_challenge} ${qp.code_challenge_method}`, error_description: "PKCE required but code_challenge or code_challenge_method missing" });
+        return createJsonResponse(400, {
+          error: `invalid_request ${qp.code_challenge} ${qp.code_challenge_method}`,
+          error_description: "PKCE required but code_challenge or code_challenge_method missing",
+        });
       }
     }
 
     // If PKCE provided, validate it's correct format
     if (qp.code_challenge && qp.code_challenge_method !== "S256") {
-      return createJsonResponse(400, { error: `invalid_request ${qp.code_challenge} ${qp.code_challenge_method}`, error_description: "Only S256 code_challenge_method is supported" });
+      return createJsonResponse(400, {
+        error: `invalid_request ${qp.code_challenge} ${qp.code_challenge_method}`,
+        error_description: "Only S256 code_challenge_method is supported",
+      });
     }
 
     const username = qp.username || "test-user";

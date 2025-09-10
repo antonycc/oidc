@@ -24,7 +24,7 @@ This serverless OIDC provider delivers standards-compliant authentication with c
 2. **Configure your domain** and AWS credentials (see [Setup](#setup))
 3. **Deploy via GitHub Actions**:
    - **Production**: Push to `main` branch → deploys to your configured domain
-   - **CI Testing**: Manual dispatch with `deploymentName: ci` → deploys to CI subdomain  
+   - **CI Testing**: Manual dispatch with `deploymentName: ci` → deploys to CI subdomain
    - **Branch Testing**: Any branch push → temporary deployment with auto-cleanup
 4. **Validate with Playwright tests** (screenshots, videos, traces included)
 
@@ -37,7 +37,7 @@ This serverless OIDC provider delivers standards-compliant authentication with c
 
 **Core Stack:**
 - **CDK Java v2**: Infrastructure as code with explicit resource definitions
-- **Node.js 22 ESM Lambda**: Authorization, token, userinfo, and JWKS endpoints  
+- **Node.js 22 ESM Lambda**: Authorization, token, userinfo, and JWKS endpoints
 - **DynamoDB**: User store, authorization codes, and JWKS with TTL policies
 - **CloudFront + S3**: Static content delivery with Origin Access Control
 
@@ -58,7 +58,7 @@ The main landing page explains the project and provides links to test flows:
 
 ![Home Page](docs/screenshots/home-page.png)
 
-### Direct Login Form  
+### Direct Login Form
 Test the OIDC provider directly without going through Cognito:
 
 ![Login Page](docs/screenshots/login-page.png)
@@ -157,7 +157,7 @@ Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
 
 TODO: Add more
 
-#### `self-client` - For Direct Testing  
+#### `self-client` - For Direct Testing
 ```javascript
 {
   "redirectUris": [
@@ -218,7 +218,7 @@ const authUrl = client.authorizationUrl({
 });
 
 // Exchange code for tokens (in your callback handler)
-const tokenSet = await client.callback('https://your-app.com/callback', 
+const tokenSet = await client.callback('https://your-app.com/callback',
   { code: authCode }, { code_verifier });
 ```
 
@@ -318,7 +318,7 @@ The provider supports concurrent authentication flows. For production-like testi
 
 ## Setup
 
-- Node 22, Java 21, AWS CLI, CDK v2, Maven wrapper.  
+- Node 22, Java 21, AWS CLI, CDK v2, Maven wrapper.
 - Existing Route53 hosted zone for your domain.
 
 **Reference:** [GitHub OIDC with AWS Documentation](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services)
@@ -364,15 +364,15 @@ MIT License - see LICENSE file for details.
 ## Notes
 
 - Lambda Node.js 22 with ES modules (`"type": "module"`) is fully supported
-- Function URLs with IAM auth and CloudFront OAC provide secure, scalable distribution  
+- Function URLs with IAM auth and CloudFront OAC provide secure, scalable distribution
 - All resources are tagged and configured for easy cleanup and cost tracking
 - This implementation prioritizes debugging transparency over production optimization
 
 **For production use:** Consider implementing client secrets, rate limiting, user management APIs, and compliance with your organization's security standards.
 
-1. Create IAM OIDC provider for `https://token.actions.githubusercontent.com` (or use console wizard).  
-2. Create IAM role with trust policy allowing your repo to assume it, and attach minimal policies for CloudFormation/CDK, S3, CloudFront, DynamoDB, Cognito, Route53, ACM.  
-3. Put the role ARN in repo variable `DEPLOY_ROLE_ARN`.  
+1. Create IAM OIDC provider for `https://token.actions.githubusercontent.com` (or use console wizard).
+2. Create IAM role with trust policy allowing your repo to assume it, and attach minimal policies for CloudFormation/CDK, S3, CloudFront, DynamoDB, Cognito, Route53, ACM.
+3. Put the role ARN in repo variable `DEPLOY_ROLE_ARN`.
 Docs and examples: GitHub + AWS OIDC setup and action usage.
 
 **Trust policy (example)**
@@ -447,6 +447,55 @@ Steps:
 - Wait until the certificate is issued, then copy its `CERTIFICATE_ARN`.
 
 Pass `DOMAIN_NAME` and `CERTIFICATE_ARN` via environment variables when deploying.
+
+---
+
+## Code style, formatting, and IDE setup
+
+Formatting and linting are enforced by the project configuration. Do not restate style rules in prose — rely on the tools and their defaults given our config.
+
+- JavaScript/Node (ESM)
+  - ESLint flat config: see eslint.config.js (Google style base with tweaks) and eslint-plugin-prettier/recommended to enforce Prettier formatting via ESLint errors. Prettier is configured via .prettierrc at the repository root.
+  - Node engine: >= 22 (package.json engines)
+  - Check: npm run formatting:js
+  - Fix: npm run formatting:js-fix
+  - Reference: https://eslint.org/docs/latest/use/configure/configuration-files-new and https://prettier.io/docs/en/options.html
+- Java (CDK app)
+  - Spotless Maven plugin using Palantir Java Format 2.50.0; removes unused imports and normalizes imports/newlines. See pom.xml for the authoritative config.
+  - Check: npm run formatting:java (./mvnw spotless:check)
+  - Fix: npm run formatting:java-fix (./mvnw spotless:apply)
+  - Reference: https://github.com/diffplug/spotless/tree/main/plugin-maven and https://github.com/palantir/palantir-java-format
+- All files
+  - Check everything: npm run formatting
+  - Fix everything: npm run formatting-fix
+
+IDE setup (recommended)
+
+VS Code
+- Install extensions: dbaeumer.vscode-eslint, esbenp.prettier-vscode
+- Settings (per-workspace or user):
+  ```json
+  {
+    "eslint.useFlatConfig": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": true
+    },
+    "files.eol": "\n"
+  }
+  ```
+- Run fixes on demand: "ESLint: Fix all problems" or execute npm run formatting-fix
+
+JetBrains (IntelliJ IDEA / WebStorm)
+- JavaScript/Node:
+  - Settings → JavaScript → Code Quality Tools → ESLint → Automatic ESLint configuration; enable "Run eslint --fix on save" (Settings → Tools → Actions on Save).
+  - Install Prettier plugin; enable "Run Prettier on save" (and/or on reformat). Prettier uses the project .prettierrc; ESLint will report deviations via the prettier plugin.
+- Java:
+  - Import the project as a Maven project. Use the Maven tool window to run spotless:apply, or run npm run formatting:java-fix.
+  - Optional: the google-java-format plugin provides an approximation in-editor, but the canonical formatter is Spotless (Palantir Java Format). Always run Spotless before committing.
+
+Pre-commit tip: run npm run formatting locally before pushing. CI expects the codebase to pass these checks.
 
 ---
 

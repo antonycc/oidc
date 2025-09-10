@@ -1,5 +1,7 @@
 # Auto-Select Best Opportunity Prompt
 
+> Formatting and style: Use the repository’s tooling — ESLint (flat config) + Prettier for JS (ESM) and Spotless (Palantir Java Format) for Java. Run npm run formatting / npm run formatting-fix. See README → Code style, formatting, and IDE setup.
+
 Analyze the current repository and all available prompts in the `./prompts` directory to automatically select the prompt type where there is the greatest opportunity to add value.
 
 ## Selection Process

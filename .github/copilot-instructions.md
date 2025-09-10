@@ -1,5 +1,7 @@
 # Copilot Instructions for OIDC Provider Development
 
+> Formatting and style: Always defer to the repository formatters — ESLint (flat) + Prettier for JS (ESM) and Spotless (Palantir Java Format) for Java. Use npm run formatting and npm run formatting-fix to check/fix. See README → Code style, formatting, and IDE setup.
+
 **ALWAYS follow these instructions first and only fallback to search or bash commands when you encounter unexpected information that does not match the info here.**
 
 ## Practical Build and Development Instructions
@@ -105,7 +107,7 @@ Without deployment, you can only validate test discovery with `npx playwright te
 ## Permission Context
 GitHub Copilot has **full permission** to run workflows, tests, builds, and deployments. No need to ask for permission to:
 - Execute GitHub Actions workflows
-- Run tests multiple times  
+- Run tests multiple times
 - Build and deploy the application
 - Run CDK synthesis and deployment commands
 - Execute Playwright end-to-end tests
@@ -118,7 +120,7 @@ This project demands **rigorous multi-perspective analysis** before execution. A
 ### 1. Multi-Scenario Evaluation
 Before making any change, evaluate AT LEAST 3 different approaches:
 - **Scenario A**: Conservative/minimal change approach
-- **Scenario B**: Optimized/refactored approach  
+- **Scenario B**: Optimized/refactored approach
 - **Scenario C**: Alternative architectural approach
 
 For each scenario, analyze:
@@ -139,7 +141,7 @@ Before executing ANY code change, conduct this internal review:
 - Does the Node.js code follow modern ES2022+ patterns?
 - Are error cases properly handled with comprehensive logging?
 
-#### Quality Review  
+#### Quality Review
 - Are tests comprehensive (unit, integration, e2e)?
 - Is logging verbose enough for debugging auth flows?
 - Does the change maintain backward compatibility?
@@ -180,10 +182,10 @@ This is a **serverless OIDC provider** built for:
 #### 1. Verbose Logging is Essential
 Every handler must log:
 ```javascript
-const log = (...a) => console.log(JSON.stringify({ 
-  level: 'info', 
-  ts: new Date().toISOString(), 
-  msg: a.join(' ') 
+const log = (...a) => console.log(JSON.stringify({
+  level: 'info',
+  ts: new Date().toISOString(),
+  msg: a.join(' ')
 }));
 ```
 

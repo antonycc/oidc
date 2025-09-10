@@ -21,7 +21,7 @@ async function takeScreenshots() {
 
     // 2. Login Page Screenshot
     console.log("Taking login page screenshot...");
-    await page.goto(`${BASE_URL}/login.html`);
+    await page.goto(`${BASE_URL}/loginDirect.html`);
     await page.waitForLoadState("networkidle");
     await page.screenshot({ path: "./docs/screenshots/login-page.png", fullPage: true });
     console.log("✓ Login page screenshot saved");
@@ -34,7 +34,7 @@ async function takeScreenshots() {
 
     // Wait for redirect to post-auth page
     await page.waitForURL(/post-auth\.html\?code=/, { timeout: 20000 });
-    await page.waitForSelector("#status", { timeout: 10000 });
+    //await page.waitForSelector("#status", { timeout: 10000 });
 
     // Wait a bit more for the page to fully load and process tokens
     await page.waitForTimeout(2000);

@@ -6,22 +6,22 @@ import { join } from "node:path";
 function loadHtmlAndScripts(filePath) {
   const html = readFileSync(filePath, "utf8");
   document.documentElement.innerHTML = html;
-  
+
   const scripts = Array.from(document.querySelectorAll("script"));
   for (const script of scripts) {
     let code = script.textContent || "";
-    
+
     // Load external scripts relative to the HTML file
     if (script.src && !code) {
       const htmlDir = filePath.substring(0, filePath.lastIndexOf("/"));
-      
+
       // Handle relative paths properly - JSDOM converts to absolute URLs
       let relativeUrl = script.src;
       if (script.src.startsWith("http://") || script.src.startsWith("https://")) {
         // Extract just the filename if it's been converted to absolute URL
         relativeUrl = script.src.split("/").pop();
       }
-      
+
       const scriptPath = join(htmlDir, relativeUrl.replace(/^\.\//, ""));
       try {
         code = readFileSync(scriptPath, "utf8");
@@ -29,7 +29,7 @@ function loadHtmlAndScripts(filePath) {
         continue; // Skip if script file not found
       }
     }
-    
+
     if (code.trim()) {
       // eslint-disable-next-line no-new-func
       const fn = new Function(code);
@@ -98,11 +98,11 @@ describe("system(jsdom): web UI basics without Playwright", () => {
     const future = Date.now() + 60_000;
     localStorage.setItem(
       "oidc_tokens",
-      JSON.stringify({ 
-        access_token: "access_token_value", 
-        id_token: "id_token_value", 
-        expires_at: future, 
-        userinfo: { name: "Test User" } 
+      JSON.stringify({
+        access_token: "access_token_value",
+        id_token: "id_token_value",
+        expires_at: future,
+        userinfo: { name: "Test User" },
       }),
     );
 

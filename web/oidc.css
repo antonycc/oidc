@@ -169,10 +169,29 @@ footer {
   text-align: center;
   color: #999;
 }
-.nav a {
+.nav {
   margin-right: 12px;
   color: var(--brand);
   text-decoration: none;
+}
+
+.nav button,
+.nav a {
+  background: transparent;
+  border: 1px solid var(--brand);
+  color: var(--brand);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.nav button:hover,
+.nav a:hover {
+  background: var(--brand);
+  color: white;
 }
 .card {
   border: 1px solid #eee;

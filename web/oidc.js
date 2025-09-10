@@ -41,6 +41,49 @@
         loginLinksElement.style.display = "block";
       }
     }
+
+    // Update auth buttons to match current login status
+    const authSection = document.querySelector(".auth-section");
+    if (authSection) {
+      const existingLoginBtn = authSection.querySelector(".login-btn");
+      const existingLogoutBtn = authSection.querySelector(".logout-btn");
+
+      if (loginStatus.isLoggedIn) {
+        // Remove login button if present
+        if (existingLoginBtn) {
+          existingLoginBtn.remove();
+        }
+        // Add logout button if not already present
+        if (!existingLogoutBtn) {
+          const logoutBtn = document.createElement("button");
+          logoutBtn.textContent = "Logout";
+          logoutBtn.className = "logout-btn nav";
+          logoutBtn.style.marginLeft = "10px";
+          logoutBtn.addEventListener("click", () => {
+            // Clear OIDC authentication
+            localStorage.removeItem("oidc_tokens");
+            location.reload();
+          });
+          authSection.appendChild(logoutBtn);
+        }
+      } else {
+        // Remove logout button if present
+        if (existingLogoutBtn) {
+          existingLogoutBtn.remove();
+        }
+        // Add login button if not already present
+        if (!existingLoginBtn) {
+          const loginBtn = document.createElement("button");
+          loginBtn.textContent = "Login";
+          loginBtn.className = "login-btn nav";
+          loginBtn.style.marginLeft = "10px";
+          loginBtn.addEventListener("click", () => {
+            window.location.href = "./login.html";
+          });
+          authSection.appendChild(loginBtn);
+        }
+      }
+    }
   }
 
   // Make refreshLoginStatusText globally available

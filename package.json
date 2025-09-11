@@ -31,6 +31,7 @@
     "eslint-plugin-security": "^3.0.1",
     "eslint-plugin-sonarjs": "^3.0.5",
     "express": "^4.21.2",
+    "js-yaml": "^4.1.0",
     "jsdom": "^25.0.1",
     "prettier": "^3.6.2",
     "vitest": "^3.2.4"
@@ -57,7 +58,10 @@
     "test:api": "npx dotenv -e .env -- playwright test tests/api.live.test.ts",
     "clean": "./scripts/clean-tests.sh",
     "users:provision": "node app/bin/provision-user.mjs",
-    "users:clear": "node app/bin/clear-users.mjs"
+    "users:clear": "node app/bin/clear-users.mjs",
+    "openapi:generate": "node scripts/generate-openapi.mjs",
+    "openapi:validate": "node scripts/validate-openapi.mjs",
+    "openapi:test": "node scripts/test-openapi-local.mjs"
   },
   "overrides": {
     "yocto-queue": "^1.0.0",

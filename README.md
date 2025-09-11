@@ -11,6 +11,7 @@ This serverless OIDC provider delivers standards-compliant authentication with c
 - **Direct deployment** as standalone authentication service
 - **Cognito integration** as external identity provider
 - **Comprehensive logging** for operational transparency
+- **Complete API documentation** with [Interactive Swagger UI](/swagger.html) and [OpenAPI spec](/openapi.yaml)
 
 **Developer-Focused Design:**
 - **Complete code inspection** across all layers
@@ -70,88 +71,30 @@ Shows the complete OAuth2 flow results including tokens and claims:
 
 ## API Reference
 
-### Supported Endpoints
+**📖 Complete API Documentation**
+- **[Interactive API Documentation (Swagger UI)](/swagger.html)** - Try the API directly in your browser
+- **[OpenAPI 3.0 Specification (YAML)](/openapi.yaml)** - Machine-readable API specification  
+- **[OpenID Connect Discovery](/.well-known/openid-configuration)** - Live OIDC provider metadata
 
-| Endpoint | Method | Purpose | Example |
-|----------|--------|---------|---------|
-| `/.well-known/openid-configuration` | GET | OIDC Discovery | Returns provider metadata |
-| `/authorize` | GET/POST | Authorization endpoint | Initiates OAuth2 flow |
-| `/token` | POST | Token endpoint | Exchanges code for tokens |
-| `/userinfo` | GET | UserInfo endpoint | Returns user claims |
-| `/jwks` | GET | JWKS endpoint | Public keys for token verification |
+### Quick Reference
 
-### Authorization Endpoint (`/authorize`)
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/.well-known/openid-configuration` | GET | OIDC Discovery document |
+| `/authorize` | GET/POST | OAuth2 authorization endpoint |
+| `/token` | POST | Token exchange endpoint |  
+| `/userinfo` | GET | User information endpoint |
+| `/jwks` | GET | JSON Web Key Set for token verification |
 
-**GET Request** - Returns login form:
-```
-GET /authorize?client_id=demo-client&redirect_uri=https://example.com/callback&response_type=code&scope=openid&state=abc123
-```
+### Authentication Flow
 
-**POST Request** - Submits credentials:
-```
-POST /authorize
-Content-Type: application/x-www-form-urlencoded
+1. **Direct user to authorization endpoint** with OIDC parameters
+2. **User authenticates** with username/password
+3. **Receive authorization code** via redirect  
+4. **Exchange code for tokens** at token endpoint
+5. **Access user info** with access token
 
-client_id=demo-client&
-redirect_uri=https://example.com/callback&
-response_type=code&
-scope=openid email profile&
-state=abc123&
-code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&
-code_challenge_method=S256&
-username=test-user&
-password=Passw0rd!
-```
-
-**Success Response:**
-```
-HTTP/1.1 302 Found
-Location: https://example.com/callback?code=01J6EXAMPLE123&state=abc123
-```
-
-### Token Endpoint (`/token`)
-
-**Request:**
-```
-POST /token
-Content-Type: application/x-www-form-urlencoded
-
-grant_type=authorization_code&
-code=01J6EXAMPLE123&
-redirect_uri=https://example.com/callback&
-client_id=demo-client&
-code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk
-```
-
-**Response:**
-```json
-{
-  "id_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "token_type": "Bearer",
-  "expires_in": 300
-}
-```
-
-### UserInfo Endpoint (`/userinfo`)
-
-**Request:**
-```
-GET /userinfo
-Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
-```
-
-**Response:**
-```json
-{
-  "sub": "test-user",
-  "email": "test@example.com",
-  "email_verified": true,
-  "name": "Test User",
-  "given_name": "Test",
-  "family_name": "User"
-}
-```
+For detailed request/response examples, schemas, and interactive testing, visit the **[Swagger UI documentation](/swagger.html)**.
 
 ### Client Configuration
 

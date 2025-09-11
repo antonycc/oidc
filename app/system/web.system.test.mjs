@@ -3,6 +3,12 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+/**
+ * Loads an HTML file and executes its associated scripts in the jsdom environment.
+ * This allows testing HTML + JavaScript interactions in a unit test context.
+ * 
+ * @param {string} filePath - Path to the HTML file to load
+ */
 function loadHtmlAndScripts(filePath) {
   const html = readFileSync(filePath, "utf8");
   document.documentElement.innerHTML = html;

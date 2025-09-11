@@ -7,9 +7,13 @@ async function takeScreenshots() {
   });
   const page = await context.newPage();
 
-  const BASE_URL = "https://oidc.antonycc.com";
-  const TEST_USERNAME = "test-user";
-  const TEST_PASSWORD = "c810fb39-86a9-4d2f-8107-119ade9605f8";
+  const BASE_URL = process.env.BASE_URL || "https://oidc.antonycc.com";
+  const TEST_USERNAME = process.env.TEST_USERNAME || "test-user";
+  const TEST_PASSWORD = process.env.TEST_PASSWORD;
+
+  if (!TEST_PASSWORD) {
+    throw new Error("TEST_PASSWORD environment variable must be set. Refusing to use a hardcoded fallback password.");
+  }
 
   try {
     // 1. Home Page Screenshot

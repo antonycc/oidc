@@ -12,6 +12,7 @@ playwright/.cache
 
 # Load test results
 load-test-results.json
+summary.json
 
 # Java/Maven
 infra/target
@@ -24,6 +25,7 @@ infra/.vscode
 # IDE files
 .idea
 .vscode
+*.iml
 
 # CDK
 cdk.out

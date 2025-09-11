@@ -1,13 +1,13 @@
 # Generated on 2025-09-11 by scripts/generate-openapi.mjs
 # Version: 0.1.0
-# 
+#
 openapi: 3.0.3
 info:
   title: OpenID Connect Provider API
   version: 0.1.0
   description: |
     A production-ready OpenID Connect provider that is fully functional for direct use or integration behind AWS Cognito.
-    
+
     This serverless OIDC provider delivers standards-compliant authentication with comprehensive logging, 
     structured for both standalone deployment and enterprise integration scenarios.
 
@@ -25,7 +25,7 @@ info:
     3. Receive authorization code via redirect
     4. Exchange code for tokens at `/token` endpoint
     5. Use access token at `/userinfo` endpoint for user claims
-    
+
   contact:
     name: API Support
     url: https://github.com/antonycc/oidc
@@ -36,7 +36,7 @@ info:
 servers:
   - url: https://oidc.antonycc.com
     description: Production server
-  - url: https://oidc-ci.antonycc.com  
+  - url: https://oidc-ci.antonycc.com
     description: CI/Testing server
 
 security:
@@ -52,12 +52,12 @@ paths:
       description: Returns OpenID Connect provider metadata as per RFC 8414
       operationId: getOpenIdConfiguration
       responses:
-        '200':
+        "200":
           description: OpenID Connect Discovery Document
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OpenIdConfiguration'
+                $ref: "#/components/schemas/OpenIdConfiguration"
               example:
                 issuer: "https://oidc.antonycc.com"
                 authorization_endpoint: "https://oidc.antonycc.com/authorize"
@@ -71,7 +71,20 @@ paths:
                 id_token_signing_alg_values_supported: ["RS256"]
                 token_endpoint_auth_methods_supported: ["none"]
                 code_challenge_methods_supported: ["S256"]
-                claims_supported: ["sub", "email", "email_verified", "name", "given_name", "family_name", "aud", "exp", "iat", "iss", "nonce"]
+                claims_supported:
+                  [
+                    "sub",
+                    "email",
+                    "email_verified",
+                    "name",
+                    "given_name",
+                    "family_name",
+                    "aud",
+                    "exp",
+                    "iat",
+                    "iss",
+                    "nonce",
+                  ]
 
   /authorize:
     get:
@@ -99,7 +112,7 @@ paths:
           description: Client identifier
           example: self-client
         - name: redirect_uri
-          in: query  
+          in: query
           required: true
           schema:
             type: string
@@ -143,7 +156,7 @@ paths:
           description: PKCE challenge method (must be S256)
           example: S256
       responses:
-        '200':
+        "200":
           description: Login form HTML page
           content:
             text/html:
@@ -161,12 +174,12 @@ paths:
                   </form>
                 </body>
                 </html>
-        '400':
+        "400":
           description: Invalid request parameters
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
               example:
                 error: "invalid_request"
                 error_description: "Missing required parameter: client_id"
@@ -174,7 +187,7 @@ paths:
     post:
       tags:
         - Authorization
-      summary: Authorization Endpoint (POST)  
+      summary: Authorization Endpoint (POST)
       description: |
         Processes user authentication and issues authorization code.
         Returns redirect to client with authorization code or error.
@@ -187,7 +200,7 @@ paths:
               type: object
               required:
                 - response_type
-                - client_id  
+                - client_id
                 - redirect_uri
                 - scope
                 - state
@@ -203,7 +216,7 @@ paths:
                   example: code
                 client_id:
                   type: string
-                  description: Client identifier  
+                  description: Client identifier
                   example: self-client
                 redirect_uri:
                   type: string
@@ -246,13 +259,13 @@ paths:
               redirect_uri: https://example.com/callback
               scope: "openid email profile"
               state: "random-state-12345"
-              nonce: "random-nonce-67890"  
+              nonce: "random-nonce-67890"
               code_challenge: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
               code_challenge_method: S256
               username: test-user
               password: secret-password
       responses:
-        '200':
+        "200":
           description: Login form HTML page (when validation fails or GET request)
           content:
             text/html:
@@ -270,7 +283,7 @@ paths:
                   </form>
                 </body>
                 </html>
-        '302':
+        "302":
           description: Redirect to client with authorization code
           headers:
             Location:
@@ -279,12 +292,12 @@ paths:
                 type: string
                 format: uri
               example: "https://example.com/callback?code=01J6EXAMPLE123&state=random-state-12345"
-        '400':
+        "400":
           description: Invalid request or authentication failed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
               examples:
                 invalid_request:
                   summary: Missing required parameter
@@ -294,7 +307,7 @@ paths:
                 invalid_client:
                   summary: Invalid client
                   value:
-                    error: "invalid_client"  
+                    error: "invalid_client"
                     error_description: "Client not found or invalid"
                 access_denied:
                   summary: Authentication failed
@@ -353,23 +366,23 @@ paths:
               redirect_uri: https://example.com/callback
               code_verifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
       responses:
-        '200':
+        "200":
           description: Successful token response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TokenResponse'
+                $ref: "#/components/schemas/TokenResponse"
               example:
                 access_token: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjEyMzQ1In0.eyJzdWIiOiJ0ZXN0LXVzZXIiLCJhdWQiOiJzZWxmLWNsaWVudCIsImlzcyI6Imh0dHBzOi8vb2lkYy5hbnRvbnljYy5jb20iLCJleHAiOjE3NTc1NTU2ODQsImlhdCI6MTc1NzU1NTM4NCwic2NvcGUiOiJvcGVuaWQgZW1haWwgcHJvZmlsZSJ9.example-signature"
                 id_token: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjEyMzQ1In0.eyJzdWIiOiJ0ZXN0LXVzZXIiLCJhdWQiOiJzZWxmLWNsaWVudCIsImlzcyI6Imh0dHBzOi8vb2lkYy5hbnRvbnljYy5jb20iLCJleHAiOjE3NTc1NTU2ODQsImlhdCI6MTc1NzU1NTM4NCwibm9uY2UiOiJyYW5kb20tbm9uY2UtNjc4OTAiLCJlbWFpbCI6InRlc3QtdXNlckBleGFtcGxlLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJuYW1lIjoiVGVzdCBVc2VyIn0.example-signature"
                 token_type: "Bearer"
                 expires_in: 300
-        '400':
+        "400":
           description: Invalid request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
               examples:
                 invalid_grant:
                   summary: Invalid authorization code
@@ -379,19 +392,19 @@ paths:
                 invalid_request:
                   summary: Missing required parameter
                   value:
-                    error: "invalid_request" 
+                    error: "invalid_request"
                     error_description: "Missing required parameter: code"
                 unsupported_grant_type:
                   summary: Unsupported grant type
                   value:
                     error: "unsupported_grant_type"
                     error_description: "Grant type must be authorization_code"
-        '405':
+        "405":
           description: Method not allowed (only POST supported)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
               example:
                 error: "method_not_allowed"
                 error_description: "Only POST method is supported"
@@ -408,12 +421,12 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        '200':
+        "200":
           description: User information claims
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserInfo'
+                $ref: "#/components/schemas/UserInfo"
               examples:
                 full_profile:
                   summary: Full profile with email and name claims
@@ -428,12 +441,12 @@ paths:
                   summary: Minimal profile (openid scope only)
                   value:
                     sub: "test-user"
-        '401':
+        "401":
           description: Unauthorized - missing or invalid access token
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
               examples:
                 missing_token:
                   summary: Missing Authorization header
@@ -456,7 +469,7 @@ paths:
         Keys are cached for 1 hour and rotated automatically.
       operationId: jwks
       responses:
-        '200':
+        "200":
           description: JSON Web Key Set
           headers:
             Cache-Control:
@@ -467,7 +480,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JWKSet'
+                $ref: "#/components/schemas/JWKSet"
               example:
                 keys:
                   - kty: "RSA"
@@ -476,12 +489,12 @@ paths:
                     n: "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw"
                     e: "AQAB"
                     alg: "RS256"
-        '500':
+        "500":
           description: Server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
               example:
                 error: "server_error"
                 error_description: "Internal server error"
@@ -571,7 +584,8 @@ components:
           items:
             type: string
           description: Supported user claims
-          example: ["sub", "email", "email_verified", "name", "given_name", "family_name", "aud", "exp", "iat", "iss", "nonce"]
+          example:
+            ["sub", "email", "email_verified", "name", "given_name", "family_name", "aud", "exp", "iat", "iss", "nonce"]
 
     TokenResponse:
       type: object
@@ -625,7 +639,7 @@ components:
           example: "Test User"
         given_name:
           type: string
-          description: User's given name (requires profile scope)  
+          description: User's given name (requires profile scope)
           example: "Test"
         family_name:
           type: string
@@ -641,7 +655,7 @@ components:
         keys:
           type: array
           items:
-            $ref: '#/components/schemas/JWK'
+            $ref: "#/components/schemas/JWK"
           description: Array of JSON Web Keys
 
     JWK:
@@ -691,7 +705,7 @@ components:
         error:
           type: string
           description: Error code
-          enum: 
+          enum:
             - invalid_request
             - invalid_client
             - invalid_grant
@@ -718,7 +732,7 @@ components:
 tags:
   - name: Discovery
     description: OpenID Connect Discovery endpoints
-  - name: Authorization  
+  - name: Authorization
     description: OAuth2 authorization endpoints
   - name: Token
     description: OAuth2 token endpoints

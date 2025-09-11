@@ -1,37 +1,22 @@
 #!/usr/bin/env bash
 # scripts/deep-clean.sh
 # Usage: ./scripts/deep-clean.sh
-#
-# This file is part of the Example Suite for `agentic-lib` see: https://github.com/xn-intenton-z2a/agentic-lib
-# This file is licensed under the MIT License. For details, see LICENSE-MIT
-#
+# 
+# Performs a complete clean and rebuild of the project
 
+set -euo pipefail
+
+# Clean test artifacts
 ./scripts/clean-tests.sh
 
-# Node clean build and test
-if [[ -e 'package.json' ]]; then
-  rm -rf build
-  rm -rf coverage
-  rm -rf dist
-  rm -rf node_modules
-  rm -rf package-lock.json
-  npm install
-  npm run build
-  npm test
-fi
-
-# Shut down any running Docker containers then remove any images
-if [[ -e 'Dockerfile' ]]; then
-  docker-compose down --rmi all --volumes
-  docker system prune --all --force --volumes
-fi
+# Node clean and reinstall
+echo "Cleaning Node.js artifacts..."
+rm -rf node_modules package-lock.json
+npm ci
+npm run build
+npm test
 
 # Java/CDK clean
-if [[ -e 'pom.xml' ]]; then
-  rm -rf target
-  rm -rf cdk.out
-  rm -rf cdk.log
-  rm -rf ~/.m2/repository
-  rm -rf .aws-sam
-  ./mvnw clean package
-fi
+echo "Cleaning Java/CDK artifacts..."
+rm -rf target cdk.out cdk.log .aws-sam
+./mvnw clean package

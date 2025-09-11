@@ -7,9 +7,13 @@ async function takeScreenshots() {
   });
   const page = await context.newPage();
 
-  const BASE_URL = "https://oidc.antonycc.com";
-  const TEST_USERNAME = "test-user";
-  const TEST_PASSWORD = "c810fb39-86a9-4d2f-8107-119ade9605f8";
+  const BASE_URL = process.env.BASE_URL || "https://oidc.antonycc.com";
+  const TEST_USERNAME = process.env.TEST_USERNAME || "test-user";
+  const TEST_PASSWORD = process.env.TEST_PASSWORD || "demo-password";
+
+  if (!process.env.TEST_PASSWORD) {
+    console.warn("Warning: Using demo password. Set TEST_PASSWORD environment variable for actual credentials.");
+  }
 
   try {
     // 1. Home Page Screenshot

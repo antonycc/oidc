@@ -1,0 +1,732 @@
+# Generated on 2025-09-11 by scripts/generate-openapi.mjs
+# Version: 0.1.0
+# 
+openapi: 3.0.3
+info:
+  title: OpenID Connect Provider API
+  version: 0.1.0
+  description: |
+    A production-ready OpenID Connect provider that is fully functional for direct use or integration behind AWS Cognito.
+    
+    This serverless OIDC provider delivers standards-compliant authentication with comprehensive logging, 
+    structured for both standalone deployment and enterprise integration scenarios.
+
+    ## Features
+    - Full OAuth2/OIDC compliance
+    - PKCE support for enhanced security  
+    - Serverless architecture with AWS Lambda
+    - DynamoDB for persistent storage
+    - CloudFront distribution with custom domain support
+    - Comprehensive audit logging
+
+    ## Authentication Flow
+    1. Direct user to `/authorize` endpoint with OIDC parameters
+    2. User authenticates with username/password 
+    3. Receive authorization code via redirect
+    4. Exchange code for tokens at `/token` endpoint
+    5. Use access token at `/userinfo` endpoint for user claims
+    
+  contact:
+    name: API Support
+    url: https://github.com/antonycc/oidc
+  license:
+    name: MIT
+    url: https://github.com/antonycc/oidc/blob/main/LICENSE
+
+servers:
+  - url: https://oidc.antonycc.com
+    description: Production server
+  - url: https://oidc-ci.antonycc.com  
+    description: CI/Testing server
+
+security:
+  - BearerAuth: []
+  - {}
+
+paths:
+  /.well-known/openid-configuration:
+    get:
+      tags:
+        - Discovery
+      summary: OpenID Connect Discovery
+      description: Returns OpenID Connect provider metadata as per RFC 8414
+      operationId: getOpenIdConfiguration
+      responses:
+        '200':
+          description: OpenID Connect Discovery Document
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenIdConfiguration'
+              example:
+                issuer: "https://oidc.antonycc.com"
+                authorization_endpoint: "https://oidc.antonycc.com/authorize"
+                token_endpoint: "https://oidc.antonycc.com/token"
+                userinfo_endpoint: "https://oidc.antonycc.com/userinfo"
+                jwks_uri: "https://oidc.antonycc.com/jwks"
+                scopes_supported: ["openid", "email", "profile"]
+                response_types_supported: ["code"]
+                grant_types_supported: ["authorization_code"]
+                subject_types_supported: ["public"]
+                id_token_signing_alg_values_supported: ["RS256"]
+                token_endpoint_auth_methods_supported: ["none"]
+                code_challenge_methods_supported: ["S256"]
+                claims_supported: ["sub", "email", "email_verified", "name", "given_name", "family_name", "aud", "exp", "iat", "iss", "nonce"]
+
+  /authorize:
+    get:
+      tags:
+        - Authorization
+      summary: Authorization Endpoint (GET)
+      description: |
+        OIDC Authorization endpoint that initiates the authentication flow.
+        Supports both GET (redirect from client) and POST (form submission) methods.
+      operationId: authorizeGet
+      parameters:
+        - name: response_type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [code]
+          description: Must be 'code' for authorization code flow
+          example: code
+        - name: client_id
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Client identifier
+          example: self-client
+        - name: redirect_uri
+          in: query  
+          required: true
+          schema:
+            type: string
+            format: uri
+          description: Client redirect URI (must be pre-registered)
+          example: https://example.com/callback
+        - name: scope
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Space-delimited scope values
+          example: "openid email profile"
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Client state parameter for CSRF protection
+          example: "random-state-value-12345"
+        - name: nonce
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Random value to associate client session with ID Token
+          example: "random-nonce-67890"
+        - name: code_challenge
+          in: query
+          required: true
+          schema:
+            type: string
+          description: PKCE code challenge (base64url-encoded)
+          example: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+        - name: code_challenge_method
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [S256]
+          description: PKCE challenge method (must be S256)
+          example: S256
+      responses:
+        '200':
+          description: Login form HTML page
+          content:
+            text/html:
+              schema:
+                type: string
+              example: |
+                <!DOCTYPE html>
+                <html>
+                <head><title>Login</title></head>
+                <body>
+                  <form method="post">
+                    <input type="text" name="username" placeholder="Username" required>
+                    <input type="password" name="password" placeholder="Password" required>
+                    <input type="submit" value="Login">
+                  </form>
+                </body>
+                </html>
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "invalid_request"
+                error_description: "Missing required parameter: client_id"
+
+    post:
+      tags:
+        - Authorization
+      summary: Authorization Endpoint (POST)  
+      description: |
+        Processes user authentication and issues authorization code.
+        Returns redirect to client with authorization code or error.
+      operationId: authorizePost
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - response_type
+                - client_id  
+                - redirect_uri
+                - scope
+                - state
+                - code_challenge
+                - code_challenge_method
+                - username
+                - password
+              properties:
+                response_type:
+                  type: string
+                  enum: [code]
+                  description: Must be 'code'
+                  example: code
+                client_id:
+                  type: string
+                  description: Client identifier  
+                  example: self-client
+                redirect_uri:
+                  type: string
+                  format: uri
+                  description: Client redirect URI
+                  example: https://example.com/callback
+                scope:
+                  type: string
+                  description: Space-delimited scopes
+                  example: "openid email profile"
+                state:
+                  type: string
+                  description: Client state value
+                  example: "random-state-12345"
+                nonce:
+                  type: string
+                  description: Optional nonce value
+                  example: "random-nonce-67890"
+                code_challenge:
+                  type: string
+                  description: PKCE code challenge
+                  example: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+                code_challenge_method:
+                  type: string
+                  enum: [S256]
+                  description: PKCE method
+                  example: S256
+                username:
+                  type: string
+                  description: User's username
+                  example: test-user
+                password:
+                  type: string
+                  format: password
+                  description: User's password
+                  example: secret-password
+            example:
+              response_type: code
+              client_id: self-client
+              redirect_uri: https://example.com/callback
+              scope: "openid email profile"
+              state: "random-state-12345"
+              nonce: "random-nonce-67890"  
+              code_challenge: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+              code_challenge_method: S256
+              username: test-user
+              password: secret-password
+      responses:
+        '200':
+          description: Login form HTML page (when validation fails or GET request)
+          content:
+            text/html:
+              schema:
+                type: string
+              example: |
+                <!DOCTYPE html>
+                <html>
+                <head><title>Login</title></head>
+                <body>
+                  <form method="post">
+                    <input type="text" name="username" placeholder="Username" required>
+                    <input type="password" name="password" placeholder="Password" required>
+                    <input type="submit" value="Login">
+                  </form>
+                </body>
+                </html>
+        '302':
+          description: Redirect to client with authorization code
+          headers:
+            Location:
+              description: Redirect URI with code and state
+              schema:
+                type: string
+                format: uri
+              example: "https://example.com/callback?code=01J6EXAMPLE123&state=random-state-12345"
+        '400':
+          description: Invalid request or authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_request:
+                  summary: Missing required parameter
+                  value:
+                    error: "invalid_request"
+                    error_description: "Missing required parameter: client_id"
+                invalid_client:
+                  summary: Invalid client
+                  value:
+                    error: "invalid_client"  
+                    error_description: "Client not found or invalid"
+                access_denied:
+                  summary: Authentication failed
+                  value:
+                    error: "access_denied"
+                    error_description: "Invalid username or password"
+
+  /token:
+    post:
+      tags:
+        - Token
+      summary: Token Endpoint
+      description: |
+        Exchanges authorization code for access token and ID token.
+        Implements OAuth2 authorization code grant with PKCE verification.
+      operationId: token
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - grant_type
+                - code
+                - client_id
+                - redirect_uri
+                - code_verifier
+              properties:
+                grant_type:
+                  type: string
+                  enum: [authorization_code]
+                  description: Must be 'authorization_code'
+                  example: authorization_code
+                code:
+                  type: string
+                  description: Authorization code from /authorize endpoint
+                  example: "01J6EXAMPLE123"
+                client_id:
+                  type: string
+                  description: Client identifier (must match authorize request)
+                  example: self-client
+                redirect_uri:
+                  type: string
+                  format: uri
+                  description: Redirect URI (must match authorize request)
+                  example: https://example.com/callback
+                code_verifier:
+                  type: string
+                  description: PKCE code verifier (original random value)
+                  example: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+            example:
+              grant_type: authorization_code
+              code: "01J6EXAMPLE123"
+              client_id: self-client
+              redirect_uri: https://example.com/callback
+              code_verifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+      responses:
+        '200':
+          description: Successful token response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+              example:
+                access_token: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjEyMzQ1In0.eyJzdWIiOiJ0ZXN0LXVzZXIiLCJhdWQiOiJzZWxmLWNsaWVudCIsImlzcyI6Imh0dHBzOi8vb2lkYy5hbnRvbnljYy5jb20iLCJleHAiOjE3NTc1NTU2ODQsImlhdCI6MTc1NzU1NTM4NCwic2NvcGUiOiJvcGVuaWQgZW1haWwgcHJvZmlsZSJ9.example-signature"
+                id_token: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjEyMzQ1In0.eyJzdWIiOiJ0ZXN0LXVzZXIiLCJhdWQiOiJzZWxmLWNsaWVudCIsImlzcyI6Imh0dHBzOi8vb2lkYy5hbnRvbnljYy5jb20iLCJleHAiOjE3NTc1NTU2ODQsImlhdCI6MTc1NzU1NTM4NCwibm9uY2UiOiJyYW5kb20tbm9uY2UtNjc4OTAiLCJlbWFpbCI6InRlc3QtdXNlckBleGFtcGxlLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJuYW1lIjoiVGVzdCBVc2VyIn0.example-signature"
+                token_type: "Bearer"
+                expires_in: 300
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_grant:
+                  summary: Invalid authorization code
+                  value:
+                    error: "invalid_grant"
+                    error_description: "Authorization code is invalid or expired"
+                invalid_request:
+                  summary: Missing required parameter
+                  value:
+                    error: "invalid_request" 
+                    error_description: "Missing required parameter: code"
+                unsupported_grant_type:
+                  summary: Unsupported grant type
+                  value:
+                    error: "unsupported_grant_type"
+                    error_description: "Grant type must be authorization_code"
+        '405':
+          description: Method not allowed (only POST supported)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "method_not_allowed"
+                error_description: "Only POST method is supported"
+
+  /userinfo:
+    get:
+      tags:
+        - UserInfo
+      summary: UserInfo Endpoint
+      description: |
+        Returns user information claims based on the provided access token.
+        Claims returned depend on the scopes granted during authorization.
+      operationId: userinfo
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User information claims
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserInfo'
+              examples:
+                full_profile:
+                  summary: Full profile with email and name claims
+                  value:
+                    sub: "test-user"
+                    email: "test-user@example.com"
+                    email_verified: true
+                    name: "Test User"
+                    given_name: "Test"
+                    family_name: "User"
+                minimal_profile:
+                  summary: Minimal profile (openid scope only)
+                  value:
+                    sub: "test-user"
+        '401':
+          description: Unauthorized - missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missing_token:
+                  summary: Missing Authorization header
+                  value:
+                    error: "invalid_request"
+                    error_description: "Missing or invalid Authorization header"
+                invalid_token:
+                  summary: Invalid or expired token
+                  value:
+                    error: "invalid_token"
+                    error_description: "Access token is invalid or expired"
+
+  /jwks:
+    get:
+      tags:
+        - Keys
+      summary: JSON Web Key Set
+      description: |
+        Returns the public keys used to verify JWT tokens issued by this provider.
+        Keys are cached for 1 hour and rotated automatically.
+      operationId: jwks
+      responses:
+        '200':
+          description: JSON Web Key Set
+          headers:
+            Cache-Control:
+              description: Caching policy for public keys
+              schema:
+                type: string
+              example: "public, max-age=3600"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JWKSet'
+              example:
+                keys:
+                  - kty: "RSA"
+                    use: "sig"
+                    kid: "12345"
+                    n: "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw"
+                    e: "AQAB"
+                    alg: "RS256"
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "server_error"
+                error_description: "Internal server error"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token obtained from the /token endpoint
+
+  schemas:
+    OpenIdConfiguration:
+      type: object
+      description: OpenID Connect Discovery Document (RFC 8414)
+      properties:
+        issuer:
+          type: string
+          format: uri
+          description: Provider issuer identifier
+          example: "https://oidc.antonycc.com"
+        authorization_endpoint:
+          type: string
+          format: uri
+          description: Authorization endpoint URL
+          example: "https://oidc.antonycc.com/authorize"
+        token_endpoint:
+          type: string
+          format: uri
+          description: Token endpoint URL
+          example: "https://oidc.antonycc.com/token"
+        userinfo_endpoint:
+          type: string
+          format: uri
+          description: UserInfo endpoint URL
+          example: "https://oidc.antonycc.com/userinfo"
+        jwks_uri:
+          type: string
+          format: uri
+          description: JWKS endpoint URL
+          example: "https://oidc.antonycc.com/jwks"
+        scopes_supported:
+          type: array
+          items:
+            type: string
+          description: Supported OAuth2 scopes
+          example: ["openid", "email", "profile"]
+        response_types_supported:
+          type: array
+          items:
+            type: string
+          description: Supported OAuth2 response types
+          example: ["code"]
+        grant_types_supported:
+          type: array
+          items:
+            type: string
+          description: Supported OAuth2 grant types
+          example: ["authorization_code"]
+        subject_types_supported:
+          type: array
+          items:
+            type: string
+          description: Supported subject identifier types
+          example: ["public"]
+        id_token_signing_alg_values_supported:
+          type: array
+          items:
+            type: string
+          description: Supported ID token signing algorithms
+          example: ["RS256"]
+        token_endpoint_auth_methods_supported:
+          type: array
+          items:
+            type: string
+          description: Supported client authentication methods
+          example: ["none"]
+        code_challenge_methods_supported:
+          type: array
+          items:
+            type: string
+          description: Supported PKCE challenge methods
+          example: ["S256"]
+        claims_supported:
+          type: array
+          items:
+            type: string
+          description: Supported user claims
+          example: ["sub", "email", "email_verified", "name", "given_name", "family_name", "aud", "exp", "iat", "iss", "nonce"]
+
+    TokenResponse:
+      type: object
+      description: OAuth2 token response
+      required:
+        - access_token
+        - token_type
+        - expires_in
+      properties:
+        access_token:
+          type: string
+          description: JWT access token for API access
+          example: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+        id_token:
+          type: string
+          description: JWT ID token containing user identity claims
+          example: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+        token_type:
+          type: string
+          enum: [Bearer]
+          description: Token type (always Bearer)
+          example: "Bearer"
+        expires_in:
+          type: integer
+          description: Access token lifetime in seconds
+          example: 300
+          minimum: 1
+
+    UserInfo:
+      type: object
+      description: User information claims
+      required:
+        - sub
+      properties:
+        sub:
+          type: string
+          description: Subject identifier (unique user ID)
+          example: "test-user"
+        email:
+          type: string
+          format: email
+          description: User's email address (requires email scope)
+          example: "test-user@example.com"
+        email_verified:
+          type: boolean
+          description: Whether email address is verified (requires email scope)
+          example: true
+        name:
+          type: string
+          description: User's full name (requires profile scope)
+          example: "Test User"
+        given_name:
+          type: string
+          description: User's given name (requires profile scope)  
+          example: "Test"
+        family_name:
+          type: string
+          description: User's family name (requires profile scope)
+          example: "User"
+
+    JWKSet:
+      type: object
+      description: JSON Web Key Set (RFC 7517)
+      required:
+        - keys
+      properties:
+        keys:
+          type: array
+          items:
+            $ref: '#/components/schemas/JWK'
+          description: Array of JSON Web Keys
+
+    JWK:
+      type: object
+      description: JSON Web Key (RFC 7517)
+      required:
+        - kty
+        - use
+        - kid
+        - n
+        - e
+      properties:
+        kty:
+          type: string
+          enum: [RSA]
+          description: Key type
+          example: "RSA"
+        use:
+          type: string
+          enum: [sig]
+          description: Key use (signature)
+          example: "sig"
+        kid:
+          type: string
+          description: Key identifier
+          example: "12345"
+        alg:
+          type: string
+          enum: [RS256]
+          description: Signing algorithm
+          example: "RS256"
+        n:
+          type: string
+          description: RSA modulus (base64url-encoded)
+          example: "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx..."
+        e:
+          type: string
+          description: RSA exponent (base64url-encoded)
+          example: "AQAB"
+
+    ErrorResponse:
+      type: object
+      description: OAuth2/OIDC error response
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error code
+          enum: 
+            - invalid_request
+            - invalid_client
+            - invalid_grant
+            - unauthorized_client
+            - unsupported_grant_type
+            - invalid_scope
+            - access_denied
+            - unsupported_response_type
+            - server_error
+            - temporarily_unavailable
+            - invalid_token
+            - method_not_allowed
+          example: "invalid_request"
+        error_description:
+          type: string
+          description: Human-readable error description
+          example: "Missing required parameter: client_id"
+        error_uri:
+          type: string
+          format: uri
+          description: URI with error information
+          example: "https://tools.ietf.org/html/rfc6749#section-4.1.2.1"
+
+tags:
+  - name: Discovery
+    description: OpenID Connect Discovery endpoints
+  - name: Authorization  
+    description: OAuth2 authorization endpoints
+  - name: Token
+    description: OAuth2 token endpoints
+  - name: UserInfo
+    description: OpenID Connect UserInfo endpoints
+  - name: Keys
+    description: JSON Web Key Set endpoints
+
+externalDocs:
+  description: OpenID Connect Core 1.0 Specification
+  url: https://openid.net/specs/openid-connect-core-1_0.html

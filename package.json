@@ -60,7 +60,8 @@
     "users:provision": "node app/bin/provision-user.mjs",
     "users:clear": "node app/bin/clear-users.mjs",
     "openapi:generate": "node scripts/generate-openapi.mjs",
-    "openapi:validate": "node scripts/validate-openapi.mjs"
+    "openapi:validate": "node scripts/validate-openapi.mjs",
+    "openapi:test": "node scripts/test-openapi-local.mjs"
   },
   "overrides": {
     "yocto-queue": "^1.0.0",

@@ -1,6 +1,7 @@
 import { verifyJwt } from "../lib/crypto.mjs";
 import { get, tables } from "../lib/db.mjs";
-import { log, logError, createJsonResponse } from "../lib/utils.mjs";
+import { log, logError, logRequestStart, logRequestEnd, createJsonResponse } from "../lib/utils.mjs";
+import { config } from "../lib/config.mjs";
 
 /**
  * OIDC UserInfo endpoint handler
@@ -13,10 +14,14 @@ import { log, logError, createJsonResponse } from "../lib/utils.mjs";
  */
 // Handler expects an event object with headers
 export const handler = async (event) => {
+  const correlationId = logRequestStart(event.requestContext?.http?.method || "GET", event.rawPath || "/userinfo");
+
   try {
     log("userinfo_request");
     const authHeader = event?.headers?.authorization || event?.headers?.Authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      logError("missing_authorization_header", null, { correlationId });
+      logRequestEnd(401, { error: "invalid_request" });
       return createJsonResponse(401, {
         error: "invalid_request",
         error_description: "Missing or invalid Authorization header",
@@ -29,6 +34,8 @@ export const handler = async (event) => {
     // Verify the JWT access token
     const payload = await verifyJwt(accessToken);
     if (!payload) {
+      logError("access_token_invalid", null, { correlationId });
+      logRequestEnd(401, { error: "invalid_token" });
       return createJsonResponse(401, {
         error: "invalid_token",
         error_description: "Access token is invalid or expired",
@@ -40,7 +47,7 @@ export const handler = async (event) => {
     // Get user information from database if available
     let userInfo = { sub: payload.sub };
 
-    if (process.env.USERS_TABLE && tables.users) {
+    if (config.tables.users && tables.users) {
       try {
         const userRecord = await get(tables.users, { username: payload.sub });
         if (userRecord.Item) {
@@ -69,16 +76,18 @@ export const handler = async (event) => {
           log("user_not_found_in_db", payload.sub);
         }
       } catch (dbError) {
-        log("userinfo_db_error", dbError.message);
+        logError("userinfo_db_error", dbError);
         // Continue with basic userinfo if DB lookup fails
       }
     } else {
       log("no_users_table_configured");
     }
 
+    logRequestEnd(200, { userInfoProvided: true });
     return createJsonResponse(200, userInfo);
   } catch (e) {
-    logError("userinfo_error", e);
+    logError("userinfo_handler_error", e, { correlationId });
+    logRequestEnd(500, { error: "server_error" });
     return createJsonResponse(500, { error: "server_error" });
   }
 };

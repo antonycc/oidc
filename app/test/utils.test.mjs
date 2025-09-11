@@ -59,7 +59,8 @@ describe("utils", () => {
       log("test", "message", { key: "value" });
 
       expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('"level":"info"'));
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('"msg":"test message {\\"key\\":\\"value\\"}"'));
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('"event":"test"'));
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('"msg":"message {\\"key\\":\\"value\\"}"'));
 
       consoleSpy.mockRestore();
     });
@@ -73,9 +74,9 @@ describe("utils", () => {
       logError("test message", error, { context: "test" });
 
       expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('"level":"error"'));
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('"msg":"test message"'));
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('"err":{'));
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('"extra":{"context":"test"}'));
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('"event":"test message"'));
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('"context":"test"'));
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('"error":{'));
 
       consoleSpy.mockRestore();
     });

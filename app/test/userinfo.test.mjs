@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { handler as userinfo } from "../functions/userinfo.mjs";
 
-// Mock environment variables
+// Mock environment variables for config
 vi.stubEnv("USERS_TABLE", "test-users-table");
+vi.stubEnv("CODES_TABLE", "test-codes-table");
+vi.stubEnv("ISSUER", "https://test.issuer");
 
 // Mock the crypto module
 vi.mock("../lib/crypto.mjs", () => ({
@@ -14,6 +16,17 @@ vi.mock("../lib/db.mjs", () => ({
   get: vi.fn(),
   tables: {
     users: "test-users-table",
+  },
+}));
+
+// Mock config to return proper tables configuration
+vi.mock("../lib/config.mjs", () => ({
+  config: {
+    tables: {
+      users: "test-users-table",
+      codes: "test-codes-table",
+    },
+    issuer: "https://test.issuer",
   },
 }));
 

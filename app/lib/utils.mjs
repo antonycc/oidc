@@ -1,7 +1,12 @@
 /**
- * Common utility functions for OIDC provider
- * Provides consistent logging, error handling, and response patterns
+ * Enhanced logging and utility functions for OIDC provider
+ * Provides consistent logging, error handling, correlation IDs, and response patterns
  */
+import { ulid } from "ulid";
+import { time } from "./time.mjs";
+
+// Request context storage for correlation IDs
+const requestContext = new Map();
 
 /**
  * Safe stringify function that handles errors and objects properly
@@ -23,29 +28,145 @@ export const safeStringify = (val) => {
 };
 
 /**
- * Structured logging function with consistent format
- * @param {...any} a - Arguments to log
+ * Generate a correlation ID for request tracking
+ * @returns {string} Unique correlation ID
  */
-export const log = (...a) =>
-  console.log(
-    JSON.stringify({
-      level: "info",
-      ts: new Date().toISOString(),
-      msg: a.map(safeStringify).join(" "),
-    }),
-  );
+export const generateCorrelationId = () => ulid();
 
 /**
- * Structured error logging function with consistent format
- * @param {string} msg - Error message
- * @param {Error|any} err - Error object or additional context
- * @param {any} extra - Extra context data
+ * Set correlation ID for current request context
+ * @param {string} correlationId - Correlation ID to set
  */
-export const logError = (msg, err, extra) => {
-  const payload = { level: "error", ts: new Date().toISOString(), msg: safeStringify(msg) };
-  if (err) payload.err = err instanceof Error ? { name: err.name, message: err.message, stack: err.stack } : err;
-  if (extra !== undefined) payload.extra = extra;
+export const setCorrelationId = (correlationId) => {
+  requestContext.set("correlationId", correlationId);
+};
+
+/**
+ * Get current correlation ID
+ * @returns {string|null} Current correlation ID or null
+ */
+export const getCorrelationId = () => {
+  return requestContext.get("correlationId") || null;
+};
+
+/**
+ * Enhanced structured logging function with correlation ID and metadata
+ * @param {string} event - Event name/type
+ * @param {...any} args - Additional arguments to log
+ */
+export const log = (event, ...args) => {
+  const correlationId = getCorrelationId();
+  const payload = {
+    level: "info",
+    ts: time.nowIso(),
+    event,
+    msg: args.map(safeStringify).join(" "),
+  };
+
+  if (correlationId) {
+    payload.correlationId = correlationId;
+  }
+
+  console.log(JSON.stringify(payload));
+};
+
+/**
+ * Enhanced structured error logging function
+ * @param {string} event - Error event name
+ * @param {Error|any} err - Error object or additional context
+ * @param {Object} metadata - Additional metadata
+ */
+export const logError = (event, err, metadata = {}) => {
+  const correlationId = getCorrelationId();
+  const payload = {
+    level: "error",
+    ts: time.nowIso(),
+    event,
+    ...metadata,
+  };
+
+  if (correlationId) {
+    payload.correlationId = correlationId;
+  }
+
+  if (err) {
+    if (err instanceof Error) {
+      payload.error = {
+        name: err.name,
+        message: err.message,
+        stack: err.stack,
+      };
+    } else {
+      payload.error = err;
+    }
+  }
+
   console.error(JSON.stringify(payload));
+};
+
+/**
+ * Log with additional metadata
+ * @param {string} event - Event name
+ * @param {Object} metadata - Structured metadata
+ * @param {...any} args - Additional arguments
+ */
+export const logWithMetadata = (event, metadata = {}, ...args) => {
+  const correlationId = getCorrelationId();
+  const payload = {
+    level: "info",
+    ts: time.nowIso(),
+    event,
+    ...metadata,
+  };
+
+  if (args.length > 0) {
+    payload.msg = args.map(safeStringify).join(" ");
+  }
+
+  if (correlationId) {
+    payload.correlationId = correlationId;
+  }
+
+  console.log(JSON.stringify(payload));
+};
+
+/**
+ * Log request start with automatic correlation ID
+ * @param {string} method - HTTP method
+ * @param {string} path - Request path
+ * @param {Object} metadata - Additional metadata
+ * @returns {string} Generated correlation ID
+ */
+export const logRequestStart = (method, path, metadata = {}) => {
+  const correlationId = generateCorrelationId();
+  setCorrelationId(correlationId);
+
+  logWithMetadata("request_start", {
+    method,
+    path,
+    correlationId,
+    ...metadata,
+  });
+
+  return correlationId;
+};
+
+/**
+ * Log request end
+ * @param {number} statusCode - Response status code
+ * @param {Object} metadata - Additional metadata
+ */
+export const logRequestEnd = (statusCode, metadata = {}) => {
+  const correlationId = getCorrelationId();
+
+  logWithMetadata("request_end", {
+    statusCode,
+    correlationId,
+    ...metadata,
+  });
+
+  // Clean up request context
+  requestContext.delete("correlationId");
 };
 
 /**

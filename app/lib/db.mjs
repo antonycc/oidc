@@ -7,16 +7,14 @@ import {
   UpdateCommand,
   ScanCommand,
 } from "@aws-sdk/lib-dynamodb";
+import { config } from "./config.mjs";
+import { logError } from "./utils.mjs";
 
 // DynamoDB client (used when not in memory mode)
 export const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
-// Table names from env
-export const tables = {
-  users: process.env.USERS_TABLE,
-  codes: process.env.CODES_TABLE,
-  refresh: process.env.REFRESH_TABLE,
-};
+// Table names from config
+export const tables = config.tables;
 
 // Simple in-memory store for local/system tests when TableName starts with "mem_"
 const memStores = new Map(); // Map<TableName, Map<string, any>>
@@ -42,7 +40,10 @@ export const put = (TableName, Item) => {
     store.set(keyString(Key), { ...Item });
     return Promise.resolve({});
   }
-  return ddb.send(new PutCommand({ TableName, Item }));
+  return ddb.send(new PutCommand({ TableName, Item })).catch((error) => {
+    logError("ddb_put_failed", error, { TableName, operation: "put" });
+    throw error;
+  });
 };
 
 export const get = (TableName, Key) => {
@@ -51,7 +52,10 @@ export const get = (TableName, Key) => {
     const Item = store.get(keyString(Key));
     return Promise.resolve({ Item });
   }
-  return ddb.send(new GetCommand({ TableName, Key, ConsistentRead: true }));
+  return ddb.send(new GetCommand({ TableName, Key, ConsistentRead: true })).catch((error) => {
+    logError("ddb_get_failed", error, { TableName, Key, operation: "get" });
+    throw error;
+  });
 };
 
 export const del = (TableName, Key) => {
@@ -60,7 +64,10 @@ export const del = (TableName, Key) => {
     store.delete(keyString(Key));
     return Promise.resolve({});
   }
-  return ddb.send(new DeleteCommand({ TableName, Key }));
+  return ddb.send(new DeleteCommand({ TableName, Key })).catch((error) => {
+    logError("ddb_delete_failed", error, { TableName, Key, operation: "delete" });
+    throw error;
+  });
 };
 
 export const update = (TableName, params) => {
@@ -72,7 +79,10 @@ export const update = (TableName, params) => {
     store.set(keyString(Key), updated);
     return Promise.resolve({});
   }
-  return ddb.send(new UpdateCommand({ TableName, ...params }));
+  return ddb.send(new UpdateCommand({ TableName, ...params })).catch((error) => {
+    logError("ddb_update_failed", error, { TableName, operation: "update" });
+    throw error;
+  });
 };
 
 export const scan = (TableName) => {
@@ -80,7 +90,10 @@ export const scan = (TableName) => {
     const store = memGetStore(TableName);
     return Promise.resolve({ Items: Array.from(store.values()) });
   }
-  return ddb.send(new ScanCommand({ TableName }));
+  return ddb.send(new ScanCommand({ TableName })).catch((error) => {
+    logError("ddb_scan_failed", error, { TableName, operation: "scan" });
+    throw error;
+  });
 };
 
 /**
@@ -104,5 +117,11 @@ export const conditionalDelete = (TableName, Key, ConditionExpression, Expressio
   if (ExpressionAttributeValues && Object.keys(ExpressionAttributeValues).length > 0) {
     input.ExpressionAttributeValues = ExpressionAttributeValues;
   }
-  return ddb.send(new DeleteCommand(input));
+  return ddb.send(new DeleteCommand(input)).catch((error) => {
+    // Don't log ConditionalCheckFailedException as error - it's expected behavior
+    if (error.name !== "ConditionalCheckFailedException") {
+      logError("ddb_conditional_delete_failed", error, { TableName, Key, operation: "conditionalDelete" });
+    }
+    throw error;
+  });
 };

@@ -1,6 +1,8 @@
 import * as jose from "jose";
 import { get, put, tables } from "./db.mjs";
-import { log } from "./utils.mjs";
+import { log, logError } from "./utils.mjs";
+import { config } from "./config.mjs";
+import { ttl } from "./time.mjs";
 
 // Stable keypair with DynamoDB persistence. In production, use S3/KMS for rotation.
 let jwkPrivate,
@@ -18,7 +20,7 @@ async function loadFromStore() {
       return true;
     }
   } catch (error) {
-    log("key_load_failed", error.message);
+    logError("key_load_failed", error);
   }
   return false;
 }
@@ -30,11 +32,11 @@ async function saveToStore() {
       code: "jwk-key-store",
       privateKey: jwkPrivate,
       publicKey: jwkPublic,
-      ttl: Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60, // 1 year TTL for key storage
+      ttl: ttl.keyStorage(config.crypto.keyRotationDays),
     });
     log("keys_saved_to_store");
   } catch (error) {
-    log("key_save_failed", error.message);
+    logError("key_save_failed", error);
   }
 }
 
@@ -86,7 +88,7 @@ let remoteJwksUrl; // cached URL string used to build RemoteJWKSet
  * @returns {object|null} Decoded payload or null if invalid
  */
 export async function verifyJwt(token) {
-  const issuer = process.env.ISSUER;
+  const issuer = config.issuer;
 
   // Enforce canonical base64url encoding of the compact JWS signature segment.
   // Some base64url variants can decode to the same bytes even if the last character differs

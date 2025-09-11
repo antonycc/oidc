@@ -13,8 +13,11 @@
     "@aws-sdk/client-dynamodb": "^3.886.0",
     "@aws-sdk/lib-dynamodb": "^3.886.0",
     "bcryptjs": "^2.4.3",
+    "date-fns": "^4.1.0",
+    "env-var": "^7.5.0",
     "jose": "^5.10.0",
-    "ulid": "^2.4.0"
+    "ulid": "^2.4.0",
+    "zod": "^4.1.7"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0",

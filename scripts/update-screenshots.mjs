@@ -9,10 +9,10 @@ async function takeScreenshots() {
 
   const BASE_URL = process.env.BASE_URL || "https://oidc.antonycc.com";
   const TEST_USERNAME = process.env.TEST_USERNAME || "test-user";
-  const TEST_PASSWORD = process.env.TEST_PASSWORD || "demo-password";
+  const TEST_PASSWORD = process.env.TEST_PASSWORD;
 
-  if (!process.env.TEST_PASSWORD) {
-    console.warn("Warning: Using demo password. Set TEST_PASSWORD environment variable for actual credentials.");
+  if (!TEST_PASSWORD) {
+    throw new Error("TEST_PASSWORD environment variable must be set. Refusing to use a hardcoded fallback password.");
   }
 
   try {

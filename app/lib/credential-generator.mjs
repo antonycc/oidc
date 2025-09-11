@@ -50,6 +50,4 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   console.log("Generated test credentials:");
   console.log(JSON.stringify(publicCredentials, null, 2));
   // Optionally print password with a warning (remove this if not needed)
-  console.warn('\n[WARNING] Plaintext password is shown below. Do not store or log it insecurely.');
-  console.warn(`Password: ${password}`);
 }

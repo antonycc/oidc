@@ -1,7 +1,24 @@
-import { verifyJwt } from "../lib/crypto.mjs";
-import { get, tables } from "../lib/db.mjs";
-import { log, logError, logRequestStart, logRequestEnd, createJsonResponse } from "../lib/utils.mjs";
-import { config } from "../lib/config.mjs";
+import { createOidcHandler, createOidcResponse, createOidcError } from "../lib/oidc-handler.mjs";
+import { createUserinfoResponse } from "../lib/jwt-ops.mjs";
+import { log } from "../lib/utils.mjs";
+
+/**
+ * Business logic for userinfo endpoint
+ * @param {Object} context - Handler context
+ * @param {Object} context.params - Request parameters including authToken
+ * @returns {Promise<Object>} Userinfo response
+ */
+const userinfoBusinessLogic = async ({ params }) => {
+  log("userinfo_request");
+
+  const userInfo = await createUserinfoResponse(params.authToken);
+
+  if (!userInfo) {
+    return createOidcError("invalid_token", "Access token is invalid or expired", 401);
+  }
+
+  return createOidcResponse(userInfo, {}, { userInfoProvided: true });
+};
 
 /**
  * OIDC UserInfo endpoint handler
@@ -12,82 +29,11 @@ import { config } from "../lib/config.mjs";
  * @param {string} event.headers.authorization - Bearer token authorization header
  * @returns {Promise<Object>} Lambda response object with user info or error
  */
-// Handler expects an event object with headers
-export const handler = async (event) => {
-  const correlationId = logRequestStart(event.requestContext?.http?.method || "GET", event.rawPath || "/userinfo");
-
-  try {
-    log("userinfo_request");
-    const authHeader = event?.headers?.authorization || event?.headers?.Authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      logError("missing_authorization_header", null, { correlationId });
-      logRequestEnd(401, { error: "invalid_request" });
-      return createJsonResponse(401, {
-        error: "invalid_request",
-        error_description: "Missing or invalid Authorization header",
-      });
-    }
-
-    const accessToken = authHeader.slice("Bearer ".length);
-    log("validating_access_token");
-
-    // Verify the JWT access token
-    const payload = await verifyJwt(accessToken);
-    if (!payload) {
-      logError("access_token_invalid", null, { correlationId });
-      logRequestEnd(401, { error: "invalid_token" });
-      return createJsonResponse(401, {
-        error: "invalid_token",
-        error_description: "Access token is invalid or expired",
-      });
-    }
-
-    log("access_token_valid", "sub:", payload.sub);
-
-    // Get user information from database if available
-    let userInfo = { sub: payload.sub };
-
-    if (config.tables.users && tables.users) {
-      try {
-        const userRecord = await get(tables.users, { username: payload.sub });
-        if (userRecord.Item) {
-          // Build user info based on requested scopes
-          const scopes = payload.scope ? payload.scope.split(" ") : [];
-
-          // Always include sub
-          userInfo.sub = payload.sub;
-
-          // Include email claims if email scope was requested
-          if (scopes.includes("email") && userRecord.Item.email) {
-            userInfo.email = userRecord.Item.email;
-            userInfo.email_verified = userRecord.Item.emailVerified || false;
-          }
-
-          // Include profile claims if profile scope was requested
-          if (scopes.includes("profile")) {
-            if (userRecord.Item.name) userInfo.name = userRecord.Item.name;
-            if (userRecord.Item.given_name) userInfo.given_name = userRecord.Item.given_name;
-            if (userRecord.Item.family_name) userInfo.family_name = userRecord.Item.family_name;
-            if (userRecord.Item.picture) userInfo.picture = userRecord.Item.picture;
-          }
-
-          log("userinfo_from_db", "scopes:", scopes.join(","));
-        } else {
-          log("user_not_found_in_db", payload.sub);
-        }
-      } catch (dbError) {
-        logError("userinfo_db_error", dbError);
-        // Continue with basic userinfo if DB lookup fails
-      }
-    } else {
-      log("no_users_table_configured");
-    }
-
-    logRequestEnd(200, { userInfoProvided: true });
-    return createJsonResponse(200, userInfo);
-  } catch (e) {
-    logError("userinfo_handler_error", e, { correlationId });
-    logRequestEnd(500, { error: "server_error" });
-    return createJsonResponse(500, { error: "server_error" });
-  }
-};
+export const handler = createOidcHandler(
+  {
+    name: "userinfo",
+    requireAuth: true,
+    paramExtractor: () => ({}), // Auth token extracted by handler factory
+  },
+  userinfoBusinessLogic,
+);

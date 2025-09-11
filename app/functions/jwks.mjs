@@ -1,5 +1,26 @@
 import { publicJwks } from "../lib/crypto.mjs";
-import { log, logError, logRequestStart, logRequestEnd, createJsonResponse } from "../lib/utils.mjs";
+import { createOidcHandler, createOidcResponse } from "../lib/oidc-handler.mjs";
+import { log } from "../lib/utils.mjs";
+
+/**
+ * Business logic for JWKS endpoint
+ * @param {Object} context - Handler context
+ * @returns {Promise<Object>} JWKS response
+ */
+const jwksBusinessLogic = async () => {
+  log("jwks_request");
+
+  // Get the current public keys
+  const jwks = await publicJwks();
+
+  return createOidcResponse(
+    jwks,
+    {
+      "cache-control": "public, max-age=3600", // Cache for 1 hour since keys are stable
+    },
+    { jwksProvided: true },
+  );
+};
 
 /**
  * OIDC JWKS (JSON Web Key Set) endpoint handler
@@ -8,22 +29,10 @@ import { log, logError, logRequestStart, logRequestEnd, createJsonResponse } fro
  * @param {Object} event - Lambda event object (unused for JWKS)
  * @returns {Promise<Object>} Lambda response object with JWKS or error
  */
-export const handler = async (event) => {
-  const correlationId = logRequestStart(event.requestContext?.http?.method || "GET", event.rawPath || "/jwks");
-
-  try {
-    log("jwks_request");
-
-    // Get the current public keys
-    const jwks = await publicJwks();
-
-    logRequestEnd(200, { jwksProvided: true });
-    return createJsonResponse(200, jwks, {
-      "cache-control": "public, max-age=3600", // Cache for 1 hour since keys are stable
-    });
-  } catch (e) {
-    logError("jwks_handler_error", e, { correlationId });
-    logRequestEnd(500, { error: "server_error" });
-    return createJsonResponse(500, { error: "server_error" }, { "cache-control": "no-store" });
-  }
-};
+export const handler = createOidcHandler(
+  {
+    name: "jwks",
+    paramExtractor: () => ({}), // No parameters needed for JWKS
+  },
+  jwksBusinessLogic,
+);

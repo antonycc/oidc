@@ -44,8 +44,6 @@ env:
   NODE_VERSION: '22'
   DEPLOY_ROLE_ARN: ${{ vars.DEPLOY_ROLE_ARN }}
   AWS_REGION: us-east-1
-  TEST_USERNAME: test-user
-  TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
 
 jobs:
 
@@ -201,11 +199,6 @@ jobs:
       #  if: ${{ inputs.skipDeploy != 'true' }}
       #  run: curl --include --request GET "${{ steps.oidc-outputs.outputs.BASE_URL }}/jwks"
 
-      - name: Provision test user
-        run: npm run users:provision ${{ env.TEST_USERNAME }} ${{ env.TEST_PASSWORD }}
-        env:
-          USERS_TABLE: ${{ steps.oidc-outputs.outputs.USERS_TABLE }}
-
       - name: Install dependencies and Playwright browsers
         run: |
           npm -v
@@ -215,8 +208,7 @@ jobs:
       - name: Run Playwright live API test
         env:
           BASE_URL: ${{ steps.oidc-outputs.outputs.BASE_URL }}
-          TEST_USERNAME: ${{ env.TEST_USERNAME }}
-          TEST_PASSWORD: ${{ env.TEST_PASSWORD }}
+          USERS_TABLE: ${{ steps.oidc-outputs.outputs.USERS_TABLE }}
         run: |
           echo "BASE_URL=${BASE_URL}"
           npm run test:api
@@ -227,11 +219,8 @@ jobs:
           #echo "COGNITO_DOMAIN=${{ steps.oidc-outputs.outputs.COGNITO_DOMAIN }}"
           #echo "COGNITO_CLIENT_ID=${{ steps.oidc-outputs.outputs.COGNITO_CLIENT_ID }}"
           BASE_URL='${{ steps.oidc-outputs.outputs.BASE_URL }}' \
-          #COGNITO_DOMAIN='${{ steps.oidc-outputs.outputs.COGNITO_DOMAIN }}' \
-          #COGNITO_CLIENT_ID='${{ steps.oidc-outputs.outputs.COGNITO_CLIENT_ID }}' \
+          USERS_TABLE='${{ steps.oidc-outputs.outputs.USERS_TABLE }}' \
           npm run test:web --project=chromium
-        env:
-          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
 
       - name: Setup k6
         uses: grafana/setup-k6-action@v1
@@ -239,11 +228,8 @@ jobs:
       - name: Run k6 load test (5 minutes)
         env:
           BASE_URL: ${{ steps.oidc-outputs.outputs.BASE_URL }}
-          TEST_USERNAME: ${{ env.TEST_USERNAME }}
-          TEST_PASSWORD: ${{ env.TEST_PASSWORD }}
         run: |
           echo "BASE_URL=${BASE_URL}"
-          echo "TEST_USERNAME=${TEST_USERNAME}"
           k6 run tests/load.live.test.js --summary-export=load-test-summary.json
 
       - name: Upload artifacts (report, trace, screenshots, videos)

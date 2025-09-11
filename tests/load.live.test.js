@@ -6,16 +6,15 @@
  * 2. POST /token with code+verifier to obtain tokens
  * 3. GET /userinfo with access token to obtain claims
  *
- * The script uses the same parameters as the Playwright API tests to ensure
- * consistency between functional tests and load tests.
+ * The script uses the demo credentials generated at deployment time.
  *
  * Environment variables:
  * - BASE_URL: Base URL of the OIDC service (e.g., https://oidc.antonycc.com)
- * - TEST_USERNAME: Username for authentication (default: test-user)
- * - TEST_PASSWORD: Password for authentication (required)
+ * - TEST_USERNAME: Username for authentication (default: fetched from demo credentials)
+ * - TEST_PASSWORD: Password for authentication (default: fetched from demo credentials)
  *
  * Usage:
- * k6 run tests/load.live.test.ts --env BASE_URL=https://oidc.antonycc.com --env TEST_USERNAME=test-user --env TEST_PASSWORD=your-password
+ * k6 run tests/load.live.test.ts --env BASE_URL=https://oidc.antonycc.com
  */
 
 import http from "k6/http";
@@ -23,10 +22,25 @@ import { check } from "k6";
 import { sha256 } from "k6/crypto";
 import encoding from "k6/encoding";
 
-// Environment configuration matching api.live.test.ts
+// Environment configuration - try to fetch from demo credentials first
 const BASE_URL = __ENV.BASE_URL || "https://oidc.antonycc.com";
-const TEST_USERNAME = __ENV.TEST_USERNAME || "test-user";
-const TEST_PASSWORD = __ENV.TEST_PASSWORD || "";
+let TEST_USERNAME = __ENV.TEST_USERNAME || "";
+let TEST_PASSWORD = __ENV.TEST_PASSWORD || "";
+
+// Fetch demo credentials if not provided
+if (!TEST_USERNAME || !TEST_PASSWORD) {
+  try {
+    const credentialsResponse = http.get(`${BASE_URL}/public-demo-credentials.json`);
+    if (credentialsResponse.status === 200) {
+      const credentials = JSON.parse(credentialsResponse.body);
+      TEST_USERNAME = TEST_USERNAME || credentials.username;
+      TEST_PASSWORD = TEST_PASSWORD || credentials.password;
+    }
+  } catch (error) {
+    console.warn("Could not fetch demo credentials, using defaults:", error);
+    TEST_USERNAME = TEST_USERNAME || "demo-user";
+  }
+}
 
 // OIDC flow parameters matching api.live.test.ts
 const CLIENT_ID = "self-client";

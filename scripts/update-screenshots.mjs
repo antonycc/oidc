@@ -8,8 +8,24 @@ async function takeScreenshots() {
   const page = await context.newPage();
 
   const BASE_URL = "https://oidc.antonycc.com";
-  const TEST_USERNAME = "test-user";
-  const TEST_PASSWORD = "c810fb39-86a9-4d2f-8107-119ade9605f8";
+  
+  // Fetch demo credentials from the deployment
+  let TEST_USERNAME = "demo-user";
+  let TEST_PASSWORD = "demo-password";
+  
+  try {
+    const response = await page.goto(`${BASE_URL}/public-demo-credentials.json`);
+    if (response && response.ok()) {
+      const credentials = await response.json();
+      TEST_USERNAME = credentials.username;
+      TEST_PASSWORD = credentials.password;
+      console.log(`Using demo credentials: ${TEST_USERNAME}`);
+    } else {
+      console.warn("Could not fetch demo credentials, using defaults");
+    }
+  } catch (error) {
+    console.warn("Could not fetch demo credentials:", error.message);
+  }
 
   try {
     // 1. Home Page Screenshot

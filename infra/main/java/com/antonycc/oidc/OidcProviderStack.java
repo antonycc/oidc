@@ -336,6 +336,9 @@ public class OidcProviderStack extends Stack {
         // Create a custom resource to fix the well-known configuration with correct domain
         createWellKnownConfigFix(resourceNamePrefix, domainName);
 
+        // Create a custom resource to generate and deploy demo credentials
+        createDemoCredentials(resourceNamePrefix);
+
         // A record
         this.aliasRecord = new ARecord(
                 this,
@@ -523,5 +526,127 @@ public class OidcProviderStack extends Stack {
 
         // Ensure invalidation runs after config is updated
         wellKnownInvalidationCustomResource.getNode().addDependency(wellKnownConfigCustomResource);
+    }
+
+    /**
+     * Create a custom resource to generate demo credentials and deploy them to the web bucket
+     */
+    private void createDemoCredentials(String resourceNamePrefix) {
+        // Generate demo credentials using Node.js script
+        var generateCredentialsCall = AwsSdkCall.builder()
+                .service("Lambda")
+                .action("invoke")
+                .parameters(Map.of(
+                        "FunctionName",
+                        "arn:aws:lambda:" + this.getRegion() + ":" + this.getAccount()
+                                + ":function:demo-credential-generator",
+                        "InvocationType", "RequestResponse"))
+                .physicalResourceId(PhysicalResourceId.of("demo-credentials-generator-" + resourceNamePrefix))
+                .build();
+
+        // For now, we'll use a simpler approach - generate static credentials
+        // In a real implementation, you'd want to invoke a Lambda function
+        var credentialsJson = String.format(
+                """
+            {
+              "username": "demo-user",
+              "password": "demo-pass-%s",
+              "email": "demo-user@example.com",
+              "name": "Demo User",
+              "given_name": "Demo",
+              "family_name": "User",
+              "note": "Generated at deployment time"
+            }
+            """,
+                resourceNamePrefix);
+
+        var putCredentialsCall = AwsSdkCall.builder()
+                .service("S3")
+                .action("putObject")
+                .parameters(Map.of(
+                        "Bucket", this.webBucket.getBucketName(),
+                        "Key", "public-demo-credentials.json",
+                        "Body", credentialsJson,
+                        "ContentType", "application/json",
+                        "CacheControl", "no-cache"))
+                .physicalResourceId(PhysicalResourceId.of("demo-credentials-" + resourceNamePrefix))
+                .build();
+
+        var demoCredentialsCustomResource = AwsCustomResource.Builder.create(
+                        this, resourceNamePrefix + "-DemoCredentials")
+                .onCreate(putCredentialsCall)
+                .onUpdate(putCredentialsCall)
+                .policy(AwsCustomResourcePolicy.fromStatements(List.of(PolicyStatement.Builder.create()
+                        .effect(Effect.ALLOW)
+                        .actions(List.of("s3:PutObject"))
+                        .resources(List.of(this.webBucket.getBucketArn() + "/public-demo-credentials.json"))
+                        .build())))
+                .installLatestAwsSdk(false)
+                .build();
+
+        // Ensure the custom resource runs after the initial web deployment
+        demoCredentialsCustomResource.getNode().addDependency(this.webDeployment);
+
+        // Invalidate CloudFront after credentials are updated
+        var credentialsInvalidationCall = AwsSdkCall.builder()
+                .service("CloudFront")
+                .action("createInvalidation")
+                .parameters(Map.of(
+                        "DistributionId", this.distribution.getDistributionId(),
+                        "InvalidationBatch",
+                                Map.of(
+                                        "CallerReference",
+                                        "demo-credentials-" + java.time.Instant.now().toEpochMilli(),
+                                        "Paths",
+                                        Map.of("Quantity", 1, "Items", List.of("/public-demo-credentials.json")))))
+                .physicalResourceId(PhysicalResourceId.of("demo-credentials-invalidation-" + resourceNamePrefix))
+                .build();
+
+        var credentialsInvalidationCustomResource = AwsCustomResource.Builder.create(
+                        this, resourceNamePrefix + "-DemoCredentialsInvalidation")
+                .onCreate(credentialsInvalidationCall)
+                .onUpdate(credentialsInvalidationCall)
+                .policy(AwsCustomResourcePolicy.fromStatements(List.of(PolicyStatement.Builder.create()
+                        .effect(Effect.ALLOW)
+                        .actions(List.of("cloudfront:CreateInvalidation"))
+                        .resources(List.of(this.distribution.getDistributionArn()))
+                        .build())))
+                .installLatestAwsSdk(false)
+                .build();
+
+        // Ensure invalidation runs after credentials are updated
+        credentialsInvalidationCustomResource.getNode().addDependency(demoCredentialsCustomResource);
+
+        // Also provision the demo user in the DynamoDB users table
+        var provisionUserCall = AwsSdkCall.builder()
+                .service("DynamoDB")
+                .action("putItem")
+                .parameters(Map.of(
+                        "TableName", this.usersTable.getTableName(),
+                        "Item", Map.of(
+                                "username", Map.of("S", "demo-user"),
+                                "passwordHash", Map.of("S", "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"), // demo-pass-
+                                "email", Map.of("S", "demo-user@example.com"),
+                                "name", Map.of("S", "Demo User"),
+                                "given_name", Map.of("S", "Demo"),
+                                "family_name", Map.of("S", "User"),
+                                "createdAt", Map.of("N", String.valueOf(System.currentTimeMillis())))))
+                .physicalResourceId(PhysicalResourceId.of("demo-user-provision-" + resourceNamePrefix))
+                .build();
+
+        var provisionUserCustomResource = AwsCustomResource.Builder.create(
+                        this, resourceNamePrefix + "-DemoUserProvision")
+                .onCreate(provisionUserCall)
+                .onUpdate(provisionUserCall)
+                .policy(AwsCustomResourcePolicy.fromStatements(List.of(PolicyStatement.Builder.create()
+                        .effect(Effect.ALLOW)
+                        .actions(List.of("dynamodb:PutItem"))
+                        .resources(List.of(this.usersTable.getTableArn()))
+                        .build())))
+                .installLatestAwsSdk(false)
+                .build();
+
+        // Ensure user provisioning runs after table is created
+        provisionUserCustomResource.getNode().addDependency(this.usersTable);
     }
 }

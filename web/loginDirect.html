@@ -26,6 +26,21 @@
           Use this form to exercise the OP directly without Cognito. It will perform PKCE, post to
           <code>/authorize</code>, and redirect back to Post Auth.
         </p>
+        <div id="demoCredentials" class="demo-credentials-section" style="display: none;">
+          <h3>Demo Credentials</h3>
+          <p class="muted">These credentials are generated automatically at deployment time:</p>
+          <div class="credentials-display">
+            <div class="credential-item">
+              <label>Username:</label>
+              <span id="demoUsername" class="credential-value">Loading...</span>
+            </div>
+            <div class="credential-item">
+              <label>Password:</label>
+              <span id="demoPassword" class="credential-value">Loading...</span>
+            </div>
+          </div>
+          <button type="button" id="useDemoCredentials" class="use-demo-btn">Use These Credentials</button>
+        </div>
         <p id="backLinkWrapper"><a id="backLink" href="./login.html">← Back to login options</a></p>
         <form id="loginForm" class="form-card">
           <fieldset>
@@ -237,6 +252,34 @@
         // Submit the form to trigger a real navigation handled by the browser
         form.submit();
       });
+
+      // Fetch and display demo credentials
+      async function loadDemoCredentials() {
+        try {
+          const response = await fetch('./public-demo-credentials.json');
+          if (!response.ok) {
+            console.warn('Demo credentials not available:', response.status);
+            return;
+          }
+          const credentials = await response.json();
+          
+          // Display credentials
+          document.getElementById('demoUsername').textContent = credentials.username;
+          document.getElementById('demoPassword').textContent = credentials.password;
+          document.getElementById('demoCredentials').style.display = 'block';
+          
+          // Handle "Use These Credentials" button
+          document.getElementById('useDemoCredentials').addEventListener('click', () => {
+            document.querySelector('input[name="username"]').value = credentials.username;
+            document.querySelector('input[name="password"]').value = credentials.password;
+          });
+        } catch (error) {
+          console.warn('Could not load demo credentials:', error);
+        }
+      }
+      
+      // Load demo credentials on page load
+      loadDemoCredentials();
     </script>
     <footer>
       <small>© 2025 <a href="https://github.com/antonycc/oidc">@antonycc/oidc</a></small>

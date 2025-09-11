@@ -384,3 +384,64 @@ footer {
 .terminal-content::-webkit-scrollbar-thumb:hover {
   background: #00cc88;
 }
+
+/* Demo credentials display styles */
+.demo-credentials-section {
+  background: #f0f8ff;
+  border: 1px solid #b3d9ff;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+}
+
+.demo-credentials-section h3 {
+  margin: 0 0 8px 0;
+  color: #0066cc;
+  font-size: 16px;
+}
+
+.credentials-display {
+  background: #ffffff;
+  border: 1px solid #d1e7ff;
+  border-radius: 4px;
+  padding: 12px;
+  margin: 12px 0;
+}
+
+.credential-item {
+  display: flex;
+  align-items: center;
+  margin: 8px 0;
+}
+
+.credential-item label {
+  font-weight: bold;
+  width: 80px;
+  color: #333;
+}
+
+.credential-value {
+  font-family: 'Courier New', monospace;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 3px;
+  padding: 4px 8px;
+  margin-left: 8px;
+  flex: 1;
+  color: #495057;
+}
+
+.use-demo-btn {
+  background: #0066cc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+.use-demo-btn:hover {
+  background: #0052a3;
+}

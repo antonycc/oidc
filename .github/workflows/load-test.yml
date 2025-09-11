@@ -17,8 +17,6 @@ env:
   NODE_VERSION: '22'
   DEPLOY_ROLE_ARN: ${{ vars.DEPLOY_ROLE_ARN }}
   AWS_REGION: us-east-1
-  TEST_USERNAME: test-user
-  TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
 
 jobs:
   load-test:
@@ -50,11 +48,8 @@ jobs:
       - name: Execute k6 load test
         env:
           BASE_URL: ${{ github.event.inputs.base_url || 'https://oidc.antonycc.com' }}
-          TEST_USERNAME: ${{ github.event.inputs.test_username || 'test-user' }}
-          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
         run: |
           echo "BASE_URL: $BASE_URL"
-          echo "TEST_USERNAME: $TEST_USERNAME"
           k6 run tests/load.live.test.js --summary-export=summary.json
 
       - name: Upload k6 summary

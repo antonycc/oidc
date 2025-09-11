@@ -1,5 +1,8 @@
 import { expect, request, test } from "@playwright/test";
 import * as crypto from "node:crypto";
+import { generateTestCredentialsForTest } from "../app/lib/credential-generator.mjs";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBDocumentClient, PutCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 
 // use dotenv variables for sensitive info
 import * as dotenv from "dotenv";
@@ -41,11 +44,39 @@ function parseParam(url: string, name: string): string | null {
 test("live API: authorize -> token -> userinfo", async ({ page }) => {
   const DOMAIN_NAME = process.env.DOMAIN_NAME || "oidc.antonycc.com";
   const BASE_URL = process.env.BASE_URL || `https://${DOMAIN_NAME}`;
-  const TEST_USERNAME = process.env.TEST_USERNAME || "test-user";
-  const TEST_PASSWORD = process.env.TEST_PASSWORD || "";
 
   expect.soft(BASE_URL).toBeTruthy();
-  expect.soft(TEST_PASSWORD, "TEST_PASSWORD must be provided via env/.env").toBeTruthy();
+
+  // Generate test credentials for this specific test
+  const testCredentials = generateTestCredentialsForTest("api-test");
+  const TEST_USERNAME = testCredentials.username;
+  const TEST_PASSWORD = testCredentials.password;
+
+  // Provision the test user in DynamoDB if running against a live deployment
+  const USERS_TABLE = process.env.USERS_TABLE;
+  let ddbClient = null;
+  let ddb = null;
+  
+  if (USERS_TABLE) {
+    ddbClient = new DynamoDBClient({});
+    ddb = DynamoDBDocumentClient.from(ddbClient);
+    
+    // Provision test user
+    await ddb.send(
+      new PutCommand({
+        TableName: USERS_TABLE,
+        Item: {
+          username: testCredentials.username,
+          passwordHash: testCredentials.passwordHash,
+          email: testCredentials.email,
+          name: testCredentials.name,
+          given_name: testCredentials.given_name,
+          family_name: testCredentials.family_name,
+          createdAt: Date.now(),
+        },
+      }),
+    );
+  }
 
   const redirect_uri = new URL("/post-auth.html", BASE_URL).toString();
   const state = randomString(32);
@@ -164,4 +195,18 @@ test("live API: authorize -> token -> userinfo", async ({ page }) => {
     throw new Error("Userinfo response not JSON: " + userinfoText);
   }
   expect.soft(claims.sub).toBeTruthy();
+  
+  // Cleanup: Remove test user if we created it
+  if (ddb && USERS_TABLE) {
+    try {
+      await ddb.send(
+        new DeleteCommand({
+          TableName: USERS_TABLE,
+          Key: { username: testCredentials.username },
+        }),
+      );
+    } catch (error) {
+      console.warn("Failed to cleanup test user:", error);
+    }
+  }
 });

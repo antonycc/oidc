@@ -56,11 +56,11 @@ test("live API: authorize -> token -> userinfo", async ({ page }) => {
   const USERS_TABLE = process.env.USERS_TABLE;
   let ddbClient = null;
   let ddb = null;
-  
+
   if (USERS_TABLE) {
     ddbClient = new DynamoDBClient({});
     ddb = DynamoDBDocumentClient.from(ddbClient);
-    
+
     // Provision test user
     await ddb.send(
       new PutCommand({
@@ -195,7 +195,7 @@ test("live API: authorize -> token -> userinfo", async ({ page }) => {
     throw new Error("Userinfo response not JSON: " + userinfoText);
   }
   expect.soft(claims.sub).toBeTruthy();
-  
+
   // Cleanup: Remove test user if we created it
   if (ddb && USERS_TABLE) {
     try {

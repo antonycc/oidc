@@ -20,7 +20,7 @@ test("Home renders", async ({ page }) => {
 test("Direct login form: failed login shows error", async ({ page }) => {
   // Generate test credentials
   const testCredentials = generateTestCredentialsForTest("web-test-fail");
-  
+
   await page.goto(new URL("./loginDirect.html", BASE_URL).toString());
   await page.getByRole("heading", { name: "OIDC - Direct Login" }).waitFor();
   await page.getByLabel("Username").fill(testCredentials.username);
@@ -33,16 +33,16 @@ test("Direct login form: failed login shows error", async ({ page }) => {
 test("Direct login form: successful login returns tokens and claims", async ({ page }) => {
   // Generate test credentials for this test
   const testCredentials = generateTestCredentialsForTest("web-test-success");
-  
+
   // Provision the test user in DynamoDB if running against a live deployment
   const USERS_TABLE = process.env.USERS_TABLE;
   let ddbClient = null;
   let ddb = null;
-  
+
   if (USERS_TABLE) {
     ddbClient = new DynamoDBClient({});
     ddb = DynamoDBDocumentClient.from(ddbClient);
-    
+
     // Provision test user
     await ddb.send(
       new PutCommand({

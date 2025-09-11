@@ -26,7 +26,7 @@
           Use this form to exercise the OP directly without Cognito. It will perform PKCE, post to
           <code>/authorize</code>, and redirect back to Post Auth.
         </p>
-        <div id="demoCredentials" class="demo-credentials-section" style="display: none;">
+        <div id="demoCredentials" class="demo-credentials-section" style="display: none">
           <h3>Demo Credentials</h3>
           <p class="muted">These credentials are generated automatically at deployment time:</p>
           <div class="credentials-display">
@@ -256,28 +256,28 @@
       // Fetch and display demo credentials
       async function loadDemoCredentials() {
         try {
-          const response = await fetch('./public-demo-credentials.json');
+          const response = await fetch("./public-demo-credentials.json");
           if (!response.ok) {
-            console.warn('Demo credentials not available:', response.status);
+            console.warn("Demo credentials not available:", response.status);
             return;
           }
           const credentials = await response.json();
-          
+
           // Display credentials
-          document.getElementById('demoUsername').textContent = credentials.username;
-          document.getElementById('demoPassword').textContent = credentials.password;
-          document.getElementById('demoCredentials').style.display = 'block';
-          
+          document.getElementById("demoUsername").textContent = credentials.username;
+          document.getElementById("demoPassword").textContent = credentials.password;
+          document.getElementById("demoCredentials").style.display = "block";
+
           // Handle "Use These Credentials" button
-          document.getElementById('useDemoCredentials').addEventListener('click', () => {
+          document.getElementById("useDemoCredentials").addEventListener("click", () => {
             document.querySelector('input[name="username"]').value = credentials.username;
             document.querySelector('input[name="password"]').value = credentials.password;
           });
         } catch (error) {
-          console.warn('Could not load demo credentials:', error);
+          console.warn("Could not load demo credentials:", error);
         }
       }
-      
+
       // Load demo credentials on page load
       loadDemoCredentials();
     </script>

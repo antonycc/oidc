@@ -8,11 +8,11 @@ async function takeScreenshots() {
   const page = await context.newPage();
 
   const BASE_URL = "https://oidc.antonycc.com";
-  
+
   // Fetch demo credentials from the deployment
   let TEST_USERNAME = "demo-user";
   let TEST_PASSWORD = "demo-password";
-  
+
   try {
     const response = await page.goto(`${BASE_URL}/public-demo-credentials.json`);
     if (response && response.ok()) {

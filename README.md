@@ -258,6 +258,348 @@ aws cognito-idp update-user-pool-client \
 **3. Test the Integration**
 Navigate to your Cognito Hosted UI - users can now sign in using the OIDC provider.
 
+### Cross-Account User Provisioning
+
+To allow external AWS accounts to provision test users in the production OIDC provider (`oidc.antonycc.com`), follow this comprehensive setup guide.
+
+#### Production Account Setup (antonycc account - 403027849202)
+
+**1. Create Cross-Account User Provisioning Role**
+
+In the AWS Console for the production account:
+
+a) Navigate to **IAM → Roles → Create Role**
+b) Select **Custom trust policy** and use:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::EXTERNAL-ACCOUNT-ID:oidc-provider/token.actions.githubusercontent.com"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+        },
+        "StringLike": {
+          "token.actions.githubusercontent.com:sub": "repo:EXTERNAL-ORG/EXTERNAL-REPO:*"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::EXTERNAL-ACCOUNT-ID:root"
+      },
+      "Action": "sts:AssumeRole",
+      "Condition": {
+        "StringEquals": {
+          "sts:ExternalId": "unique-external-id-shared-secret"
+        }
+      }
+    }
+  ]
+}
+```
+
+c) Name the role: `oidc-external-user-provisioning-role`
+d) Create and attach the following inline policy:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:PutItem",
+        "dynamodb:GetItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:Query",
+        "dynamodb:Scan"
+      ],
+      "Resource": [
+        "arn:aws:dynamodb:us-east-1:403027849202:table/oidc-antonycc-com-prod-users",
+        "arn:aws:dynamodb:us-east-1:403027849202:table/oidc-antonycc-com-prod-users/index/*"
+      ]
+    }
+  ]
+}
+```
+
+**2. Share Role ARN**
+
+Provide the external account with:
+- **Role ARN**: `arn:aws:iam::403027849202:role/oidc-external-user-provisioning-role`
+- **External ID**: `unique-external-id-shared-secret` (shared securely)
+- **Users Table Name**: `oidc-antonycc-com-prod-users`
+- **Region**: `us-east-1`
+
+#### External Account Setup
+
+**1. GitHub OIDC Provider Setup**
+
+If not already configured, create an OIDC provider for GitHub Actions:
+
+a) Navigate to **IAM → Identity Providers → Create Provider**
+b) Select **OpenID Connect** and configure:
+   - **Provider URL**: `https://token.actions.githubusercontent.com`
+   - **Audience**: `sts.amazonaws.com`
+
+**2. Create Execution Role (Optional - for local/CLI access)**
+
+Create a role in your account that can assume the production role:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "sts:AssumeRole",
+      "Resource": "arn:aws:iam::403027849202:role/oidc-external-user-provisioning-role",
+      "Condition": {
+        "StringEquals": {
+          "sts:ExternalId": "unique-external-id-shared-secret"
+        }
+      }
+    }
+  ]
+}
+```
+
+#### GitHub Actions Workflow Example
+
+Create `.github/workflows/provision-oidc-users.yml` in your repository:
+
+```yaml
+name: Provision OIDC Test Users
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'provision'
+        type: choice
+        options:
+          - provision
+          - cleanup
+      username:
+        description: 'Username to provision/cleanup (optional - will generate if empty)'
+        required: false
+        type: string
+      password:
+        description: 'Password for user (optional - will generate if empty)'
+        required: false
+        type: string
+
+env:
+  PRODUCTION_ROLE_ARN: "arn:aws:iam::403027849202:role/oidc-external-user-provisioning-role"
+  EXTERNAL_ID: "unique-external-id-shared-secret"
+  USERS_TABLE: "oidc-antonycc-com-prod-users"
+  AWS_REGION: "us-east-1"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  provision-users:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Configure AWS credentials for cross-account access
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.PRODUCTION_ROLE_ARN }}
+          role-external-id: ${{ env.EXTERNAL_ID }}
+          role-session-name: GitHubActions-UserProvisioning
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install dependencies
+        run: |
+          npm install @aws-sdk/client-dynamodb @aws-sdk/lib-dynamodb bcryptjs ulid
+
+      - name: Create user provisioning script
+        run: |
+          cat > provision-user.mjs << 'EOF'
+          import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+          import { DynamoDBDocumentClient, PutCommand, DeleteCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
+          import bcrypt from "bcryptjs";
+          import { ulid } from "ulid";
+
+          const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+          const table = process.env.USERS_TABLE;
+
+          const action = process.argv[2] || 'provision';
+          const inputUsername = process.argv[3];
+          const inputPassword = process.argv[4];
+
+          if (action === 'provision') {
+            const username = inputUsername || `external-test-${ulid().toLowerCase().substring(0, 8)}`;
+            const password = inputPassword || ulid().toLowerCase();
+            
+            console.log(`Provisioning user ${username} in table ${table}`);
+            const hash = bcrypt.hashSync(password, 10);
+            
+            await ddb.send(new PutCommand({ 
+              TableName: table, 
+              Item: { 
+                username, 
+                passwordHash: hash, 
+                createdAt: Date.now(),
+                createdBy: 'external-account-github-actions',
+                email: `${username}@external-test.example.com`,
+                name: `External Test User`,
+                given_name: 'External',
+                family_name: 'User'
+              } 
+            }));
+            
+            console.log(`✅ User created successfully`);
+            console.log(`Username: ${username}`);
+            console.log(`Password: ${password}`);
+            console.log(`OIDC Provider: https://oidc.antonycc.com`);
+          } else if (action === 'cleanup') {
+            if (!inputUsername) {
+              console.error('❌ Username required for cleanup');
+              process.exit(1);
+            }
+            
+            console.log(`Cleaning up user ${inputUsername} from table ${table}`);
+            await ddb.send(new DeleteCommand({ 
+              TableName: table, 
+              Key: { username: inputUsername } 
+            }));
+            console.log(`✅ User ${inputUsername} deleted successfully`);
+          }
+          EOF
+
+      - name: Execute user provisioning
+        run: |
+          node provision-user.mjs ${{ github.event.inputs.action }} "${{ github.event.inputs.username }}" "${{ github.event.inputs.password }}"
+
+      - name: Test user authentication (if provisioned)
+        if: github.event.inputs.action == 'provision'
+        run: |
+          # Basic smoke test against the OIDC provider
+          echo "🧪 Testing OIDC provider endpoints..."
+          curl -f https://oidc.antonycc.com/.well-known/openid-configuration
+          curl -f https://oidc.antonycc.com/jwks
+          echo "✅ OIDC provider is accessible"
+```
+
+#### Manual CLI Access
+
+For manual access from your local machine or EC2 instances:
+
+**1. Assume the Cross-Account Role**
+
+```bash
+# Set up your credentials
+export EXTERNAL_ID="unique-external-id-shared-secret"
+export PRODUCTION_ROLE_ARN="arn:aws:iam::403027849202:role/oidc-external-user-provisioning-role"
+
+# Assume the role
+CREDENTIALS=$(aws sts assume-role \
+  --role-arn "$PRODUCTION_ROLE_ARN" \
+  --external-id "$EXTERNAL_ID" \
+  --role-session-name "ManualUserProvisioning" \
+  --query 'Credentials.[AccessKeyId,SecretAccessKey,SessionToken]' \
+  --output text)
+
+# Export the temporary credentials
+export AWS_ACCESS_KEY_ID=$(echo "$CREDENTIALS" | cut -f1)
+export AWS_SECRET_ACCESS_KEY=$(echo "$CREDENTIALS" | cut -f2)
+export AWS_SESSION_TOKEN=$(echo "$CREDENTIALS" | cut -f3)
+export AWS_REGION="us-east-1"
+```
+
+**2. Provision Users**
+
+```bash
+# Download the credential generator
+curl -o credential-generator.mjs https://raw.githubusercontent.com/antonycc/oidc/main/app/lib/credential-generator.mjs
+
+# Create a user provisioning script
+cat > provision-external-user.mjs << 'EOF'
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
+import bcrypt from "bcryptjs";
+
+const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+const table = "oidc-antonycc-com-prod-users";
+const username = process.argv[2] || `external-${Date.now()}`;
+const password = process.argv[3] || "TempPassword123!";
+
+console.log(`Provisioning user ${username}`);
+const hash = bcrypt.hashSync(password, 10);
+await ddb.send(new PutCommand({ 
+  TableName: table, 
+  Item: { 
+    username, 
+    passwordHash: hash, 
+    createdAt: Date.now(),
+    createdBy: 'external-cli'
+  } 
+}));
+console.log(`✅ User ${username} created with password: ${password}`);
+EOF
+
+# Install dependencies and run
+npm install @aws-sdk/client-dynamodb @aws-sdk/lib-dynamodb bcryptjs
+node provision-external-user.mjs my-test-user MySecurePassword123!
+```
+
+#### Security Considerations
+
+**1. Principle of Least Privilege**
+- The role only grants access to the specific Users table
+- External ID provides additional security layer
+- Trust policy restricts access to specific GitHub repositories
+
+**2. Monitoring and Auditing**
+- All DynamoDB operations are logged in CloudTrail
+- Role assumptions are tracked in CloudTrail
+- Consider setting up CloudWatch alarms for unexpected usage
+
+**3. Credential Management**
+- External ID should be treated as a secret (use GitHub Secrets)
+- Rotate External ID periodically
+- Consider time-based access restrictions in trust policy
+
+#### Troubleshooting
+
+**Common Issues:**
+
+1. **Access Denied on Role Assumption**
+   - Verify External ID matches exactly
+   - Check trust policy allows your account/GitHub repo
+   - Ensure OIDC provider is correctly configured
+
+2. **DynamoDB Access Denied**
+   - Verify table name is exactly `oidc-antonycc-com-prod-users`
+   - Check role has the DynamoDB permissions policy
+   - Ensure you're in the correct AWS region (`us-east-1`)
+
+3. **GitHub Actions Authentication Issues**
+   - Verify `id-token: write` permission is set
+   - Check that your repository matches the trust policy pattern
+   - Ensure GitHub OIDC provider exists in your AWS account
+
 ### Cross-Account Cognito Resource Linking
 
 To use the production Cognito instance (`auth.oidc.antonycc.com`) from another AWS account:

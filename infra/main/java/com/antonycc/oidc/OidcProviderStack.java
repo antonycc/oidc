@@ -540,7 +540,8 @@ public class OidcProviderStack extends Stack {
                         "FunctionName",
                         "arn:aws:lambda:" + this.getRegion() + ":" + this.getAccount()
                                 + ":function:demo-credential-generator",
-                        "InvocationType", "RequestResponse"))
+                        "InvocationType",
+                        "RequestResponse"))
                 .physicalResourceId(PhysicalResourceId.of("demo-credentials-generator-" + resourceNamePrefix))
                 .build();
 
@@ -596,7 +597,8 @@ public class OidcProviderStack extends Stack {
                         "InvalidationBatch",
                                 Map.of(
                                         "CallerReference",
-                                        "demo-credentials-" + java.time.Instant.now().toEpochMilli(),
+                                        "demo-credentials-"
+                                                + java.time.Instant.now().toEpochMilli(),
                                         "Paths",
                                         Map.of("Quantity", 1, "Items", List.of("/public-demo-credentials.json")))))
                 .physicalResourceId(PhysicalResourceId.of("demo-credentials-invalidation-" + resourceNamePrefix))
@@ -623,14 +625,18 @@ public class OidcProviderStack extends Stack {
                 .action("putItem")
                 .parameters(Map.of(
                         "TableName", this.usersTable.getTableName(),
-                        "Item", Map.of(
-                                "username", Map.of("S", "demo-user"),
-                                "passwordHash", Map.of("S", "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"), // demo-pass-
-                                "email", Map.of("S", "demo-user@example.com"),
-                                "name", Map.of("S", "Demo User"),
-                                "given_name", Map.of("S", "Demo"),
-                                "family_name", Map.of("S", "User"),
-                                "createdAt", Map.of("N", String.valueOf(System.currentTimeMillis())))))
+                        "Item",
+                                Map.of(
+                                        "username", Map.of("S", "demo-user"),
+                                        "passwordHash",
+                                                Map.of(
+                                                        "S",
+                                                        "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"), // demo-pass-
+                                        "email", Map.of("S", "demo-user@example.com"),
+                                        "name", Map.of("S", "Demo User"),
+                                        "given_name", Map.of("S", "Demo"),
+                                        "family_name", Map.of("S", "User"),
+                                        "createdAt", Map.of("N", String.valueOf(System.currentTimeMillis())))))
                 .physicalResourceId(PhysicalResourceId.of("demo-user-provision-" + resourceNamePrefix))
                 .build();
 

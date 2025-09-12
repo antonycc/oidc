@@ -302,6 +302,30 @@ jobs:
           echo "ecr-uri=${ECR_URI}" | tee -a "${GITHUB_OUTPUT}"
           echo "ECR Repository URI: $ECR_URI"
 
+      - name: Get ECR repository Name
+        id: ecr-name
+        shell: bash
+        run: |
+          STACK_NAME="DevStack-${{ needs.names.outputs.environment-name }}"
+          ECR_NAME=$(aws cloudformation describe-stacks \
+            --stack-name $STACK_NAME \
+            --query 'Stacks[0].Outputs[?OutputKey==`EcrRepositoryName`].OutputValue' \
+            --output text)
+          echo "ecr-name=${ECR_NAME}" | tee -a "${GITHUB_OUTPUT}"
+          echo "ECR Repository Name: $ECR_NAME"
+
+      - name: Get ECR repository ARN
+        id: ecr-arn
+        shell: bash
+        run: |
+            STACK_NAME="DevStack-${{ needs.names.outputs.environment-name }}"
+            ECR_ARN=$(aws cloudformation describe-stacks \
+              --stack-name $STACK_NAME \
+              --query 'Stacks[0].Outputs[?OutputKey==`EcrRepositoryArn`].OutputValue' \
+              --output text)
+          echo "ecr-arn=${ECR_ARN}" | tee -a "${GITHUB_OUTPUT}"
+          echo "ECR Repository ARN: $ECR_ARN"
+
       - name: Login to Amazon ECR
         shell: bash
         run: |
@@ -331,6 +355,8 @@ jobs:
         ecr-uri: ${{ steps.ecr-uri.outputs.ecr-uri }}
         commit-image-tag: ${{ steps.ecr-uri.outputs.ecr-uri }}:${{ github.sha }}
         latest-image-tag: ${{ steps.ecr-uri.outputs.ecr-uri }}:latest
+        ecr-repository-name: ${{ steps.ecr-uri.outputs.ecr-name }}
+        ecr-repository-arn: ${{ steps.ecr-uri.outputs.ecr-arn }}
 
   deploy-provider:
     if: ${{ inputs.skipDeploy != 'true' }}
@@ -391,6 +417,8 @@ jobs:
         env:
           ENV_NAME: ${{ needs.names.outputs.environment-name }}
           DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
+          ECR_REPOSITORY_NAME: ${{ needs.build-images.outputs.ecr-repository-name }}
+          ECR_REPOSITORY_ARN: ${{ needs.build-images.outputs.ecr-repository-arn }}
 
       - name: Resolve stack outputs
         id: oidc-outputs

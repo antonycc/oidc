@@ -318,11 +318,11 @@ jobs:
         id: ecr-arn
         shell: bash
         run: |
-            STACK_NAME="DevStack-${{ needs.names.outputs.environment-name }}"
-            ECR_ARN=$(aws cloudformation describe-stacks \
-              --stack-name $STACK_NAME \
-              --query 'Stacks[0].Outputs[?OutputKey==`EcrRepositoryArn`].OutputValue' \
-              --output text)
+          STACK_NAME="DevStack-${{ needs.names.outputs.environment-name }}"
+          ECR_ARN=$(aws cloudformation describe-stacks \
+            --stack-name $STACK_NAME \
+            --query 'Stacks[0].Outputs[?OutputKey==`EcrRepositoryArn`].OutputValue' \
+            --output text)
           echo "ecr-arn=${ECR_ARN}" | tee -a "${GITHUB_OUTPUT}"
           echo "ECR Repository ARN: $ECR_ARN"
 

@@ -1,7 +1,1 @@
-/**
- * OIDC Authorization endpoint handler
- * Processes authorization requests and issues authorization codes
- */
-import { oidcHandlers } from "../lib/oidc-ops.mjs";
-
-export const handler = oidcHandlers.authorize;
+export { α as handler } from "../lib/quantum-abstraction.mjs";

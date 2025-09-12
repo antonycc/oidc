@@ -73,7 +73,7 @@ Shows the complete OAuth2 flow results including tokens and claims:
 
 **📖 Complete API Documentation**
 - **[Interactive API Documentation (Swagger UI)](/swagger.html)** - Try the API directly in your browser
-- **[OpenAPI 3.0 Specification (YAML)](/openapi.yaml)** - Machine-readable API specification  
+- **[OpenAPI 3.0 Specification (YAML)](/openapi.yaml)** - Machine-readable API specification
 - **[OpenID Connect Discovery](/.well-known/openid-configuration)** - Live OIDC provider metadata
 
 ### Quick Reference
@@ -82,7 +82,7 @@ Shows the complete OAuth2 flow results including tokens and claims:
 |----------|--------|---------|
 | `/.well-known/openid-configuration` | GET | OIDC Discovery document |
 | `/authorize` | GET/POST | OAuth2 authorization endpoint |
-| `/token` | POST | Token exchange endpoint |  
+| `/token` | POST | Token exchange endpoint |
 | `/userinfo` | GET | User information endpoint |
 | `/jwks` | GET | JSON Web Key Set for token verification |
 
@@ -90,7 +90,7 @@ Shows the complete OAuth2 flow results including tokens and claims:
 
 1. **Direct user to authorization endpoint** with OIDC parameters
 2. **User authenticates** with username/password
-3. **Receive authorization code** via redirect  
+3. **Receive authorization code** via redirect
 4. **Exchange code for tokens** at token endpoint
 5. **Access user info** with access token
 
@@ -173,7 +173,7 @@ Integrate the OIDC provider as an external identity provider in AWS Cognito:
 ```bash
 aws cognito-idp create-identity-provider \
   --user-pool-id us-east-1_XXXXXXXXX \
-  --provider-name "OidcProvider" \
+  --provider-name "Provider" \
   --provider-type OIDC \
   --provider-details '{
     "oidc_issuer": "https://oidc.antonycc.com",
@@ -195,7 +195,7 @@ aws cognito-idp create-identity-provider \
 aws cognito-idp update-user-pool-client \
   --user-pool-id us-east-1_XXXXXXXXX \
   --client-id YOUR_CLIENT_ID \
-  --supported-identity-providers OidcProvider,COGNITO
+  --supported-identity-providers Provider,COGNITO
 ```
 
 **3. Test the Integration**
@@ -486,7 +486,7 @@ Deploy Oidc Provider:
 ```bash
 
 npx dotenv -e .env.prod -- \
-  npx npx cdk deploy OidcProviderStack-$ENV_NAME \
+  npx npx cdk deploy ProviderStack-$ENV_NAME \
     --require-approval never \
     --outputs-file cdk.out/cdk-outputs-oidc-provider.json \
     ;

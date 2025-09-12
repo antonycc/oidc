@@ -97,7 +97,7 @@ public class S3OriginBucket extends Construct {
 
     /**
      * Extract the resource name prefix from the construct ID by removing the suffix.
-     * This assumes the pattern used in OidcProviderStack where IDs end with bucket type.
+     * This assumes the pattern used in ProviderStack where IDs end with bucket type.
      */
     private String extractResourceNamePrefix(String constructId) {
         // Remove common suffixes to get the resource name prefix

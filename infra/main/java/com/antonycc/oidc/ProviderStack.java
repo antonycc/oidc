@@ -1,8 +1,5 @@
 package com.antonycc.oidc;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import software.amazon.awscdk.AssetHashType;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
@@ -49,7 +46,11 @@ import software.amazon.awscdk.services.s3.deployment.Source;
 import software.amazon.awscdk.services.xray.CfnGroup;
 import software.constructs.Construct;
 
-public class OidcProviderStack extends Stack {
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class ProviderStack extends Stack {
     public final String baseUrl;
     public final Bucket logsBucket;
     public final LogGroup trailLogGroup;
@@ -75,7 +76,7 @@ public class OidcProviderStack extends Stack {
     public final BucketDeployment wellKnownDeployment;
     public final ARecord aliasRecord;
 
-    public OidcProviderStack(final Construct scope, final String id, final OidcProviderStackProps props) {
+    public ProviderStack(final Construct scope, final String id, final ProviderStackProps props) {
         super(scope, id, props);
 
         var additionalOriginsBehaviourMappings = new HashMap<String, BehaviorOptions>();

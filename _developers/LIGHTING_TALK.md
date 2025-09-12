@@ -9,7 +9,7 @@ This repository implements a full OpenID Connect (OIDC) provider running entire
 ### Repository tour
 
 * **`infra/` – Infrastructure as code**
-  A Java CDK application defines the “OidcProviderStack”.  It declares S3 buckets for discovery documents, a CloudFront distribution, three Node.js (ESM) Lambda functions for the `/authorize`, `/token` and `/userinfo` endpoints, a user pool, and DynamoDB tables with TTLs.  Deployment options (domain names, hosted zone IDs, etc.) are parameterised via environment variables and outputs.
+  A Java CDK application defines the “ProviderStack”.  It declares S3 buckets for discovery documents, a CloudFront distribution, three Node.js (ESM) Lambda functions for the `/authorize`, `/token` and `/userinfo` endpoints, a user pool, and DynamoDB tables with TTLs.  Deployment options (domain names, hosted zone IDs, etc.) are parameterised via environment variables and outputs.
 
 * **`app/oidc-provider/` – Application logic**
   Three handlers implement the OIDC flows.  The authorization handler validates credentials and writes a one‑time code to DynamoDB; the token handler reads the code, issues an ID token and refresh token, and writes/clears the relevant records; the userinfo handler returns user attributes from an in‑memory map.  Supporting scripts provision or clear users in the DynamoDB table.

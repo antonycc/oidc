@@ -1,6 +1,5 @@
 package com.antonycc.oidc;
 
-import java.util.List;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.Duration;
@@ -11,15 +10,23 @@ import software.amazon.awscdk.services.cloudwatch.Alarm;
 import software.amazon.awscdk.services.cloudwatch.ComparisonOperator;
 import software.amazon.awscdk.services.cloudwatch.Metric;
 import software.amazon.awscdk.services.cloudwatch.TreatMissingData;
+import software.amazon.awscdk.services.iam.Effect;
+import software.amazon.awscdk.services.iam.PolicyStatement;
+import software.amazon.awscdk.services.iam.ServicePrincipal;
 import software.amazon.awscdk.services.logs.FilterPattern;
 import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.logs.MetricFilter;
 import software.amazon.awscdk.services.logs.RetentionDays;
 import software.amazon.awscdk.services.s3.BlockPublicAccess;
 import software.amazon.awscdk.services.s3.Bucket;
+import software.amazon.awscdk.services.s3.BucketAccessControl;
 import software.amazon.awscdk.services.s3.BucketEncryption;
+import software.amazon.awscdk.services.s3.ObjectOwnership;
 import software.amazon.awscdk.services.xray.CfnGroup;
 import software.constructs.Construct;
+
+import java.util.List;
+import java.util.Map;
 
 public class ObservabilityStack extends Stack {
     public final Bucket logsBucket;
@@ -46,11 +53,27 @@ public class ObservabilityStack extends Stack {
                 .encryption(BucketEncryption.S3_MANAGED) // Explicit SSE-S3 encryption (zero cost)
                 .autoDeleteObjects(true)
                 .removalPolicy(RemovalPolicy.DESTROY)
+                .objectOwnership(ObjectOwnership.BUCKET_OWNER_PREFERRED)
+                .accessControl(BucketAccessControl.LOG_DELIVERY_WRITE)
                 .lifecycleRules(List.of(software.amazon.awscdk.services.s3.LifecycleRule.builder()
                         .expiration(Duration.days(7))
                         .enabled(true)
                         .build()))
                 .build();
+
+        // Allow CloudFront log delivery to write objects with bucket-owner-full-control ACL
+        final String accountId = Stack.of(this).getAccount();
+        final String bucketName = this.logsBucket.getBucketName();
+        this.logsBucket.addToResourcePolicy(PolicyStatement.Builder.create()
+            .sid("AllowCloudFrontStandardLogs")
+            .effect(Effect.ALLOW)
+            .principals(List.of(new ServicePrincipal("delivery.logs.amazonaws.com")))
+            .actions(List.of("s3:PutObject"))
+            .resources(List.of(String.format("arn:aws:s3:::%s/AWSLogs/%s/*", bucketName, accountId)))
+            .conditions(Map.of(
+                "StringEquals", Map.of("s3:x-amz-acl", "bucket-owner-full-control")
+            ))
+            .build());
 
         // CloudTrail - capture management events and deliver to S3 and CloudWatch Logs
         this.trailLogGroup = LogGroup.Builder.create(this, resourceNamePrefix + "-CloudTrailLogGroup")

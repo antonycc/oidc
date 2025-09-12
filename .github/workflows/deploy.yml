@@ -158,13 +158,15 @@ jobs:
         shell: bash
         run: npm run cdk
 
-  deploy-observability:
+  build-cdk:
+    name: 'Build and Synthesize CDK'
     if: ${{ inputs.skipDeploy != 'true' }}
     needs:
       - names
-      - npm-test
     runs-on: ubuntu-24.04
-    environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -184,15 +186,52 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           cache: 'maven'
 
+      - name: Build CDK and synthesize all stacks
+        run: ./mvnw --errors clean package -DskipTests && npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- npx cdk synth --all --version-reporting=false --path-metadata=false --asset-metadata=false
+        env:
+          ENV_NAME: ${{ needs.names.outputs.environment-name }}
+          DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
+
+      - name: Upload CDK synthesis artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cdk-synthesis
+          path: cdk.out/
+          retention-days: 1
+
+  deploy-observability:
+    if: ${{ inputs.skipDeploy != 'true' }}
+    needs:
+      - names
+      - npm-test
+      - build-cdk
+    runs-on: ubuntu-24.04
+    environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Node dependencies
+        run: npm ci
+
+      - name: Download CDK synthesis artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: cdk-synthesis
+          path: cdk.out/
+
       - name: Configure AWS creds via OIDC
         uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
           role-session-name: gha-oidc-deploy
-
-      - name: Build CDK and synth
-        run: ./mvnw --errors clean package -DskipTests
 
       # Once only per account
       #- name: Bootstrap CDK
@@ -212,6 +251,7 @@ jobs:
     needs:
       - names
       - npm-test
+      - build-cdk
       - deploy-observability
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
@@ -228,11 +268,11 @@ jobs:
       - name: Node dependencies
         run: npm ci
 
-      - uses: actions/setup-java@v5
+      - name: Download CDK synthesis artifacts
+        uses: actions/download-artifact@v4
         with:
-          distribution: 'temurin'
-          java-version: ${{ env.JAVA_VERSION }}
-          cache: 'maven'
+          name: cdk-synthesis
+          path: cdk.out/
 
       - name: Configure AWS creds via OIDC
         uses: aws-actions/configure-aws-credentials@v5
@@ -240,9 +280,6 @@ jobs:
           role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
           role-session-name: gha-oidc-deploy
-
-      - name: Build CDK and synth
-        run: ./mvnw --errors clean package -DskipTests
 
       - name: Deploy Dev Stack (CDK)
         run: |
@@ -255,6 +292,7 @@ jobs:
     if: ${{ inputs.skipDeploy != 'true' }}
     needs:
       - names
+      - build-cdk
       - deploy-dev
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
@@ -363,6 +401,7 @@ jobs:
     needs:
       - names
       - npm-test
+      - build-cdk
       - deploy-observability
       - deploy-dev
       - build-images
@@ -381,11 +420,11 @@ jobs:
       - name: Node dependencies
         run: npm ci
 
-      - uses: actions/setup-java@v5
+      - name: Download CDK synthesis artifacts
+        uses: actions/download-artifact@v4
         with:
-          distribution: 'temurin'
-          java-version: ${{ env.JAVA_VERSION }}
-          cache: 'maven'
+          name: cdk-synthesis
+          path: cdk.out/
 
       - name: Configure AWS creds via OIDC
         uses: aws-actions/configure-aws-credentials@v5
@@ -393,9 +432,6 @@ jobs:
           role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
           role-session-name: gha-oidc-deploy
-
-      - name: Build CDK and synth
-        run: ./mvnw --errors clean package -DskipTests
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -437,6 +473,7 @@ jobs:
   api-test:
     needs:
       - names
+      - build-cdk
       - deploy-observability
       - deploy-dev
       - deploy-provider
@@ -502,6 +539,7 @@ jobs:
   web-test:
     needs:
       - names
+      - build-cdk
       - deploy-observability
       - deploy-dev
       - deploy-provider
@@ -566,6 +604,7 @@ jobs:
   load-test:
     needs:
       - names
+      - build-cdk
       - deploy-observability
       - deploy-dev
       - deploy-provider

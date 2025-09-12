@@ -220,6 +220,12 @@ jobs:
       - name: Node dependencies
         run: npm ci
 
+      - uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'maven'
+
       - name: Download CDK synthesis artifacts
         uses: actions/download-artifact@v4
         with:
@@ -267,6 +273,12 @@ jobs:
 
       - name: Node dependencies
         run: npm ci
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'maven'
 
       - name: Download CDK synthesis artifacts
         uses: actions/download-artifact@v4
@@ -399,6 +411,12 @@ jobs:
 
       - name: Node dependencies
         run: npm ci
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'maven'
 
       - name: Download CDK synthesis artifacts
         uses: actions/download-artifact@v4

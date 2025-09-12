@@ -43,5 +43,4 @@ public class ResourceNameUtils {
         }
         return result;
     }
-    ;
 }

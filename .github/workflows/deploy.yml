@@ -304,9 +304,10 @@ jobs:
         id: dev-outputs
         shell: bash
         run: |
-          ECR_REPOSITORY_NAME=$(jq -r '.["DevStack-${{ needs.names.outputs.environment-name }}"].EcrRepositoryName' cdk.out/cdk-outputs-dev.json)
           ECR_REPOSITORY_URI=$(jq -r '.["DevStack-${{ needs.names.outputs.environment-name }}"].EcrRepositoryUri' cdk.out/cdk-outputs-dev.json)
           ECR_REPOSITORY_ARN=$(jq -r '.["DevStack-${{ needs.names.outputs.environment-name }}"].EcrRepositoryArn' cdk.out/cdk-outputs-dev.json)
+          # The name is the part after the last /
+          ECR_REPOSITORY_NAME=${ECR_REPOSITORY_URI##*/}
           echo "ECR_REPOSITORY_NAME=$ECR_REPOSITORY_NAME"
           echo "ECR_REPOSITORY_URI=$ECR_REPOSITORY_URI"
           echo "ECR_REPOSITORY_ARN=$ECR_REPOSITORY_ARN"
@@ -451,8 +452,8 @@ jobs:
         env:
           ENV_NAME: ${{ needs.names.outputs.environment-name }}
           DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
-          ECR_REPOSITORY_NAME: ${{ needs.build-images.outputs.ecr-repository-name }}
-          ECR_REPOSITORY_ARN: ${{ needs.build-images.outputs.ecr-repository-arn }}
+          ECR_REPOSITORY_NAME: ${{ needs.deploy-dev.outputs.ecr-repository-name }}
+          ECR_REPOSITORY_ARN: ${{ needs.deploy-dev.outputs.ecr-repository-arn }}
 
       - name: Resolve stack outputs
         id: oidc-outputs

@@ -1,7 +1,5 @@
 # Create New Prompt
 
-> Formatting and style: Follow the repo’s formatters — ESLint (flat) + Prettier for JS (ESM) and Spotless (Palantir Java Format) for Java. Use npm run formatting / npm run formatting-fix. See README for IDE setup and links.
-
 Analyze the current repository and the existing prompts in the `prompts/` directory to identify gaps or opportunities that are not currently covered by the existing prompt types.
 
 ## Current Prompts Analysis
@@ -112,3 +110,6 @@ The new prompt must meet these mandatory requirements:
 - Include rollback and deployment risk assessment
 
 Focus on creating something that would be genuinely useful and that represents the most impactful improvement opportunity currently missing from the prompt collection.
+
+> Formatting and style: Follow the repo’s formatters — ESLint (flat) + Prettier for JS (ESM) and Spotless (Palantir Java Format) for Java. Use npm run formatting / npm run formatting-fix. See README for IDE setup and links.
+> Do not apply styles changes to code that you are not otherwise changes and prefer to match the existing local style when applying the style guides would be jarring.

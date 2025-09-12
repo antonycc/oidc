@@ -1,6 +1,7 @@
 # Expand Capabilities Prompt
 
 > Formatting and style: Follow the repo tools — ESLint (flat) + Prettier for JS (ESM) and Spotless (Palantir Java Format) for Java. Use npm run formatting / npm run formatting-fix. See README for links and IDE setup.
+> Do not apply styles changes to code that you are not otherwise changes and prefer to match the existing local style when applying the style guides would be jarring.
 
 Analyze the current repository and suggest ways to expand its capabilities while maintaining the existing architecture and patterns.
 
@@ -26,3 +27,6 @@ Provide specific, actionable suggestions that:
 - Are feasible to implement incrementally
 - Add meaningful business value
 - Follow established architectural patterns
+
+> Formatting and style: Follow the repo tools — ESLint (flat) + Prettier for JS (ESM) and Spotless (Palantir Java Format) for Java. Use npm run formatting / npm run formatting-fix. See README for links and IDE setup.
+> Do not apply styles changes to code that you are not otherwise changes and prefer to match the existing local style when applying the style guides would be jarring.

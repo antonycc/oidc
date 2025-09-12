@@ -1,7 +1,5 @@
 # Prune to Improve Focus Prompt
 
-> Formatting and style: Respect the repo’s formatting tools — ESLint (flat) + Prettier for JS (ESM) and Spotless (Palantir Java Format) for Java. Use npm run formatting / npm run formatting-fix. See README for details.
-
 Analyze the current repository and identify areas where code, features, or processes can be pruned to improve focus and maintainability.
 
 Focus on:
@@ -36,3 +34,7 @@ Consider the impact on:
 - Current deployment processes
 - Developer workflow efficiency
 - System reliability and monitoring
+
+> Formatting and style: Respect the repo’s formatting tools — ESLint (flat) + Prettier for JS (ESM) and Spotless (Palantir Java Format) for Java. Use npm run formatting / npm run formatting-fix. See README for details.
+> Do not apply styles changes to code that you are not otherwise changes and prefer to match the existing local style when applying the style guides would be jarring.
+

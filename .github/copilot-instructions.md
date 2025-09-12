@@ -1,7 +1,5 @@
 # Copilot Instructions for OIDC Provider Development
 
-> Formatting and style: Always defer to the repository formatters — ESLint (flat) + Prettier for JS (ESM) and Spotless (Palantir Java Format) for Java. Use npm run formatting and npm run formatting-fix to check/fix. See README → Code style, formatting, and IDE setup.
-
 **ALWAYS follow these instructions first and only fallback to search or bash commands when you encounter unexpected information that does not match the info here.**
 
 ## Practical Build and Development Instructions
@@ -285,3 +283,6 @@ The GitHub Actions workflow should:
 4. **Consider operational implications** (monitoring, alerts, runbooks)
 
 Remember: The cost of careful analysis is far less than the cost of production issues in an authentication system. Take the time to think through scenarios thoroughly.
+
+> Formatting and style: Always defer to the repository formatters — ESLint (flat) + Prettier for JS (ESM) and Spotless (Palantir Java Format) for Java. Use npm run formatting and npm run formatting-fix to check/fix. See README → Code style, formatting, and IDE setup.
+> Do not apply styles changes to code that you are not otherwise changes and prefer to match the existing local style when applying the style guides would be jarring.

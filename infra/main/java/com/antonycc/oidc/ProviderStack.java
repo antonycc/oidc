@@ -190,8 +190,10 @@ public class ProviderStack extends Stack {
                 resourceNamePrefix + "-AuthorizeEndpoint",
                 EndpointFunctionProps.builder()
                         .functionName(compressedResourceNamePrefix + "-authorize")
+                        .ecrRepositoryArn(props.ecrRepositoryArn)
+                        .ecrRepositoryName(props.ecrRepositoryName)
                         .dockerfilePath("infra/runtimes/authorize.Dockerfile")
-                        .cmd(List.of("app/functions/authorize.handler"))
+                        .handler(List.of("app/functions/authorize.handler"))
                         .pathPattern("/authorize")
                         .allowedMethods(AllowedMethods.ALLOW_ALL)
                         .extraEnv(Map.of(
@@ -209,8 +211,10 @@ public class ProviderStack extends Stack {
                 resourceNamePrefix + "-TokenEndpoint",
                 EndpointFunctionProps.builder()
                         .functionName(compressedResourceNamePrefix + "-token")
+                        .ecrRepositoryArn(props.ecrRepositoryArn)
+                        .ecrRepositoryName(props.ecrRepositoryName)
                         .dockerfilePath("infra/runtimes/token.Dockerfile")
-                        .cmd(List.of("app/functions/token.handler"))
+                        .handler(List.of("app/functions/token.handler"))
                         .pathPattern("/token")
                         .allowedMethods(AllowedMethods.ALLOW_ALL)
                         .extraEnv(Map.of(
@@ -231,8 +235,10 @@ public class ProviderStack extends Stack {
                 resourceNamePrefix + "-UserInfoEndpoint",
                 EndpointFunctionProps.builder()
                         .functionName(compressedResourceNamePrefix + "-userinfo")
+                        .ecrRepositoryArn(props.ecrRepositoryArn)
+                        .ecrRepositoryName(props.ecrRepositoryName)
                         .dockerfilePath("infra/runtimes/userinfo.Dockerfile")
-                        .cmd(List.of("app/functions/userinfo.handler"))
+                        .handler(List.of("app/functions/userinfo.handler"))
                         .pathPattern("/userinfo")
                         .allowedMethods(AllowedMethods.ALLOW_ALL)
                         .extraEnv(Map.of("USERS_TABLE", this.usersTable.getTableName()))
@@ -247,8 +253,10 @@ public class ProviderStack extends Stack {
                 resourceNamePrefix + "-JwksEndpoint",
                 EndpointFunctionProps.builder()
                         .functionName(compressedResourceNamePrefix + "-jwks")
+                        .ecrRepositoryArn(props.ecrRepositoryArn)
+                        .ecrRepositoryName(props.ecrRepositoryName)
                         .dockerfilePath("infra/runtimes/jwks.Dockerfile")
-                        .cmd(List.of("app/functions/jwks.handler"))
+                        .handler(List.of("app/functions/jwks.handler"))
                         .pathPattern("/jwks")
                         .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
                         .extraEnv(Map.of("CODES_TABLE", this.authCodesTable.getTableName()))

@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { v4 } from "uuid";
 
 // use dotenv variables for sensitive info
 import * as dotenv from "dotenv";
@@ -6,8 +7,8 @@ dotenv.config();
 
 const DOMAIN_NAME = process.env.DOMAIN_NAME || "oidc.antonycc.com";
 const BASE_URL = process.env.BASE_URL || `https://${DOMAIN_NAME}`;
-const TEST_USERNAME = process.env.TEST_USERNAME || "test-user";
-const TEST_PASSWORD = process.env.TEST_PASSWORD || "";
+const TEST_USERNAME = process.env.TEST_USERNAME || v4();
+const TEST_PASSWORD = process.env.TEST_PASSWORD || v4();
 
 // @ts-ignore
 test("Home renders", async ({ page }) => {
@@ -29,7 +30,7 @@ test("Direct login form: failed login shows error", async ({ page }) => {
 test("Direct login form: successful login returns tokens and claims", async ({ page }) => {
   await page.goto(new URL("./loginDirect.html", BASE_URL).toString());
   await page.getByRole("heading", { name: "OIDC - Direct Login" }).waitFor();
-  await page.getByLabel("Username").fill("test-user");
+  await page.getByLabel("Username").fill(TEST_USERNAME);
   await page.getByLabel("Password").fill(TEST_PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.waitForURL(/post-auth\.html\?code=/, { timeout: 20000 });

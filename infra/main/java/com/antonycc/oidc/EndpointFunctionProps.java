@@ -11,16 +11,20 @@ import java.util.Map;
  */
 public class EndpointFunctionProps {
     public final String functionName; // e.g., "AuthorizeFn"
+    public final String ecrRepositoryArn;
+    public final String ecrRepositoryName;
     public final String dockerfilePath; // e.g., "infra/runtimes/authorize.Dockerfile"
-    public final List<String> cmd; // e.g., List.of("app/functions/authorize.handler")
+    public final List<String> handler; // e.g., List.of("app/functions/authorize.handler")
     public final String pathPattern; // e.g., "/authorize" or "/token"
     public final AllowedMethods allowedMethods; // e.g., AllowedMethods.ALLOW_GET_HEAD_OPTIONS
     public final Map<String, String> extraEnv; // per-lambda additional environment variables
 
     private EndpointFunctionProps(Builder b) {
         this.functionName = b.functionName;
+        this.ecrRepositoryArn = b.ecrRepositoryArn;
+        this.ecrRepositoryName = b.ecrRepositoryName;
         this.dockerfilePath = b.dockerfilePath;
-        this.cmd = b.cmd;
+        this.handler = b.handler;
         this.pathPattern = b.pathPattern;
         this.allowedMethods = b.allowedMethods;
         this.extraEnv = b.extraEnv;
@@ -32,8 +36,10 @@ public class EndpointFunctionProps {
 
     public static class Builder {
         private String functionName;
+        private String ecrRepositoryArn;
+        private String ecrRepositoryName;
         private String dockerfilePath;
-        private List<String> cmd;
+        private List<String> handler;
         private String pathPattern;
         private AllowedMethods allowedMethods;
         private Map<String, String> extraEnv = Map.of();
@@ -43,13 +49,23 @@ public class EndpointFunctionProps {
             return this;
         }
 
+        public Builder ecrRepositoryArn(String v) {
+            this.ecrRepositoryArn = v;
+            return this;
+        }
+
+        public Builder ecrRepositoryName(String v) {
+            this.ecrRepositoryName = v;
+            return this;
+        }
+
         public Builder dockerfilePath(String v) {
             this.dockerfilePath = v;
             return this;
         }
 
-        public Builder cmd(List<String> v) {
-            this.cmd = v;
+        public Builder handler(List<String> v) {
+            this.handler = v;
             return this;
         }
 
@@ -71,8 +87,7 @@ public class EndpointFunctionProps {
         public EndpointFunctionProps build() {
             java.util.List<String> missingFields = new java.util.ArrayList<>();
             if (functionName == null) missingFields.add("functionName");
-            if (dockerfilePath == null) missingFields.add("dockerfilePath");
-            if (cmd == null) missingFields.add("cmd");
+            if (handler == null) missingFields.add("handler");
             if (pathPattern == null) missingFields.add("pathPattern");
             if (allowedMethods == null) missingFields.add("allowedMethods");
             if (!missingFields.isEmpty()) {

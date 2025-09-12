@@ -10,6 +10,8 @@ public class App {
         String deploymentName = System.getenv().getOrDefault("DEPLOYMENT_NAME", envName);
         String hostedZoneName = System.getenv().getOrDefault("HOSTED_ZONE_NAME", "example.com");
         String hostedZoneId = System.getenv().getOrDefault("HOSTED_ZONE_ID", "Z000EXAMPLE");
+        String ecrRepositoryArn = System.getenv().getOrDefault("ECR_REPOSITORY_ARN", "arn:aws:ecr:us-east-1:123456789012:repository/oidc-provider-repo");
+        String ecrRepositoryName = System.getenv().getOrDefault("ECR_REPOSITORY_NAME", "oidc-provider-repo");
 
         // Compute domain name based on deployment pattern
         String domainName;
@@ -69,6 +71,8 @@ public class App {
                         .deploymentName(deploymentName)
                         .hostedZoneName(hostedZoneName)
                         .hostedZoneId(hostedZoneId)
+                        .ecrRepositoryArn(ecrRepositoryArn)
+                        .ecrRepositoryName(ecrRepositoryName)
                         .domainName(domainName)
                         .certificateArn(certificateArn)
                         .logsBucket(observabilityStack.logsBucket)

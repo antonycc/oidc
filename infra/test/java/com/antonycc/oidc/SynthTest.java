@@ -35,6 +35,8 @@ class SynthTest {
                         .deploymentName("test")
                         .hostedZoneName("example.com")
                         .hostedZoneId("Z000EXAMPLE")
+                        .ecrRepositoryArn("arn:aws:ecr:us-east-1:123456789012:repository/oidc-repo")
+                        .ecrRepositoryName("oidc-repo")
                         .domainName("oidc.example.com")
                         .certificateArn("arn:aws:acm:us-east-1:123456789012:certificate/abc")
                         .logsBucket(observabilityStack.logsBucket)

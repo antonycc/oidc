@@ -126,7 +126,7 @@ jobs:
       - name: mvn package
         id: package
         shell: bash
-        run: source .env.${{ env.environment }} && ./mvnw clean package
+        run: ./mvnw clean package
 
   npm-test-cdk:
     name: 'npm test cdk'
@@ -156,12 +156,13 @@ jobs:
       - name: test:cdk
         id: test-cdk
         shell: bash
-        run: source .env.${{ env.environment }} && npm run cdk
+        run: npm run cdk
 
   deploy-observability:
     if: ${{ inputs.skipDeploy != 'true' }}
     needs:
       - names
+      - npm-test
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
     steps:
@@ -210,6 +211,7 @@ jobs:
     if: ${{ inputs.skipDeploy != 'true' }}
     needs:
       - names
+      - npm-test
       - deploy-observability
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
@@ -334,6 +336,7 @@ jobs:
     if: ${{ inputs.skipDeploy != 'true' }}
     needs:
       - names
+      - npm-test
       - deploy-observability
       - deploy-dev
       - build-images

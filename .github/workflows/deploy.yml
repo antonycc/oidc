@@ -86,6 +86,78 @@ jobs:
       environment-name: ${{ steps.deployment-config.outputs.ENV_NAME }}
       deployment-name: ${{ steps.deployment-config.outputs.DEPLOYMENT_NAME }}
 
+  npm-test:
+    name: 'npm test'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Node dependencies
+        run: npm ci
+
+      - run: npm test
+
+  mvn-test:
+    name: 'maven test'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'maven'
+
+      - name: mvn package
+        id: package
+        shell: bash
+        run: source .env.${{ env.environment }} && ./mvnw clean package
+
+  npm-test-cdk:
+    name: 'npm test cdk'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Node dependencies
+        run: npm ci
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'maven'
+
+      - name: test:cdk
+        id: test-cdk
+        shell: bash
+        run: source .env.${{ env.environment }} && npm run cdk
+
   deploy-observability:
     if: ${{ inputs.skipDeploy != 'true' }}
     needs:

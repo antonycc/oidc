@@ -66,10 +66,10 @@ public class ProviderStack extends Stack {
     public final Table usersTable;
     public final Table authCodesTable;
     public final Table refreshTokensTable;
-    public final OidcEndpointFunction authorizeEndpoint;
-    public final OidcEndpointFunction tokenEndpoint;
-    public final OidcEndpointFunction userinfoEndpoint;
-    public final OidcEndpointFunction jwksEndpoint;
+    public final EndpointFunction authorizeEndpoint;
+    public final EndpointFunction tokenEndpoint;
+    public final EndpointFunction userinfoEndpoint;
+    public final EndpointFunction jwksEndpoint;
     public final Distribution distribution;
     public final LogGroup bucketDeploymentLogGroup;
     public final BucketDeployment webDeployment;
@@ -185,10 +185,10 @@ public class ProviderStack extends Stack {
         // Lambda functions
 
         // Authorize endpoint via construct
-        this.authorizeEndpoint = new OidcEndpointFunction(
+        this.authorizeEndpoint = new EndpointFunction(
                 this,
                 resourceNamePrefix + "-AuthorizeEndpoint",
-                OidcEndpointFunctionProps.builder()
+                EndpointFunctionProps.builder()
                         .functionName(compressedResourceNamePrefix + "-authorize")
                         .dockerfilePath("infra/runtimes/authorize.Dockerfile")
                         .cmd(List.of("app/functions/authorize.handler"))
@@ -204,10 +204,10 @@ public class ProviderStack extends Stack {
         this.authCodesTable.grantReadWriteData(this.authorizeEndpoint.function);
 
         // Token endpoint via construct
-        this.tokenEndpoint = new OidcEndpointFunction(
+        this.tokenEndpoint = new EndpointFunction(
                 this,
                 resourceNamePrefix + "-TokenEndpoint",
-                OidcEndpointFunctionProps.builder()
+                EndpointFunctionProps.builder()
                         .functionName(compressedResourceNamePrefix + "-token")
                         .dockerfilePath("infra/runtimes/token.Dockerfile")
                         .cmd(List.of("app/functions/token.handler"))
@@ -226,10 +226,10 @@ public class ProviderStack extends Stack {
         this.usersTable.grantReadData(this.tokenEndpoint.function);
 
         // UserInfo endpoint via construct
-        this.userinfoEndpoint = new OidcEndpointFunction(
+        this.userinfoEndpoint = new EndpointFunction(
                 this,
                 resourceNamePrefix + "-UserInfoEndpoint",
-                OidcEndpointFunctionProps.builder()
+                EndpointFunctionProps.builder()
                         .functionName(compressedResourceNamePrefix + "-userinfo")
                         .dockerfilePath("infra/runtimes/userinfo.Dockerfile")
                         .cmd(List.of("app/functions/userinfo.handler"))
@@ -242,10 +242,10 @@ public class ProviderStack extends Stack {
         this.usersTable.grantReadData(this.userinfoEndpoint.function);
 
         // JWKS endpoint via construct
-        this.jwksEndpoint = new OidcEndpointFunction(
+        this.jwksEndpoint = new EndpointFunction(
                 this,
                 resourceNamePrefix + "-JwksEndpoint",
-                OidcEndpointFunctionProps.builder()
+                EndpointFunctionProps.builder()
                         .functionName(compressedResourceNamePrefix + "-jwks")
                         .dockerfilePath("infra/runtimes/jwks.Dockerfile")
                         .cmd(List.of("app/functions/jwks.handler"))

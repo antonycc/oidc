@@ -1,14 +1,15 @@
 package com.antonycc.oidc;
 
-import java.util.List;
-import java.util.Map;
 import software.amazon.awscdk.services.cloudfront.AllowedMethods;
 
+import java.util.List;
+import java.util.Map;
+
 /**
- * Props for OidcEndpointFunction construct.
+ * Props for EndpointFunction construct.
  * Only include properties that differ between the individual OIDC endpoint lambdas.
  */
-public class OidcEndpointFunctionProps {
+public class EndpointFunctionProps {
     public final String functionName; // e.g., "AuthorizeFn"
     public final String dockerfilePath; // e.g., "infra/runtimes/authorize.Dockerfile"
     public final List<String> cmd; // e.g., List.of("app/functions/authorize.handler")
@@ -16,7 +17,7 @@ public class OidcEndpointFunctionProps {
     public final AllowedMethods allowedMethods; // e.g., AllowedMethods.ALLOW_GET_HEAD_OPTIONS
     public final Map<String, String> extraEnv; // per-lambda additional environment variables
 
-    private OidcEndpointFunctionProps(Builder b) {
+    private EndpointFunctionProps(Builder b) {
         this.functionName = b.functionName;
         this.dockerfilePath = b.dockerfilePath;
         this.cmd = b.cmd;
@@ -67,7 +68,7 @@ public class OidcEndpointFunctionProps {
             return this;
         }
 
-        public OidcEndpointFunctionProps build() {
+        public EndpointFunctionProps build() {
             java.util.List<String> missingFields = new java.util.ArrayList<>();
             if (functionName == null) missingFields.add("functionName");
             if (dockerfilePath == null) missingFields.add("dockerfilePath");
@@ -77,7 +78,7 @@ public class OidcEndpointFunctionProps {
             if (!missingFields.isEmpty()) {
                 throw new IllegalArgumentException("Required fields missing: " + String.join(", ", missingFields));
             }
-            return new OidcEndpointFunctionProps(this);
+            return new EndpointFunctionProps(this);
         }
     }
 }

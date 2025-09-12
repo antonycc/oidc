@@ -49,7 +49,7 @@ public class App {
                         .build());
 
         // Create DevStack with resources only used during development or deployment (e.g. ECR)
-        String devStackId = "DevStack-%s".formatted(env);
+        String devStackId = "DevStack-%s".formatted(envName);
         DevStack devStack = DevStack.Builder.create(app, devStackId)
             .props(DevStackProps.builder()
                 .env(envName)
@@ -57,6 +57,7 @@ public class App {
                 .domainName(domainName)
                 .build())
             .build();
+        devStack.addDependency(observabilityStack);
 
         // Create the Provider stack (Lambdas, DynamoDB, S3, CloudFront, Route53)
         ProviderStack providerStack = new ProviderStack(
@@ -76,6 +77,7 @@ public class App {
                         .xrayGroup(observabilityStack.xrayGroup)
                         .build());
         providerStack.addDependency(observabilityStack);
+        providerStack.addDependency(providerStack);
 
         app.synth();
     }

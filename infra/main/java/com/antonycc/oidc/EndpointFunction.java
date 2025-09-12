@@ -1,8 +1,5 @@
 package com.antonycc.oidc;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.Fn;
 import software.amazon.awscdk.RemovalPolicy;
@@ -28,11 +25,15 @@ import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.logs.RetentionDays;
 import software.constructs.Construct;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 /**
  * Construct bundling a Lambda Docker image function exposed via Function URL and a
  * CloudFront HttpOrigin + BehaviorOptions. Only per-endpoint differences are configurable.
  */
-public class OidcEndpointFunction extends Construct {
+public class EndpointFunction extends Construct {
     // Exposed created resources/objects
     public final LogGroup logGroup;
     public final Role functionRole;
@@ -42,7 +43,7 @@ public class OidcEndpointFunction extends Construct {
     public final BehaviorOptions behaviorOptions;
     public final String pathPattern;
 
-    public OidcEndpointFunction(final Construct scope, final String id, final OidcEndpointFunctionProps props) {
+    public EndpointFunction(final Construct scope, final String id, final EndpointFunctionProps props) {
         super(scope, id);
 
         this.pathPattern = props.pathPattern;

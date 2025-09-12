@@ -130,6 +130,9 @@ jobs:
       - name: Deploy Observability Stack (CDK)
         run: |
           npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- npx cdk deploy ObservabilityStack-${{ needs.names.outputs.environment-name }} --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-observability.json
+        env:
+          ENV_NAME: ${{ needs.names.outputs.environment-name }}
+          DEPLOYMENT_NAME: ${{ needs.names.outputs.environment-name }}
 
   deploy-dev:
     if: ${{ inputs.skipDeploy != 'true' }}
@@ -170,6 +173,9 @@ jobs:
       - name: Deploy Dev Stack (CDK)
         run: |
           npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- npx cdk deploy DevStack-${{ needs.names.outputs.environment-name }} --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-dev.json
+        env:
+          ENV_NAME: ${{ needs.names.outputs.environment-name }}
+          DEPLOYMENT_NAME: ${{ needs.names.outputs.environment-name }}
 
   build-images:
     if: ${{ inputs.skipDeploy != 'true' }}
@@ -181,12 +187,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: |
-            image=moby/buildkit:latest
 
       - name: Setup image tag
         id: image-tag
@@ -305,13 +305,16 @@ jobs:
 
       - name: Deploy Provider Stack (CDK)
         run: |
-          npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- npx cdk deploy ProviderStack-${{ needs.names.outputs-deployment-name }} --exclusively --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-provider.json
+          npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- npx cdk deploy ProviderStack-${{ needs.names.outputs.deployment-name }} --exclusively --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-provider.json
+        env:
+          ENV_NAME: ${{ needs.names.outputs.environment-name }}
+          DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
 
       - name: Resolve stack outputs
         id: oidc-outputs
         run: |
-          BASE_URL=$(jq -r '.["ProviderStack-${{ needs.names.outputs-deployment-name }}"].BaseUrl' cdk.out/cdk-outputs-provider.json)
-          USERS_TABLE=$(jq -r '.["ProviderStack-${{ needs.names.outputs-deployment-name }}"].UsersTableName' cdk.out/cdk-outputs-provider.json)
+          BASE_URL=$(jq -r '.["ProviderStack-${{ needs.names.outputs.deployment-name }}"].BaseUrl' cdk.out/cdk-outputs-provider.json)
+          USERS_TABLE=$(jq -r '.["ProviderStack-${{ needs.names.outputs.deployment-name }}"].UsersTableName' cdk.out/cdk-outputs-provider.json)
           echo "BASE_URL=$BASE_URL"
           echo "USERS_TABLE=$USERS_TABLE"
           echo "BASE_URL=$BASE_URL" >> $GITHUB_OUTPUT

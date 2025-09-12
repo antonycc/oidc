@@ -77,7 +77,7 @@ public class App {
                         .xrayGroup(observabilityStack.xrayGroup)
                         .build());
         providerStack.addDependency(observabilityStack);
-        providerStack.addDependency(providerStack);
+        providerStack.addDependency(devStack);
 
         app.synth();
     }

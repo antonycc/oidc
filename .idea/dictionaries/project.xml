@@ -2,6 +2,7 @@
   <dictionary name="project">
     <words>
       <w>buildkit</w>
+      <w>buildx</w>
       <w>instrumentations</w>
       <w>jwks</w>
       <w>otel</w>

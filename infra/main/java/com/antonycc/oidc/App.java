@@ -48,6 +48,16 @@ public class App {
                         .domainName(domainName)
                         .build());
 
+        // Create DevStack with resources only used during development or deployment (e.g. ECR)
+        String devStackId = "DevStack-%s".formatted(env);
+        DevStack devStack = DevStack.Builder.create(app, devStackId)
+            .props(DevStackProps.builder()
+                .env(envName)
+                .hostedZoneName(hostedZoneName)
+                .domainName(domainName)
+                .build())
+            .build();
+
         // Create the Provider stack (Lambdas, DynamoDB, S3, CloudFront, Route53)
         ProviderStack providerStack = new ProviderStack(
                 app,

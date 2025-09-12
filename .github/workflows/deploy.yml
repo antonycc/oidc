@@ -435,6 +435,15 @@ jobs:
           echo "TEST_USERNAME=${TEST_USERNAME?}" >> "$GITHUB_OUTPUT"
           echo "TEST_PASSWORD=${TEST_PASSWORD?}" >> "$GITHUB_OUTPUT"
 
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Node dependencies
+        run: npm ci
+
       - name: Provision test user
         run: npm run users:provision '${{ needs.deploy-provider.outputs.users-table }}' '${{ steps.uuid.outputs.TEST_USERNAME }}' '${{ steps.uuid.outputs.TEST_PASSWORD }}'
 
@@ -491,6 +500,15 @@ jobs:
           echo "TEST_USERNAME=${TEST_USERNAME?}" >> "$GITHUB_OUTPUT"
           echo "TEST_PASSWORD=${TEST_PASSWORD?}" >> "$GITHUB_OUTPUT"
 
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Node dependencies
+        run: npm ci
+
       - name: Provision test user
         run: npm run users:provision '${{ needs.deploy-provider.outputs.users-table }}' '${{ steps.uuid.outputs.TEST_USERNAME }}' '${{ steps.uuid.outputs.TEST_PASSWORD }}'
 
@@ -545,6 +563,15 @@ jobs:
           echo "TEST_PASSWORD=${TEST_PASSWORD?}"
           echo "TEST_USERNAME=${TEST_USERNAME?}" >> "$GITHUB_OUTPUT"
           echo "TEST_PASSWORD=${TEST_PASSWORD?}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Node dependencies
+        run: npm ci
 
       - name: Provision test user
         run: npm run users:provision '${{ needs.deploy-provider.outputs.users-table }}' '${{ steps.uuid.outputs.TEST_USERNAME }}' '${{ steps.uuid.outputs.TEST_PASSWORD }}'

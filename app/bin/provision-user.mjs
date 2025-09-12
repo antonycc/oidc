@@ -1,12 +1,13 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 import bcrypt from "bcryptjs";
+import { v4 } from "uuid";
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
-const table = process.env.USERS_TABLE || "oidc-antonycc-com-prod-users";
 
-const username = process.argv[2] || "test-user";
-const password = process.argv[3] || "Passw0rd!";
+const table = process.argv[2];
+const username = process.argv[3] || v4();
+const password = process.argv[4] || v4();
 
 console.log(`Provisioning user ${username} in table ${table}`);
 const hash = bcrypt.hashSync(password, 10);

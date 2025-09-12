@@ -34,6 +34,32 @@ This serverless OIDC provider delivers standards-compliant authentication with c
 - **Test credentials**: `test-user` / `****`
 - **Direct login flow**: [Try it now](https://oidc.antonycc.com/login.html)
 
+## Stacks and naming
+
+This repo deploys three CDK stacks with predictable IDs:
+- ObservabilityStack-{ENV_NAME}
+  - Logging, CloudTrail and X-Ray. Always keyed by ENV_NAME (prod or ci).
+- DevStack-{ENV_NAME}
+  - ECR repo and publishing role for container image builds. Also keyed by ENV_NAME.
+- ProviderStack-{DEPLOYMENT_NAME}
+  - The OIDC provider (CloudFront, S3, DynamoDB, Lambda, Route53). Keyed by DEPLOYMENT_NAME to allow multiple concurrent deployments that share the same CI environment.
+
+Conventions used by the GitHub Actions workflow:
+- ENV_NAME is prod on main, otherwise ci
+- DEPLOYMENT_NAME is:
+  - prod on main
+  - ci when workflow_dispatch input deploymentName=ci
+  - ci-<branch-16> for branch pushes (sanitized, max 16 chars)
+
+Examples:
+- cdk deploy ObservabilityStack-prod and DevStack-prod on main
+- cdk deploy ProviderStack-ci-<branch> on non-main branches; domain remains the shared CI domain from .env.ci
+
+Local synth examples:
+- Prod: npx dotenv -e .env.prod -- npx cdk synth ProviderStack-prod
+- CI shared: npx dotenv -e .env.ci -- DEPLOYMENT_NAME=ci npx cdk synth ProviderStack-ci
+- Branch: npx dotenv -e .env.ci -- DEPLOYMENT_NAME=ci-myfeature npx cdk synth ProviderStack-ci-myfeature
+
 ## Architecture
 
 **Core Stack:**

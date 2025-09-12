@@ -62,10 +62,10 @@ jobs:
         run: |
           REF_NAME="${{ github.ref_name }}"
           INPUT_DEPLOYMENT_NAME="${{ inputs.deploymentName }}"
-          
+
           # Clean branch name: lowercase, replace non-alphanumeric with hyphens, collapse consecutive hyphens
           CLEANED=$(echo "$REF_NAME" | tr '[:upper:]' '[:lower:]' | sed -e 's/[^a-z0-9]/-/g' -e 's/-\{2,\}/-/g' -e 's/^-//' -e 's/-$//')
-          
+
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
               ENV_NAME="prod"
               DEPLOYMENT_NAME="prod"
@@ -80,12 +80,12 @@ jobs:
               # Truncate to 16 chars for branch-based deployments
               DEPLOYMENT_NAME="ci-${CLEANED:0:16}"
           fi
-          
+
           echo "ENV_NAME=$ENV_NAME" >> "$GITHUB_ENV"
           echo "DEPLOYMENT_NAME=$DEPLOYMENT_NAME" >> "$GITHUB_ENV"
           echo "ENV_NAME=$ENV_NAME" >> "$GITHUB_OUTPUT"
           echo "DEPLOYMENT_NAME=$DEPLOYMENT_NAME" >> "$GITHUB_OUTPUT"
-          
+
           echo "Computed ENV_NAME: $ENV_NAME"
           echo "Computed DEPLOYMENT_NAME: $DEPLOYMENT_NAME"
 
@@ -157,7 +157,7 @@ jobs:
       - name: Deploy OIDC Provider Stack (CDK)
         if: ${{ inputs.skipDeploy != 'true' }}
         run: |
-          npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk deploy OidcProviderStack-${DEPLOYMENT_NAME} --exclusively --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-oidc-provider.json
+          npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk deploy ProviderStack-${DEPLOYMENT_NAME} --exclusively --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-oidc-provider.json
 
       - name: Resolve OIDC Provider and Cognito outputs
         if: ${{ inputs.skipDeploy != 'true' }}
@@ -165,8 +165,8 @@ jobs:
         run: |
           ENV_NAME='${{ env.ENV_NAME }}'
           DEPLOYMENT_NAME='${{ env.DEPLOYMENT_NAME }}'
-          BASE_URL=$(jq -r '.["OidcProviderStack-'${DEPLOYMENT_NAME}'"].BaseUrl' cdk.out/cdk-outputs-oidc-provider.json)
-          USERS_TABLE=$(jq -r '.["OidcProviderStack-'${DEPLOYMENT_NAME}'"].UsersTableName' cdk.out/cdk-outputs-oidc-provider.json)
+          BASE_URL=$(jq -r '.["ProviderStack-'${DEPLOYMENT_NAME}'"].BaseUrl' cdk.out/cdk-outputs-oidc-provider.json)
+          USERS_TABLE=$(jq -r '.["ProviderStack-'${DEPLOYMENT_NAME}'"].UsersTableName' cdk.out/cdk-outputs-oidc-provider.json)
           echo "ENV_NAME=$ENV_NAME"
           echo "DEPLOYMENT_NAME=$DEPLOYMENT_NAME"
           echo "BASE_URL=$BASE_URL"

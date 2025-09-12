@@ -7,7 +7,7 @@ import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.s3.Bucket;
 import software.amazon.awscdk.services.xray.CfnGroup;
 
-public class OidcProviderStackProps implements StackProps {
+public class ProviderStackProps implements StackProps {
     public final Environment env;
     public final String envName;
     public final String deploymentName;
@@ -21,7 +21,7 @@ public class OidcProviderStackProps implements StackProps {
     public final CfnGroup xrayGroup;
     public final LogGroup bucketDeploymentLogGroup;
 
-    private OidcProviderStackProps(Builder builder) {
+    private ProviderStackProps(Builder builder) {
         this.env = builder.env;
         this.envName = builder.envName;
         this.deploymentName = builder.deploymentName;
@@ -119,8 +119,8 @@ public class OidcProviderStackProps implements StackProps {
             return this;
         }
 
-        public OidcProviderStackProps build() {
-            return new OidcProviderStackProps(this);
+        public ProviderStackProps build() {
+            return new ProviderStackProps(this);
         }
     }
 }

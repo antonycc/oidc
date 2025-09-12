@@ -1,33 +1,21 @@
 # Generated on 2025-09-11 by scripts/generate-openapi.mjs
 # Version: 0.1.0
-# 
+#
 openapi: 3.0.3
 info:
   title: OpenID Connect Provider API
   version: 0.1.0
   description: |
-    A production-ready OpenID Connect provider that is fully functional for direct use or integration behind AWS Cognito.
-    
-    This serverless OIDC provider delivers standards-compliant authentication with comprehensive logging, 
-    structured for both standalone deployment and enterprise integration scenarios.
-
-    ## Features
-    - Full OAuth2/OIDC compliance
-    - PKCE support for enhanced security  
-    - Serverless architecture with AWS Lambda
-    - DynamoDB for persistent storage
-    - CloudFront distribution with custom domain support
-    - Comprehensive audit logging
+    An OpenID Connect provider that is ready for direct use or as an identity provider for AWS Cognito.
 
     ## Authentication Flow
     1. Direct user to `/authorize` endpoint with OIDC parameters
-    2. User authenticates with username/password 
+    2. User authenticates with username/password
     3. Receive authorization code via redirect
     4. Exchange code for tokens at `/token` endpoint
     5. Use access token at `/userinfo` endpoint for user claims
-    
+
   contact:
-    name: API Support
     url: https://github.com/antonycc/oidc
   license:
     name: MIT
@@ -36,7 +24,7 @@ info:
 servers:
   - url: https://oidc.antonycc.com
     description: Production server
-  - url: https://oidc-ci.antonycc.com  
+  - url: https://oidc-ci.antonycc.com
     description: CI/Testing server
 
 security:
@@ -99,7 +87,7 @@ paths:
           description: Client identifier
           example: self-client
         - name: redirect_uri
-          in: query  
+          in: query
           required: true
           schema:
             type: string
@@ -174,7 +162,7 @@ paths:
     post:
       tags:
         - Authorization
-      summary: Authorization Endpoint (POST)  
+      summary: Authorization Endpoint (POST)
       description: |
         Processes user authentication and issues authorization code.
         Returns redirect to client with authorization code or error.
@@ -187,7 +175,7 @@ paths:
               type: object
               required:
                 - response_type
-                - client_id  
+                - client_id
                 - redirect_uri
                 - scope
                 - state
@@ -203,7 +191,7 @@ paths:
                   example: code
                 client_id:
                   type: string
-                  description: Client identifier  
+                  description: Client identifier
                   example: self-client
                 redirect_uri:
                   type: string
@@ -246,7 +234,7 @@ paths:
               redirect_uri: https://example.com/callback
               scope: "openid email profile"
               state: "random-state-12345"
-              nonce: "random-nonce-67890"  
+              nonce: "random-nonce-67890"
               code_challenge: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
               code_challenge_method: S256
               username: test-user
@@ -294,7 +282,7 @@ paths:
                 invalid_client:
                   summary: Invalid client
                   value:
-                    error: "invalid_client"  
+                    error: "invalid_client"
                     error_description: "Client not found or invalid"
                 access_denied:
                   summary: Authentication failed
@@ -379,7 +367,7 @@ paths:
                 invalid_request:
                   summary: Missing required parameter
                   value:
-                    error: "invalid_request" 
+                    error: "invalid_request"
                     error_description: "Missing required parameter: code"
                 unsupported_grant_type:
                   summary: Unsupported grant type
@@ -625,7 +613,7 @@ components:
           example: "Test User"
         given_name:
           type: string
-          description: User's given name (requires profile scope)  
+          description: User's given name (requires profile scope)
           example: "Test"
         family_name:
           type: string
@@ -691,7 +679,7 @@ components:
         error:
           type: string
           description: Error code
-          enum: 
+          enum:
             - invalid_request
             - invalid_client
             - invalid_grant
@@ -718,7 +706,7 @@ components:
 tags:
   - name: Discovery
     description: OpenID Connect Discovery endpoints
-  - name: Authorization  
+  - name: Authorization
     description: OAuth2 authorization endpoints
   - name: Token
     description: OAuth2 token endpoints

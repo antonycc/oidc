@@ -48,11 +48,11 @@ public class App {
                         .domainName(domainName)
                         .build());
 
-        // Create the OIDC Provider stack (Lambdas, DynamoDB, S3, CloudFront, Route53)
-        OidcProviderStack providerStack = new OidcProviderStack(
+        // Create the Provider stack (Lambdas, DynamoDB, S3, CloudFront, Route53)
+        ProviderStack providerStack = new ProviderStack(
                 app,
-                "OidcProviderStack-" + deploymentName,
-                OidcProviderStackProps.builder()
+                "ProviderStack-" + deploymentName,
+                ProviderStackProps.builder()
                         .env(env)
                         .envName(envName)
                         .deploymentName(deploymentName)

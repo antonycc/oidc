@@ -49,12 +49,12 @@ jobs:
               REF_NAME="${{ github.ref_name }}"
               echo "Workflow dispatch event, using current ref: $REF_NAME"
           fi
-          
+
           INPUT_DEPLOYMENT_NAME="${{ inputs.deploymentName }}"
-          
+
           # Clean branch name: lowercase, replace non-alphanumeric with hyphens, collapse consecutive hyphens
           CLEANED=$(echo "$REF_NAME" | tr '[:upper:]' '[:lower:]' | sed -e 's/[^a-z0-9]/-/g' -e 's/-\{2,\}/-/g' -e 's/^-//' -e 's/-$//')
-          
+
           if [ "$REF_NAME" = "main" ]; then
               ENV_NAME="prod"
               DEPLOYMENT_NAME="prod"
@@ -69,12 +69,12 @@ jobs:
               # Truncate to 16 chars for branch-based deployments
               DEPLOYMENT_NAME="ci-${CLEANED:0:16}"
           fi
-          
+
           echo "ENV_NAME=$ENV_NAME" >> "$GITHUB_ENV"
           echo "DEPLOYMENT_NAME=$DEPLOYMENT_NAME" >> "$GITHUB_ENV"
           echo "ENV_NAME=$ENV_NAME" >> "$GITHUB_OUTPUT"
           echo "DEPLOYMENT_NAME=$DEPLOYMENT_NAME" >> "$GITHUB_OUTPUT"
-          
+
           echo "Computed ENV_NAME: $ENV_NAME"
           echo "Computed DEPLOYMENT_NAME: $DEPLOYMENT_NAME"
 
@@ -106,5 +106,5 @@ jobs:
 
       - name: Destroy ephemeral OIDC stack
         if: ${{ env.DEPLOYMENT_NAME != 'prod' }}
-        run: npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk destroy OidcProviderStack-${DEPLOYMENT_NAME} --exclusively --force
-        
+        run: npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk destroy ProviderStack-${DEPLOYMENT_NAME} --exclusively --force
+

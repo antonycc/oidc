@@ -107,7 +107,6 @@ class S3OriginConstructTest {
                         .build());
 
         assertNotNull(wellKnownBucket.bucket);
-        // assertNotNull(wellKnownBucket.originAccessIdentity);
         assertNotNull(wellKnownBucket.origin);
         assertNotNull(wellKnownBucket.behaviorOptions);
         assertNotNull(wellKnownBucket.cachePolicy, "CachePolicy should be created for WELL_KNOWN bucket type");

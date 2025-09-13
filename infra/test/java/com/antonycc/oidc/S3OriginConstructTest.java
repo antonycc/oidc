@@ -1,9 +1,5 @@
 package com.antonycc.oidc;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 import software.amazon.awscdk.App;
 import software.amazon.awscdk.Environment;
@@ -13,6 +9,11 @@ import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.assertions.Template;
 import software.amazon.awscdk.services.s3.BlockPublicAccess;
 import software.amazon.awscdk.services.s3.Bucket;
+
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class S3OriginConstructTest {
 
@@ -44,8 +45,6 @@ class S3OriginConstructTest {
                 S3OriginConstructProps.builder()
                         .bucketNameSuffix("web")
                         .logsPrefix("s3/web/")
-                        .oaiComment("Test OAI comment for web bucket")
-                        .logsBucket(logsBucket)
                         .bucketType(S3OriginBucketType.WEB)
                         .build());
 
@@ -105,8 +104,6 @@ class S3OriginConstructTest {
                 S3OriginConstructProps.builder()
                         .bucketNameSuffix("well-known")
                         .logsPrefix("s3/well-known/")
-                        .oaiComment("Test OAI comment for well-known bucket")
-                        .logsBucket(logsBucket)
                         .bucketType(S3OriginBucketType.WELL_KNOWN)
                         .build());
 

@@ -1,12 +1,12 @@
 package com.antonycc.oidc;
 
-import static com.antonycc.oidc.ResourceNameUtils.buildDashedDomainName;
-import static com.antonycc.oidc.ResourceNameUtils.generateCompressedResourceNamePrefix;
-import static com.antonycc.oidc.ResourceNameUtils.generateResourceNamePrefix;
-
 import software.amazon.awscdk.App;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.Environment;
+
+import static com.antonycc.oidc.ResourceNameUtils.buildDashedDomainName;
+import static com.antonycc.oidc.ResourceNameUtils.generateCompressedResourceNamePrefix;
+import static com.antonycc.oidc.ResourceNameUtils.generateResourceNamePrefix;
 
 public class ProviderApplication {
 

@@ -435,8 +435,6 @@ jobs:
           ENV_NAME: ${{ needs.names.outputs.environment-name }}
           DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
           BASE_IMAGE_TAG: ${{ needs.build-images.outputs.image-tag }}
-          ECR_REPOSITORY_NAME: ${{ needs.deploy-dev.outputs.ecr-repository-name }}
-          ECR_REPOSITORY_ARN: ${{ needs.deploy-dev.outputs.ecr-repository-arn }}
 
       - name: Resolve stack outputs
         id: app-outputs

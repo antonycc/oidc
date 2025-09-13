@@ -1,12 +1,12 @@
 package com.antonycc.oidc;
 
-import static com.antonycc.oidc.ResourceNameUtils.buildDashedDomainName;
-import static com.antonycc.oidc.ResourceNameUtils.generateCompressedResourceNamePrefix;
-import static com.antonycc.oidc.ResourceNameUtils.generateResourceNamePrefix;
-
 import software.amazon.awscdk.App;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.Environment;
+
+import static com.antonycc.oidc.ResourceNameUtils.buildDashedDomainName;
+import static com.antonycc.oidc.ResourceNameUtils.generateCompressedResourceNamePrefix;
+import static com.antonycc.oidc.ResourceNameUtils.generateResourceNamePrefix;
 
 public class ProviderApplication {
 
@@ -102,7 +102,7 @@ public class ProviderApplication {
         public ProviderApplication build() {
 
             // Create the Observability stack first (logging, etc.)
-            String observabilityStackId = "ObservabilityStack-%s".formatted(this.application.deploymentName);
+            String observabilityStackId = "%s-ObservabilityStack".formatted(this.application.deploymentName);
             this.application.observabilityStack = new ObservabilityStack(
                     app,
                     observabilityStackId,
@@ -115,7 +115,7 @@ public class ProviderApplication {
                             .build());
 
             // Create DevStack with resources only used during development or deployment (e.g. ECR)
-            String devStackId = "DevStack-%s".formatted(this.application.deploymentName);
+            String devStackId = "%s-DevStack".formatted(this.application.deploymentName);
             this.application.devStack = new DevStack(
                     app,
                     devStackId,
@@ -129,7 +129,7 @@ public class ProviderApplication {
                             .build());
 
             // Create the App stack (Lambdas, DynamoDB, S3, CloudFront)
-            String appStackId = "AppStack-%s".formatted(this.application.deploymentName);
+            String appStackId = "%s-AppStack".formatted(this.application.deploymentName);
             this.application.appStack = new AppStack(
                     app,
                     appStackId,
@@ -147,7 +147,7 @@ public class ProviderApplication {
             this.application.appStack.addDependency(this.application.devStack);
 
             // Create the Web stack (S3 origin)
-            String webStackId = "WebStack-%s".formatted(this.application.deploymentName);
+            String webStackId = "%s-WebStack".formatted(this.application.deploymentName);
             this.application.webStack = new WebStack(
                     app,
                     webStackId,
@@ -161,7 +161,7 @@ public class ProviderApplication {
                             .build());
 
             // Create the Edge stack (CloudFront, Route53)
-            String edgeStackId = "EdgeStack-%s".formatted(this.application.deploymentName);
+            String edgeStackId = "%s-EdgeStack".formatted(this.application.deploymentName);
             this.application.edgeStack = new EdgeStack(
                     app,
                     edgeStackId,
@@ -193,7 +193,7 @@ public class ProviderApplication {
             this.application.edgeStack.addDependency(this.application.webStack);
 
             // Create the Ops stack (Alarms, etc.)
-            String opsStackId = "OpsStack-%s".formatted(this.application.deploymentName);
+            String opsStackId = "%s-OpsStack".formatted(this.application.deploymentName);
             this.application.opsStack = new OpsStack(
                     app,
                     opsStackId,
@@ -220,79 +220,79 @@ public class ProviderApplication {
             app.synth();
 
             CfnOutputProps.builder()
-                    .exportName("EnvName")
+                    .exportName("%s-EnvName".formatted(this.application.deploymentName))
                     .value(this.application.envName)
                     .build();
             CfnOutputProps.builder()
-                    .exportName("DeploymentName")
+                    .exportName("%s-DeploymentName".formatted(this.application.deploymentName))
                     .value(this.application.deploymentName)
                     .build();
             CfnOutputProps.builder()
-                    .exportName("HostedZoneName")
+                    .exportName("%s-HostedZoneName".formatted(this.application.deploymentName))
                     .value(this.application.hostedZoneName)
                     .build();
             CfnOutputProps.builder()
-                    .exportName("HostedZoneId")
+                    .exportName("%s-HostedZoneId".formatted(this.application.deploymentName))
                     .value(this.application.hostedZoneId)
                     .build();
             CfnOutputProps.builder()
-                    .exportName("DomainName")
+                    .exportName("%s-DomainName".formatted(this.application.deploymentName))
                     .value(this.application.domainName)
                     .build();
             CfnOutputProps.builder()
-                    .exportName("DashedDomainName")
+                    .exportName("%s-DashedDomainName".formatted(this.application.deploymentName))
                     .value(this.application.dashedDomainName)
                     .build();
             CfnOutputProps.builder()
-                    .exportName("BaseUrl")
+                    .exportName("%s-BaseUrl".formatted(this.application.deploymentName))
                     .value(this.application.baseUrl)
                     .build();
             CfnOutputProps.builder()
-                    .exportName("ResourceNamePrefix")
+                    .exportName("%s-ResourceNamePrefix".formatted(this.application.deploymentName))
                     .value(this.application.resourceNamePrefix)
                     .build();
             CfnOutputProps.builder()
-                    .exportName("CompressedResourceNamePrefix")
+                    .exportName("%s-CompressedResourceNamePrefix".formatted(this.application.deploymentName))
                     .value(this.application.compressedResourceNamePrefix)
                     .build();
             CfnOutputProps.builder()
-                    .exportName("BaseImageTag")
+                    .exportName("%s-BaseImageTag".formatted(this.application.deploymentName))
                     .value(this.application.baseImageTag)
                     .build();
             CfnOutputProps.builder()
-                    .exportName("CertificateArn")
+                    .exportName("%s-CertificateArn".formatted(this.application.deploymentName))
                     .value(this.application.certificateArn)
                     .build();
             CfnOutputProps.builder()
-                    .exportName("EcrRepositoryName")
+                    .exportName("%s-EcrRepositoryName".formatted(this.application.deploymentName))
                     .value(this.application.devStack.ecrRepository.getRepositoryName())
                     .build();
             CfnOutputProps.builder()
-                    .exportName("EcrRepositoryArn")
+                    .exportName("%s-EcrRepositoryArn".formatted(this.application.deploymentName))
                     .value(this.application.devStack.ecrRepository.getRepositoryArn())
                     .build();
             CfnOutputProps.builder()
-                    .exportName("ObservabilityStackName")
+                    .exportName("%s-ObservabilityStackName".formatted(this.application.deploymentName))
                     .value(this.application.observabilityStack.getStackName())
                     .build();
             CfnOutputProps.builder()
-                    .exportName("DevStackName")
+                    .exportName("%s-DevStackName".formatted(this.application.deploymentName))
                     .value(this.application.devStack.getStackName())
                     .build();
             CfnOutputProps.builder()
-                    .exportName("AppStackName")
+                    .exportName("%s-AppStackName".formatted(this.application.deploymentName))
                     .value(this.application.appStack.getStackName())
                     .build();
             CfnOutputProps.builder()
-                    .exportName("WebStackName")
+                    .exportName("%s-WebStackName".formatted(this.application.deploymentName))
                     .value(this.application.webStack.getStackName())
                     .build();
             CfnOutputProps.builder()
-                    .exportName("EdgeStackName")
+                    .exportName("%s-EdgeStackName".formatted(this.application.deploymentName))
                     .value(this.application.edgeStack.getStackName())
                     .build();
             CfnOutputProps.builder()
-                    .exportName("OpsStackName")
+                    .exportName("%s-OpsStackName".formatted(this.application.deploymentName))
                     .value(this.application.opsStack.getStackName())
                     .build();
 

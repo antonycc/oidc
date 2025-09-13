@@ -1,7 +1,5 @@
 package com.antonycc.oidc;
 
-import java.util.List;
-import java.util.Map;
 import software.amazon.awscdk.AssetHashType;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
@@ -43,6 +41,9 @@ import software.amazon.awscdk.services.s3.deployment.Source;
 import software.amazon.awscdk.services.wafv2.CfnWebACL;
 import software.constructs.Construct;
 
+import java.util.List;
+import java.util.Map;
+
 public class EdgeStack extends Stack {
     public final Distribution distribution;
     public final BucketDeployment webDeployment;
@@ -73,34 +74,34 @@ public class EdgeStack extends Stack {
 
         // Use Resources from the passed props
         this.baseUrl = props.baseUrl;
-        IBucket logsBucket = Bucket.fromBucketArn(this, "LogsBucket", props.logsBucketArn);
-        IBucket webBucketImported = Bucket.fromBucketArn(this, "WebBucket", props.webBucket.getBucketArn());
+        IBucket logsBucket = Bucket.fromBucketArn(this, props.resourceNamePrefix + "-LogsBucket", props.logsBucketArn);
+        IBucket webBucketImported = Bucket.fromBucketArn(this, props.resourceNamePrefix + "-WebBucket", props.webBucket.getBucketArn());
         IBucket wellKnownBucketImported =
-                Bucket.fromBucketArn(this, "WellKnownBucket", props.wellKnownBucket.getBucketArn());
+                Bucket.fromBucketArn(this, props.resourceNamePrefix + "-WellKnownBucket", props.wellKnownBucket.getBucketArn());
         IFunction jwksEndpointFunction = Function.fromFunctionAttributes(
                 this,
-                "JwksEndpointFunction",
+            props.resourceNamePrefix + "-JwksEndpointFunction",
                 FunctionAttributes.builder()
                         .functionArn(props.jwksEndpointFunctionArn)
                         .sameEnvironment(true)
                         .build());
         IFunction authorizeEndpointFunction = Function.fromFunctionAttributes(
                 this,
-                "AuthorizeEndpointFunction",
+            props.resourceNamePrefix + "-AuthorizeEndpointFunction",
                 FunctionAttributes.builder()
                         .functionArn(props.authorizeEndpointFunctionArn)
                         .sameEnvironment(true)
                         .build());
         IFunction tokenEndpointFunction = Function.fromFunctionAttributes(
                 this,
-                "TokenEndpointFunction",
+            props.resourceNamePrefix + "-TokenEndpointFunction",
                 FunctionAttributes.builder()
                         .functionArn(props.tokenEndpointFunctionArn)
                         .sameEnvironment(true)
                         .build());
         IFunction userinfoEndpointFunction = Function.fromFunctionAttributes(
                 this,
-                "UserinfoEndpointFunction",
+            props.resourceNamePrefix + "-UserinfoEndpointFunction",
                 FunctionAttributes.builder()
                         .functionArn(props.userinfoEndpointFunctionArn)
                         .sameEnvironment(true)

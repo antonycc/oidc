@@ -125,7 +125,7 @@ public class AppStack extends Stack {
                 this,
                 props.resourceNamePrefix + "-AuthorizeEndpoint",
                 EndpointConstructProps.builder()
-                        .functionName(props.compressedResourceNamePrefix + "-authorize")
+                        .functionName(props.resourceNamePrefix + "-authorize")
                         .ecrRepositoryArn(props.ecrRepositoryArn)
                         .ecrRepositoryName(props.ecrRepositoryName)
                         .baseImageTag(props.baseImageTag)
@@ -146,7 +146,7 @@ public class AppStack extends Stack {
                 this,
                 props.resourceNamePrefix + "-TokenEndpoint",
                 EndpointConstructProps.builder()
-                        .functionName(props.compressedResourceNamePrefix + "-token")
+                        .functionName(props.resourceNamePrefix + "-token")
                         .ecrRepositoryArn(props.ecrRepositoryArn)
                         .ecrRepositoryName(props.ecrRepositoryName)
                         .baseImageTag(props.baseImageTag)
@@ -170,7 +170,7 @@ public class AppStack extends Stack {
                 this,
                 props.resourceNamePrefix + "-UserInfoEndpoint",
                 EndpointConstructProps.builder()
-                        .functionName(props.compressedResourceNamePrefix + "-userinfo")
+                        .functionName(props.resourceNamePrefix + "-userinfo")
                         .ecrRepositoryArn(props.ecrRepositoryArn)
                         .ecrRepositoryName(props.ecrRepositoryName)
                         .baseImageTag(props.baseImageTag)
@@ -188,7 +188,7 @@ public class AppStack extends Stack {
                 this,
                 props.resourceNamePrefix + "-JwksEndpoint",
                 EndpointConstructProps.builder()
-                        .functionName(props.compressedResourceNamePrefix + "-jwks")
+                        .functionName(props.resourceNamePrefix + "-jwks")
                         .ecrRepositoryArn(props.ecrRepositoryArn)
                         .ecrRepositoryName(props.ecrRepositoryName)
                         .baseImageTag(props.baseImageTag)

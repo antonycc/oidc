@@ -1,7 +1,5 @@
 package com.antonycc.oidc;
 
-import java.util.List;
-import java.util.Map;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.Duration;
@@ -27,6 +25,9 @@ import software.amazon.awscdk.services.s3.BucketEncryption;
 import software.amazon.awscdk.services.s3.ObjectOwnership;
 import software.amazon.awscdk.services.xray.CfnGroup;
 import software.constructs.Construct;
+
+import java.util.List;
+import java.util.Map;
 
 public class ObservabilityStack extends Stack {
     public final Bucket logsBucket;
@@ -144,7 +145,7 @@ public class ObservabilityStack extends Stack {
         // Outputs for the created observability resources
         new CfnOutput(
                 this,
-                "LogsBucketArn",
+             "LogsBucketArn",
                 CfnOutputProps.builder().value(this.logsBucket.getBucketArn()).build());
         new CfnOutput(
                 this,

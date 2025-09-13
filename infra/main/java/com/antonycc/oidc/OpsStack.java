@@ -1,6 +1,5 @@
 package com.antonycc.oidc;
 
-import java.util.List;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.Stack;
@@ -18,6 +17,8 @@ import software.amazon.awscdk.services.lambda.Function;
 import software.amazon.awscdk.services.lambda.FunctionAttributes;
 import software.amazon.awscdk.services.lambda.IFunction;
 import software.constructs.Construct;
+
+import java.util.List;
 
 public class OpsStack extends Stack {
     public final Alarm authorizeErrorAlarm;
@@ -53,35 +54,35 @@ public class OpsStack extends Stack {
         // Use resources from the passed props
         IFunction jwksEndpointFunction = Function.fromFunctionAttributes(
                 this,
-                "JwksEndpointFunction",
+            props.resourceNamePrefix + "-JwksEndpointFunction",
                 FunctionAttributes.builder()
                         .functionArn(props.jwksEndpointFunctionArn)
                         .sameEnvironment(true)
                         .build());
         IFunction authorizeEndpointFunction = Function.fromFunctionAttributes(
                 this,
-                "AuthorizeEndpointFunction",
+            props.resourceNamePrefix + "-AuthorizeEndpointFunction",
                 FunctionAttributes.builder()
                         .functionArn(props.authorizeEndpointFunctionArn)
                         .sameEnvironment(true)
                         .build());
         IFunction tokenEndpointFunction = Function.fromFunctionAttributes(
                 this,
-                "TokenEndpointFunction",
+            props.resourceNamePrefix + "-TokenEndpointFunction",
                 FunctionAttributes.builder()
                         .functionArn(props.tokenEndpointFunctionArn)
                         .sameEnvironment(true)
                         .build());
         IFunction userinfoEndpointFunction = Function.fromFunctionAttributes(
                 this,
-                "UserinfoEndpointFunction",
+            props.resourceNamePrefix + "-UserinfoEndpointFunction",
                 FunctionAttributes.builder()
                         .functionArn(props.userinfoEndpointFunctionArn)
                         .sameEnvironment(true)
                         .build());
-        ITable usersTable = Table.fromTableArn(this, "UsersTable", props.usersTableArn);
-        ITable authCodesTable = Table.fromTableArn(this, "AuthCodesTable", props.authCodesTableArn);
-        ITable refreshTokensTable = Table.fromTableArn(this, "RefreshTokensTable", props.refreshTokensTableArn);
+        ITable usersTable = Table.fromTableArn(this, props.resourceNamePrefix + "-UsersTable", props.usersTableArn);
+        ITable authCodesTable = Table.fromTableArn(this, props.resourceNamePrefix + "-AuthCodesTable", props.authCodesTableArn);
+        ITable refreshTokensTable = Table.fromTableArn(this, props.resourceNamePrefix + "-RefreshTokensTable", props.refreshTokensTableArn);
 
         // Error rate alarm for authorize endpoint
         this.authorizeErrorAlarm = Alarm.Builder.create(this, props.resourceNamePrefix + "-AuthorizeErrorAlarm")

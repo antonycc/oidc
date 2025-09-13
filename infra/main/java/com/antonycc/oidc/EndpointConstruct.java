@@ -1,8 +1,5 @@
 package com.antonycc.oidc;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.Fn;
 import software.amazon.awscdk.RemovalPolicy;
@@ -30,6 +27,10 @@ import software.amazon.awscdk.services.lambda.Tracing;
 import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.logs.RetentionDays;
 import software.constructs.Construct;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class EndpointConstruct extends Construct {
     public final LogGroup logGroup;
@@ -93,7 +94,7 @@ public class EndpointConstruct extends Construct {
                 .repositoryName(props.ecrRepositoryName)
                 .build();
         IRepository repository =
-                Repository.fromRepositoryAttributes(this, props.functionName + "EcrRepo", repositoryAttributes);
+                Repository.fromRepositoryAttributes(this, props.functionName + "-EcrRepo", repositoryAttributes);
         this.dockerImage = DockerImageCode.fromEcr(repository, imageCodeProps);
         this.function = DockerImageFunction.Builder.create(this, props.functionName + "-Lambda")
                 .code(this.dockerImage)

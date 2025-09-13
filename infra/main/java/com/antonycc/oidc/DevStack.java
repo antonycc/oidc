@@ -1,6 +1,5 @@
 package com.antonycc.oidc;
 
-import java.util.List;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.RemovalPolicy;
@@ -18,6 +17,8 @@ import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.logs.RetentionDays;
 import software.constructs.Construct;
 
+import java.util.List;
+
 public class DevStack extends Stack {
 
     // Public properties for stack outputs
@@ -30,7 +31,7 @@ public class DevStack extends Stack {
 
         // ECR Repository with lifecycle rules
         String ecrRepositoryName = "%s-ecr".formatted(props.dashedDomainName);
-        this.ecrRepository = Repository.Builder.create(this, "EcrRepository")
+        this.ecrRepository = Repository.Builder.create(this, props.resourceNamePrefix + "-EcrRepository")
                 .repositoryName(ecrRepositoryName)
                 .imageScanOnPush(true) // Enable vulnerability scanning
                 .imageTagMutability(software.amazon.awscdk.services.ecr.TagMutability.MUTABLE)
@@ -46,18 +47,18 @@ public class DevStack extends Stack {
 
         // CloudWatch Log Group for ECR operations with 7-day retention
         String ecrLogGroupName = "/aws/ecr/%s".formatted(props.dashedDomainName);
-        this.ecrLogGroup = LogGroup.Builder.create(this, "EcrLogGroup")
+        this.ecrLogGroup = LogGroup.Builder.create(this, props.resourceNamePrefix + "-EcrLogGroup")
                 .logGroupName(ecrLogGroupName)
                 .retention(RetentionDays.ONE_WEEK) // 7-day retention as requested
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
 
         // IAM Role for ECR publishing with comprehensive permissions
-        this.ecrPublishRole = Role.Builder.create(this, "EcrPublishRole")
+        this.ecrPublishRole = Role.Builder.create(this, props.resourceNamePrefix + "-EcrPublishRole")
                 .roleName("%s-ecr-publish-role".formatted(props.dashedDomainName))
                 .assumedBy(new ServicePrincipal("lambda.amazonaws.com"))
                 .inlinePolicies(java.util.Map.of(
-                        "EcrPublishPolicy",
+                    props.resourceNamePrefix + "-EcrPublishPolicy",
                         PolicyDocument.Builder.create()
                                 .statements(List.of(
                                         // ECR repository permissions
@@ -101,25 +102,25 @@ public class DevStack extends Stack {
                 .build();
 
         // Output key information
-        CfnOutput.Builder.create(this, "EcrRepositoryArn")
+        CfnOutput.Builder.create(this, props.resourceNamePrefix + "-EcrRepositoryArn")
                 .value(this.ecrRepository.getRepositoryArn())
                 .description("ARN of the ECR repository")
                 .build();
-        CfnOutput.Builder.create(this, "EcrRepositoryName")
+        CfnOutput.Builder.create(this, props.resourceNamePrefix + "-EcrRepositoryName")
                 .value(this.ecrRepository.getRepositoryName())
                 .description("Name of the ECR repository")
                 .build();
-        CfnOutput.Builder.create(this, "EcrRepositoryUri")
+        CfnOutput.Builder.create(this, props.resourceNamePrefix + "-EcrRepositoryUri")
                 .value(this.ecrRepository.getRepositoryUri())
                 .description("URI of the ECR repository")
                 .build();
 
-        CfnOutput.Builder.create(this, "EcrLogGroupArn")
+        CfnOutput.Builder.create(this, props.resourceNamePrefix + "-EcrLogGroupArn")
                 .value(this.ecrLogGroup.getLogGroupArn())
                 .description("ARN of the ECR CloudWatch Log Group")
                 .build();
 
-        CfnOutput.Builder.create(this, "EcrPublishRoleArn")
+        CfnOutput.Builder.create(this, props.resourceNamePrefix + "-EcrPublishRoleArn")
                 .value(this.ecrPublishRole.getRoleArn())
                 .description("ARN of the ECR publish role")
                 .build();

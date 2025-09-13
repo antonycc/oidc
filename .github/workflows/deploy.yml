@@ -284,7 +284,6 @@ jobs:
       - names
       - npm-test
       - build-cdk
-      - deploy-observability
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
     steps:
@@ -438,18 +437,14 @@ jobs:
           ECR_REPOSITORY_ARN: ${{ needs.deploy-dev.outputs.ecr-repository-arn }}
 
       - name: Resolve stack outputs
-        id: oidc-outputs
+        id: app-outputs
         run: |
-          BASE_URL=$(jq -r '.["AppStack-${{ needs.names.outputs.deployment-name }}"].BaseUrl' cdk.out/cdk-outputs-app.json)
           USERS_TABLE=$(jq -r '.["AppStack-${{ needs.names.outputs.deployment-name }}"].UsersTableName' cdk.out/cdk-outputs-app.json)
-          echo "BASE_URL=$BASE_URL"
           echo "USERS_TABLE=$USERS_TABLE"
-          echo "BASE_URL=$BASE_URL" >> $GITHUB_OUTPUT
           echo "USERS_TABLE=$USERS_TABLE" >> $GITHUB_OUTPUT
         shell: bash
     outputs:
-      base-url: ${{ steps.oidc-outputs.outputs.BASE_URL }}
-      users-table: ${{ steps.oidc-outputs.outputs.USERS_TABLE }}
+      users-table: ${{ steps.app-outputs.outputs.USERS_TABLE }}
 
   deploy-web:
     name: 'deploy web'
@@ -459,8 +454,6 @@ jobs:
       - npm-test
       - build-cdk
       - deploy-observability
-      - deploy-dev
-      - build-images
       - deploy-app
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
@@ -504,14 +497,14 @@ jobs:
           DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
 
       - name: Resolve stack outputs
-        id: oidc-outputs
+        id: web-outputs
         run: |
-          BASE_URL=$(jq -r '.["AppStack-${{ needs.names.outputs.deployment-name }}"].BaseUrl' cdk.out/cdk-outputs-app.json)
+          BASE_URL=$(jq -r '.["WebStack-${{ needs.names.outputs.deployment-name }}"].BaseUrl' cdk.out/cdk-outputs-web.json)
           echo "BASE_URL=$BASE_URL"
           echo "BASE_URL=$BASE_URL" >> $GITHUB_OUTPUT
         shell: bash
     outputs:
-      base-url: ${{ steps.oidc-outputs.outputs.BASE_URL }}
+      base-url: ${{ steps.web-outputs.outputs.BASE_URL }}
 
   deploy-ops:
     name: 'deploy ops'
@@ -520,9 +513,6 @@ jobs:
       - names
       - npm-test
       - build-cdk
-      - deploy-observability
-      - deploy-dev
-      - build-images
       - deploy-app
       - deploy-web
     runs-on: ubuntu-24.04
@@ -571,9 +561,8 @@ jobs:
     needs:
       - names
       - build-cdk
-      - deploy-observability
-      - deploy-dev
       - deploy-app
+      - deploy-web
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
     steps:
@@ -620,7 +609,7 @@ jobs:
           echo "BASE_URL=${BASE_URL}"
           npm run test:api
         env:
-          BASE_URL: ${{ needs.deploy-app.outputs.base-url }}
+          BASE_URL: ${{ needs.deploy-web.outputs.base-url }}
           TEST_USERNAME: ${{ steps.uuid.outputs.TEST_USERNAME }}
           TEST_PASSWORD: ${{ steps.uuid.outputs.TEST_PASSWORD }}
 
@@ -638,9 +627,8 @@ jobs:
     needs:
       - names
       - build-cdk
-      - deploy-observability
-      - deploy-dev
       - deploy-app
+      - deploy-web
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
     steps:
@@ -686,7 +674,7 @@ jobs:
         run: |
           npm run test:web --project=chromium
         env:
-          BASE_URL: ${{ needs.deploy-app.outputs.base-url }}
+          BASE_URL: ${{ needs.deploy-web.outputs.base-url }}
           TEST_USERNAME: ${{ steps.uuid.outputs.TEST_USERNAME }}
           TEST_PASSWORD: ${{ steps.uuid.outputs.TEST_PASSWORD }}
 
@@ -704,9 +692,8 @@ jobs:
     needs:
       - names
       - build-cdk
-      - deploy-observability
-      - deploy-dev
       - deploy-app
+      - deploy-web
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
     steps:
@@ -749,7 +736,7 @@ jobs:
         run: |
           k6 run tests/load.live.test.js --summary-export=load-test-summary.json
         env:
-          BASE_URL: ${{ needs.deploy-app.outputs.base-url }}
+          BASE_URL: ${{ needs.deploy-web.outputs.base-url }}
           TEST_USERNAME: ${{ steps.uuid.outputs.TEST_USERNAME }}
           TEST_PASSWORD: ${{ steps.uuid.outputs.TEST_PASSWORD }}
 

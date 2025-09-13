@@ -10,6 +10,7 @@ public class WebStackProps implements StackProps {
     public final String hostedZoneName;
     public final String hostedZoneId;
     public final String domainName;
+    public final String baseUrl;
     public final String resourceNamePrefix;
     public final String compressedResourceNamePrefix;
     public final String certificateArn;
@@ -27,6 +28,7 @@ public class WebStackProps implements StackProps {
         this.hostedZoneName = builder.hostedZoneName;
         this.hostedZoneId = builder.hostedZoneId;
         this.domainName = builder.domainName;
+        this.baseUrl = builder.baseUrl;
         this.resourceNamePrefix = builder.resourceNamePrefix;
         this.compressedResourceNamePrefix = builder.compressedResourceNamePrefix;
         this.certificateArn = builder.certificateArn;
@@ -54,6 +56,7 @@ public class WebStackProps implements StackProps {
         private String hostedZoneName;
         private String hostedZoneId;
         private String domainName;
+        private String baseUrl;
         private String resourceNamePrefix;
         private String compressedResourceNamePrefix;
         private String certificateArn;
@@ -91,6 +94,11 @@ public class WebStackProps implements StackProps {
 
         public Builder domainName(String domainName) {
             this.domainName = domainName;
+            return this;
+        }
+
+        public Builder baseUrl(String baseUrl) {
+            this.baseUrl = baseUrl;
             return this;
         }
 

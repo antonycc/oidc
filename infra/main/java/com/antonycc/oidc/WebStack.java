@@ -39,13 +39,13 @@ import software.amazon.awscdk.services.wafv2.CfnWebACL;
 import software.constructs.Construct;
 
 public class WebStack extends Stack {
-    public final String baseUrl;
     public final S3OriginConstruct webOriginBucket;
     public final Bucket webBucket;
     public final Distribution distribution;
     public final BucketDeployment webDeployment;
     public final BucketDeployment wellKnownDeployment;
     public final ARecord aliasRecord;
+    public final String baseUrl;
 
     public WebStack(final Construct scope, final String id, final WebStackProps props) {
         super(scope, id, props);
@@ -71,6 +71,7 @@ public class WebStack extends Stack {
         var additionalOriginsBehaviourMappings = new HashMap<String, BehaviorOptions>();
 
         // Use Resources from the passed props
+        this.baseUrl = props.baseUrl;
         IBucket logsBucket = Bucket.fromBucketName(this, "LogsBucket", props.logsBucketArn);
         IBucket wellKnownBucket = Bucket.fromBucketName(this, "WellKnownBucket", props.wellKnownBucketArn);
         IFunction jwksEndpointFunction = Function.fromFunctionAttributes(
@@ -116,8 +117,6 @@ public class WebStack extends Stack {
                 : (props.domainName.endsWith("." + props.hostedZoneName)
                         ? props.domainName.substring(0, props.domainName.length() - (props.hostedZoneName.length() + 1))
                         : props.domainName);
-
-        this.baseUrl = "https://" + domainName;
 
         // TLS certificate from existing ACM (must be in us-east-1 for CloudFront)
         var cert = Certificate.fromCertificateArn(this, props.resourceNamePrefix + "-WebCert", props.certificateArn);

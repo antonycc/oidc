@@ -8,8 +8,6 @@ import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.Tags;
-import software.amazon.awscdk.customresources.AwsSdkCall;
-import software.amazon.awscdk.customresources.PhysicalResourceId;
 import software.amazon.awscdk.services.cloudfront.AllowedMethods;
 import software.amazon.awscdk.services.cloudfront.BehaviorOptions;
 import software.amazon.awscdk.services.cloudfront.CachePolicy;
@@ -210,7 +208,7 @@ public class AppStack extends Stack {
         this.authCodesTable.grantReadWriteData(this.jwksEndpoint.function);
 
         // Create a custom resource to fix the well-known configuration with correct domain
-        createWellKnownConfigFix(props.resourceNamePrefix, props.domainName);
+        // createWellKnownConfigFix(props.resourceNamePrefix, props.domainName);
 
         // Outputs
         new CfnOutput(
@@ -221,13 +219,50 @@ public class AppStack extends Stack {
                         .build());
         new CfnOutput(
                 this,
+                "AuthorizeFunctionName",
+                CfnOutputProps.builder()
+                        .value(this.authorizeEndpoint.function.getFunctionName())
+                        .build());
+        new CfnOutput(
+                this,
+                "TokenFunctionName",
+                CfnOutputProps.builder()
+                        .value(this.tokenEndpoint.function.getFunctionName())
+                        .build());
+        new CfnOutput(
+                this,
+                "UserInfoFunctionName",
+                CfnOutputProps.builder()
+                        .value(this.userinfoEndpoint.function.getFunctionName())
+                        .build());
+        new CfnOutput(
+                this,
+                "JwksFunctionName",
+                CfnOutputProps.builder()
+                        .value(this.jwksEndpoint.function.getFunctionName())
+                        .build());
+        new CfnOutput(
+                this,
                 "UsersTableName",
                 CfnOutputProps.builder().value(this.usersTable.getTableName()).build());
+        new CfnOutput(
+                this,
+                "AuthCodesTableName",
+                CfnOutputProps.builder()
+                        .value(this.authCodesTable.getTableName())
+                        .build());
+        new CfnOutput(
+                this,
+                "RefreshTokensTableName",
+                CfnOutputProps.builder()
+                        .value(this.refreshTokensTable.getTableName())
+                        .build());
     }
 
-    /**
+    /* *
      * Create a custom resource to fix the well-known configuration with the correct domain
      */
+    /*
     private void createWellKnownConfigFix(String resourceNamePrefix, String domainName) {
         var configContent = String.format(
                 """
@@ -260,7 +295,7 @@ public class AppStack extends Stack {
                         "CacheControl", "no-cache"))
                 .physicalResourceId(PhysicalResourceId.of("well-known-config-" + resourceNamePrefix))
                 .build();
-        /*
+
         var wellKnownConfigCustomResource = AwsCustomResource.Builder.create(
                         this, resourceNamePrefix + "-WellKnownConfigFix")
                 .onCreate(wellKnownConfigCall)
@@ -307,6 +342,6 @@ public class AppStack extends Stack {
 
         // Ensure invalidation runs after config is updated
         wellKnownInvalidationCustomResource.getNode().addDependency(wellKnownConfigCustomResource);
-        */
     }
+    */
 }

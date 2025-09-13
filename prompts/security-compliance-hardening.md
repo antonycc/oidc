@@ -1,7 +1,5 @@
 # Security & Compliance Hardening Prompt
 
-> Formatting and style: Defer to the repo’s formatters — ESLint (flat) + Prettier for JS (ESM) and Spotless (Palantir Java Format) for Java. Use npm run formatting / npm run formatting-fix. See README for details.
-
 Analyze the current OIDC provider implementation and enhance security posture while ensuring compliance readiness for production deployment.
 
 Focus on:
@@ -190,3 +188,7 @@ Consider the impact on:
 - **Development Velocity**: Security processes should enable, not hinder, development
 
 Focus on creating a security-first culture while maintaining the serverless architecture's advantages of scalability, cost-effectiveness, and operational simplicity.
+
+> Formatting and style: Defer to the repo’s formatters — ESLint (flat) + Prettier for JS (ESM) and Spotless (Palantir Java Format) for Java. Use npm run formatting / npm run formatting-fix. See README for details.
+> Do not apply styles changes to code that you are not otherwise changes and prefer to match the existing local style when applying the style guides would be jarring.
+>

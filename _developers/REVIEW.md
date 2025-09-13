@@ -44,22 +44,12 @@ The antonycc/oidc project is a **serverless** OIDC provider built with AWS CDK (
 stated goal is a _cheap, inspectable_ identity provider for tests and small workloads. Key architectural features
 include:
 
-1. **Infrastructure defined in CDK:** The OidcStack creates two S3 buckets (WebBucket and WellKnownBucket) with public
-   access blocked and enforced TLS. Objects are automatically deleted and the buckets are destroyed with the
-   stack[\[10\]](https://github.com/antonycc/oidc/blob/main/infra/main/java/com/antonycc/oidc/OidcStack.java#L91-L105).
-   A CloudFront distribution routes the root path to the static website bucket and specific OIDC paths (/authorize,
-   /token, /userinfo) to Lambda Function URLs. Logging and IPv6 are
-   enabled[\[11\]](https://github.com/antonycc/oidc/blob/main/infra/main/java/com/antonycc/oidc/OidcStack.java#L281-L285).
-2. **Pay‑per‑request resources:** Three DynamoDB tables (Users, AuthCodes and RefreshTokens) are created with *
-   *on‑demand** billing and TTL configured for short‑lived codes and refresh
-   tokens[\[12\]](https://github.com/antonycc/oidc/blob/main/infra/main/java/com/antonycc/oidc/OidcStack.java#L144-L160).
-   Lambda functions use Node.js 22, moderate memory (192‑256 MB), short timeouts (10–15 s) and CloudWatch log groups
-   with seven‑day
-   retention[\[13\]](https://github.com/antonycc/oidc/blob/main/infra/main/java/com/antonycc/oidc/OidcStack.java#L168-L176)[\[14\]](https://github.com/antonycc/oidc/blob/main/infra/main/java/com/antonycc/oidc/OidcStack.java#L188-L211).
-   Function URLs are publicly accessible (NONE authentication) and invoked through
-   CloudFront[\[15\]](https://github.com/antonycc/oidc/blob/main/infra/main/java/com/antonycc/oidc/OidcStack.java#L216-L227);
-   CloudFront is granted permission to call the
-   functions[\[16\]](https://github.com/antonycc/oidc/blob/main/infra/main/java/com/antonycc/oidc/OidcStack.java#L288-L298).
+1. **Infrastructure defined in CDK:** The Java CDK app defines three stacks:
+   - ObservabilityStack: S3 logs bucket, CloudTrail and X-Ray group
+   - DevStack: ECR repository and publishing role for images
+   - ProviderStack: S3 buckets (Web and WellKnown), CloudFront distribution, Lambda Function URL integrations for `/authorize`, `/token`, `/userinfo` and `/jwks`, and Route53 alias
+   Buckets block public access, enforce TLS, auto-delete objects and are destroyed with the stack. CloudFront routes static paths to S3 and OIDC paths to Lambda Function URLs with logging and IPv6 enabled.
+2. **Pay‑per‑request resources:** Three DynamoDB tables (Users, AuthCodes and RefreshTokens) use on‑demand billing with TTLs for short‑lived data. Lambda functions run on Node.js 22 with modest memory, short timeouts and seven‑day log retention. Function URLs use NONE auth and are exposed only via CloudFront; the distribution is explicitly permitted to invoke them.
 3. **OIDC flow implementation:**
 4. _Authorize endpoint:_ validates required query parameters; if USERS_TABLE is defined, it fetches the user record from
    DynamoDB and returns 401 if the user is unknown; otherwise it issues an authorization code using ulid(), stores it

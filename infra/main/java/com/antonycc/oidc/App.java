@@ -10,6 +10,8 @@ public class App {
         String deploymentName = System.getenv().getOrDefault("DEPLOYMENT_NAME", envName);
         String hostedZoneName = System.getenv().getOrDefault("HOSTED_ZONE_NAME", "example.com");
         String hostedZoneId = System.getenv().getOrDefault("HOSTED_ZONE_ID", "Z000EXAMPLE");
+        String ecrRepositoryArn = System.getenv().getOrDefault("ECR_REPOSITORY_ARN", "arn:aws:ecr:us-east-1:123456789012:repository/oidc-provider-repo");
+        String ecrRepositoryName = System.getenv().getOrDefault("ECR_REPOSITORY_NAME", "oidc-provider-repo");
 
         // Compute domain name based on deployment pattern
         String domainName;
@@ -48,6 +50,17 @@ public class App {
                         .domainName(domainName)
                         .build());
 
+        // Create DevStack with resources only used during development or deployment (e.g. ECR)
+        String devStackId = "DevStack-%s".formatted(envName);
+        DevStack devStack = DevStack.Builder.create(app, devStackId)
+            .props(DevStackProps.builder()
+                .env(envName)
+                .hostedZoneName(hostedZoneName)
+                .domainName(domainName)
+                .build())
+            .build();
+        devStack.addDependency(observabilityStack);
+
         // Create the Provider stack (Lambdas, DynamoDB, S3, CloudFront, Route53)
         ProviderStack providerStack = new ProviderStack(
                 app,
@@ -58,6 +71,8 @@ public class App {
                         .deploymentName(deploymentName)
                         .hostedZoneName(hostedZoneName)
                         .hostedZoneId(hostedZoneId)
+                        .ecrRepositoryArn(ecrRepositoryArn)
+                        .ecrRepositoryName(ecrRepositoryName)
                         .domainName(domainName)
                         .certificateArn(certificateArn)
                         .logsBucket(observabilityStack.logsBucket)
@@ -66,6 +81,7 @@ public class App {
                         .xrayGroup(observabilityStack.xrayGroup)
                         .build());
         providerStack.addDependency(observabilityStack);
+        providerStack.addDependency(devStack);
 
         app.synth();
     }

@@ -44,14 +44,11 @@ env:
   NODE_VERSION: '22'
   DEPLOY_ROLE_ARN: ${{ vars.DEPLOY_ROLE_ARN }}
   AWS_REGION: us-east-1
-  TEST_USERNAME: test-user
-  TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
 
 jobs:
 
-  deploy:
+  names:
     runs-on: ubuntu-24.04
-    name: "deploy-${{ github.ref_name }}"
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
     steps:
       - name: Checkout
@@ -81,28 +78,44 @@ jobs:
               DEPLOYMENT_NAME="ci-${CLEANED:0:16}"
           fi
 
-          echo "ENV_NAME=$ENV_NAME" >> "$GITHUB_ENV"
-          echo "DEPLOYMENT_NAME=$DEPLOYMENT_NAME" >> "$GITHUB_ENV"
           echo "ENV_NAME=$ENV_NAME" >> "$GITHUB_OUTPUT"
           echo "DEPLOYMENT_NAME=$DEPLOYMENT_NAME" >> "$GITHUB_OUTPUT"
-
           echo "Computed ENV_NAME: $ENV_NAME"
           echo "Computed DEPLOYMENT_NAME: $DEPLOYMENT_NAME"
+    outputs:
+      environment-name: ${{ steps.deployment-config.outputs.ENV_NAME }}
+      deployment-name: ${{ steps.deployment-config.outputs.DEPLOYMENT_NAME }}
+
+  npm-test:
+    name: 'npm test'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      - name: Verify Node environment
-        run: |
-          echo "Node version: $(node --version)"
-          echo "NPM version: $(npm --version)"
-          echo "Expected Node version: ${{ env.NODE_VERSION }}"
+      - name: Node dependencies
+        run: npm ci
 
-      - name: Node test
-        run: npm ci && npm test
+      - run: npm test
+
+  mvn-test:
+    name: 'maven test'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
 
       - uses: actions/setup-java@v5
         with:
@@ -110,22 +123,18 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           cache: 'maven'
 
-      - name: Verify Java environment
-        run: |
-          echo "Java version: $(java -version 2>&1 | head -1)"
-          echo "JAVA_HOME: $JAVA_HOME"
-          echo "Expected Java version: ${{ env.JAVA_VERSION }}"
+      - name: mvn package
+        id: package
+        shell: bash
+        run: ./mvnw clean package
 
-      - name: Configure AWS creds via OIDC
-        if: ${{ inputs.skipDeploy != 'true' }}
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-          role-session-name: gha-oidc-deploy
-
-      - name: Build CDK and synth
-        run: ./mvnw --errors clean package
+  docker-build:
+    name: 'docker build'
+    runs-on: ubuntu-24.04
+    environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -138,73 +147,395 @@ jobs:
         run: |
           docker buildx build \
             --load \
-            -t "oidc-base:latest" \
             -f Dockerfile .
+
+  npm-test-cdk:
+    name: 'npm test cdk'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Node dependencies
+        run: npm ci
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'maven'
+
+      - name: test:cdk
+        id: test-cdk
+        shell: bash
+        run: npm run cdk
+
+  build-cdk:
+    name: 'build cdk'
+    if: ${{ inputs.skipDeploy != 'true' }}
+    needs:
+      - names
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Node dependencies
+        run: npm ci
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'maven'
+
+      - name: Build CDK and synthesize all stacks
+        run: ./mvnw --errors clean package -DskipTests && npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- npx cdk synth --all --version-reporting=false --path-metadata=false --asset-metadata=false
+        env:
+          ENV_NAME: ${{ needs.names.outputs.environment-name }}
+          DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
+
+      - name: Upload CDK synthesis artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cdk-synthesis
+          path: cdk.out/
+          retention-days: 1
+
+  deploy-observability:
+    name: 'deploy observability'
+    if: ${{ inputs.skipDeploy != 'true' }}
+    needs:
+      - names
+      - npm-test
+      - build-cdk
+    runs-on: ubuntu-24.04
+    environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Node dependencies
+        run: npm ci
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'maven'
+
+      - name: Download CDK synthesis artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: cdk-synthesis
+          path: cdk.out/
+
+      - name: Configure AWS creds via OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-oidc-deploy
 
       # Once only per account
       #- name: Bootstrap CDK
-      #  if: ${{ inputs.skipDeploy != 'true' }}
       #  run: npx cdk bootstrap
       #  env:
       #    CDK_NEW_BOOTSTRAP: '1'
 
-      # Only deploy from main
-      - name: Deploy OIDC Observability Stack (CDK)
-        if: ${{ inputs.skipDeploy != 'true' }}
+      - name: Deploy Observability Stack (CDK)
         run: |
-          npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk deploy ObservabilityStack-${ENV_NAME} --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-observability.json
+          npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- npx cdk deploy ObservabilityStack-${{ needs.names.outputs.environment-name }} --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-observability.json
+        env:
+          ENV_NAME: ${{ needs.names.outputs.environment-name }}
+          DEPLOYMENT_NAME: ${{ needs.names.outputs.environment-name }}
 
-      - name: Deploy OIDC Provider Stack (CDK)
-        if: ${{ inputs.skipDeploy != 'true' }}
+  deploy-dev:
+    name: 'deploy dev'
+    if: ${{ inputs.skipDeploy != 'true' }}
+    needs:
+      - names
+      - npm-test
+      - build-cdk
+      - deploy-observability
+    runs-on: ubuntu-24.04
+    environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Node dependencies
+        run: npm ci
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'maven'
+
+      - name: Download CDK synthesis artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: cdk-synthesis
+          path: cdk.out/
+
+      - name: Configure AWS creds via OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-oidc-deploy
+
+      - name: Deploy Dev Stack (CDK)
         run: |
-          npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk deploy ProviderStack-${DEPLOYMENT_NAME} --exclusively --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-oidc-provider.json
+          npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- npx cdk deploy DevStack-${{ needs.names.outputs.environment-name }} --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-dev.json
+        env:
+          ENV_NAME: ${{ needs.names.outputs.environment-name }}
+          DEPLOYMENT_NAME: ${{ needs.names.outputs.environment-name }}
 
-      - name: Resolve OIDC Provider and Cognito outputs
-        if: ${{ inputs.skipDeploy != 'true' }}
+      - name: Resolve stack outputs
+        id: dev-outputs
+        shell: bash
+        run: |
+          ECR_REPOSITORY_URI=$(jq -r '.["DevStack-${{ needs.names.outputs.environment-name }}"].EcrRepositoryUri' cdk.out/cdk-outputs-dev.json)
+          ECR_REPOSITORY_ARN=$(jq -r '.["DevStack-${{ needs.names.outputs.environment-name }}"].EcrRepositoryArn' cdk.out/cdk-outputs-dev.json)
+          # The name is the part after the last /
+          ECR_REPOSITORY_NAME=${ECR_REPOSITORY_URI##*/}
+          echo "ECR_REPOSITORY_NAME=$ECR_REPOSITORY_NAME"
+          echo "ECR_REPOSITORY_URI=$ECR_REPOSITORY_URI"
+          echo "ECR_REPOSITORY_ARN=$ECR_REPOSITORY_ARN"
+          echo "ecr-repository-name=$ECR_REPOSITORY_NAME" >> $GITHUB_OUTPUT
+          echo "ecr-repository-uri=$ECR_REPOSITORY_URI" >> $GITHUB_OUTPUT
+          echo "ecr-repository-arn=$ECR_REPOSITORY_ARN" >> $GITHUB_OUTPUT
+    outputs:
+        ecr-repository-name: ${{ steps.dev-outputs.outputs.ecr-repository-name }}
+        ecr-repository-uri: ${{ steps.dev-outputs.outputs.ecr-repository-uri }}
+        ecr-repository-arn: ${{ steps.dev-outputs.outputs.ecr-repository-arn }}
+
+  build-images:
+    name: 'build and push images'
+    if: ${{ inputs.skipDeploy != 'true' }}
+    needs:
+      - names
+      - build-cdk
+      - deploy-dev
+    runs-on: ubuntu-24.04
+    environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup image tag
+        id: image-tag
+        run: |
+          BASE_IMAGE_TAG="submit-base:${{ github.sha }}"
+          echo "base-image-tag=$BASE_IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "Building/loading base image with tag: $BASE_IMAGE_TAG"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:latest
+
+      - name: Build base image
+        id: build
+        run: |
+          docker buildx build \
+            --load \
+            -t "${{ steps.image-tag.outputs.base-image-tag }}" \
+            -f Dockerfile .
+
+      - name: Configure AWS creds via OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-oidc-deploy
+
+      - name: Login to Amazon ECR
+        shell: bash
+        run: |
+          aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ needs.deploy-dev.outputs.ecr-repository-uri }}
+
+      - name: Tag and push Docker image to ECR
+        shell: bash
+        run: |
+          # Tag with commit hash and latest
+          docker tag ${BASE_IMAGE_TAG?} ${ECR_URI?}:${COMMIT_HASH?}
+          docker tag ${BASE_IMAGE_TAG?} ${ECR_URI?}:latest
+
+          # Push both tags
+          docker push ${ECR_URI?}:${COMMIT_HASH?}
+          docker push ${ECR_URI?}:latest
+
+          echo "Successfully pushed Docker image to ECR:"
+          echo "  ${ECR_URI?}:${COMMIT_HASH?}"
+          echo "  ${ECR_URI?}:latest"
+        env:
+          BASE_IMAGE_TAG: ${{ steps.image-tag.outputs.base-image-tag }}
+          ECR_URI: ${{ needs.deploy-dev.outputs.ecr-repository-uri }}
+          COMMIT_HASH: ${{ github.sha }}
+    outputs:
+        base-image-tag: ${{ steps.image-tag.outputs.base-image-tag }}
+        commit-sha: ${{ github.sha }}
+        ecr-uri: ${{ steps.ecr-uri.outputs.ecr-uri }}
+        commit-image-tag: ${{ needs.deploy-dev.outputs.ecr-repository-uri }}:${{ github.sha }}
+        latest-image-tag: ${{ needs.deploy-dev.outputs.ecr-repository-uri }}:latest
+
+  deploy-provider:
+    name: 'deploy provider'
+    if: ${{ inputs.skipDeploy != 'true' }}
+    needs:
+      - names
+      - npm-test
+      - build-cdk
+      - deploy-observability
+      - deploy-dev
+      - build-images
+    runs-on: ubuntu-24.04
+    environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Node dependencies
+        run: npm ci
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'maven'
+
+      - name: Download CDK synthesis artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: cdk-synthesis
+          path: cdk.out/
+
+      - name: Configure AWS creds via OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-oidc-deploy
+
+      #- name: Set up Docker Buildx
+      #  uses: docker/setup-buildx-action@v3
+      #  with:
+      #    driver-opts: |
+      #      image=moby/buildkit:latest
+
+      #- name: Build base image
+      #  id: build
+      #  run: |
+      #    docker buildx build \
+      #      --load \
+      #      -t "oidc-base:latest" \
+      #      -f Dockerfile .
+
+      - name: Deploy Provider Stack (CDK)
+        run: |
+          npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- npx cdk deploy ProviderStack-${{ needs.names.outputs.deployment-name }} --exclusively --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-provider.json
+        env:
+          ENV_NAME: ${{ needs.names.outputs.environment-name }}
+          DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
+          ECR_REPOSITORY_NAME: ${{ needs.deploy-dev.outputs.ecr-repository-name }}
+          ECR_REPOSITORY_ARN: ${{ needs.deploy-dev.outputs.ecr-repository-arn }}
+
+      - name: Resolve stack outputs
         id: oidc-outputs
         run: |
-          ENV_NAME='${{ env.ENV_NAME }}'
-          DEPLOYMENT_NAME='${{ env.DEPLOYMENT_NAME }}'
-          BASE_URL=$(jq -r '.["ProviderStack-'${DEPLOYMENT_NAME}'"].BaseUrl' cdk.out/cdk-outputs-oidc-provider.json)
-          USERS_TABLE=$(jq -r '.["ProviderStack-'${DEPLOYMENT_NAME}'"].UsersTableName' cdk.out/cdk-outputs-oidc-provider.json)
-          echo "ENV_NAME=$ENV_NAME"
-          echo "DEPLOYMENT_NAME=$DEPLOYMENT_NAME"
+          BASE_URL=$(jq -r '.["ProviderStack-${{ needs.names.outputs.deployment-name }}"].BaseUrl' cdk.out/cdk-outputs-provider.json)
+          USERS_TABLE=$(jq -r '.["ProviderStack-${{ needs.names.outputs.deployment-name }}"].UsersTableName' cdk.out/cdk-outputs-provider.json)
           echo "BASE_URL=$BASE_URL"
           echo "USERS_TABLE=$USERS_TABLE"
-          echo "ENV_NAME=$ENV_NAME" >> $GITHUB_OUTPUT
-          echo "DEPLOYMENT_NAME=$DEPLOYMENT_NAME" >> $GITHUB_OUTPUT
           echo "BASE_URL=$BASE_URL" >> $GITHUB_OUTPUT
           echo "USERS_TABLE=$USERS_TABLE" >> $GITHUB_OUTPUT
-          #echo "COGNITO_DOMAIN=$COGNITO_DOMAIN" >> $GITHUB_OUTPUT
-          #echo "COGNITO_CLIENT_ID=$COGNITO_CLIENT_ID" >> $GITHUB_OUTPUT
         shell: bash
+    outputs:
+      base-url: ${{ steps.oidc-outputs.outputs.BASE_URL }}
+      users-table: ${{ steps.oidc-outputs.outputs.USERS_TABLE }}
 
-      - name: Wait 10 seconds for CloudFront distribution testing
-        if: ${{ inputs.skipDeploy != 'true' }}
-        id: setup-cloudfront-tests
-        run: sleep 10
+  api-test:
+    name: 'api test'
+    needs:
+      - names
+      - build-cdk
+      - deploy-observability
+      - deploy-dev
+      - deploy-provider
+    runs-on: ubuntu-24.04
+    environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
 
-      # Individual tests of endpoints, uncomment to debug
-      #- name: Web bucket default behavior
-      #  if: ${{ inputs.skipDeploy != 'true' }}
-      #  run: curl --include --request GET "${{ steps.oidc-outputs.outputs.BASE_URL }}/"
+      - name: Configure AWS creds via OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-oidc-deploy
 
-      #- name: Web bucket file behavior
-      #  if: ${{ inputs.skipDeploy != 'true' }}
-      #  run: curl --include --request GET "${{ steps.oidc-outputs.outputs.BASE_URL }}/post-auth.html"
+      - name: Create test username and a test password
+        id: uuid
+        run: |
+          TEST_USERNAME=$(uuidgen | tr '[:upper:]' '[:lower:]')
+          TEST_PASSWORD=$(uuidgen | tr '[:upper:]' '[:lower:]')
+          echo "TEST_USERNAME=${TEST_USERNAME?}"
+          echo "TEST_PASSWORD=${TEST_PASSWORD?}"
+          echo "TEST_USERNAME=${TEST_USERNAME?}" >> "$GITHUB_OUTPUT"
+          echo "TEST_PASSWORD=${TEST_PASSWORD?}" >> "$GITHUB_OUTPUT"
 
-      #- name: Well-known endpoint behavior
-      #  if: ${{ inputs.skipDeploy != 'true' }}
-      #  run: curl --include --request GET "${{ steps.oidc-outputs.outputs.BASE_URL }}/.well-known/openid-configuration"
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
 
-      #- name: Well-known JWKS behavior
-      #  if: ${{ inputs.skipDeploy != 'true' }}
-      #  run: curl --include --request GET "${{ steps.oidc-outputs.outputs.BASE_URL }}/jwks"
+      - name: Node dependencies
+        run: npm ci
 
       - name: Provision test user
-        run: npm run users:provision ${{ env.TEST_USERNAME }} ${{ env.TEST_PASSWORD }}
-        env:
-          USERS_TABLE: ${{ steps.oidc-outputs.outputs.USERS_TABLE }}
+        run: npm run users:provision '${{ needs.deploy-provider.outputs.users-table }}' '${{ steps.uuid.outputs.TEST_USERNAME }}' '${{ steps.uuid.outputs.TEST_PASSWORD }}'
 
       - name: Install dependencies and Playwright browsers
         run: |
@@ -212,46 +543,148 @@ jobs:
           npm ci --ignore-scripts
           npx playwright install chromium --with-deps
 
-      - name: Run Playwright live API test
-        env:
-          BASE_URL: ${{ steps.oidc-outputs.outputs.BASE_URL }}
-          TEST_USERNAME: ${{ env.TEST_USERNAME }}
-          TEST_PASSWORD: ${{ env.TEST_PASSWORD }}
+      - name: Run Playwright API test
         run: |
           echo "BASE_URL=${BASE_URL}"
           npm run test:api
+        env:
+          BASE_URL: ${{ needs.deploy-provider.outputs.base-url }}
+          TEST_USERNAME: ${{ steps.uuid.outputs.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ steps.uuid.outputs.TEST_PASSWORD }}
+
+      - name: Upload artifacts
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-test-artifacts
+          path: |
+            playwright-report
+            test-results
+
+  web-test:
+    name: 'web test'
+    needs:
+      - names
+      - build-cdk
+      - deploy-observability
+      - deploy-dev
+      - deploy-provider
+    runs-on: ubuntu-24.04
+    environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Configure AWS creds via OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-oidc-deploy
+
+      - name: Create test username and a test password
+        id: uuid
+        run: |
+          TEST_USERNAME=$(uuidgen | tr '[:upper:]' '[:lower:]')
+          TEST_PASSWORD=$(uuidgen | tr '[:upper:]' '[:lower:]')
+          echo "TEST_USERNAME=${TEST_USERNAME?}"
+          echo "TEST_PASSWORD=${TEST_PASSWORD?}"
+          echo "TEST_USERNAME=${TEST_USERNAME?}" >> "$GITHUB_OUTPUT"
+          echo "TEST_PASSWORD=${TEST_PASSWORD?}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Node dependencies
+        run: npm ci
+
+      - name: Provision test user
+        run: npm run users:provision '${{ needs.deploy-provider.outputs.users-table }}' '${{ steps.uuid.outputs.TEST_USERNAME }}' '${{ steps.uuid.outputs.TEST_PASSWORD }}'
+
+      - name: Install dependencies and Playwright browsers
+        run: |
+          npm -v
+          npm ci --ignore-scripts
+          npx playwright install chromium --with-deps
 
       - name: Run Playwright behaviour tests
         run: |
-          echo "BASE_URL=${{ steps.oidc-outputs.outputs.BASE_URL }}"
-          #echo "COGNITO_DOMAIN=${{ steps.oidc-outputs.outputs.COGNITO_DOMAIN }}"
-          #echo "COGNITO_CLIENT_ID=${{ steps.oidc-outputs.outputs.COGNITO_CLIENT_ID }}"
-          BASE_URL='${{ steps.oidc-outputs.outputs.BASE_URL }}' \
-          #COGNITO_DOMAIN='${{ steps.oidc-outputs.outputs.COGNITO_DOMAIN }}' \
-          #COGNITO_CLIENT_ID='${{ steps.oidc-outputs.outputs.COGNITO_CLIENT_ID }}' \
           npm run test:web --project=chromium
         env:
-          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          BASE_URL: ${{ needs.deploy-provider.outputs.base-url }}
+          TEST_USERNAME: ${{ steps.uuid.outputs.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ steps.uuid.outputs.TEST_PASSWORD }}
+
+      - name: Upload artifacts
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-test-artifacts
+          path: |
+            playwright-report
+            test-results
+
+  load-test:
+    name: 'load test'
+    needs:
+      - names
+      - build-cdk
+      - deploy-observability
+      - deploy-dev
+      - deploy-provider
+    runs-on: ubuntu-24.04
+    environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Configure AWS creds via OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-oidc-deploy
+
+      - name: Create test username and a test password
+        id: uuid
+        run: |
+          TEST_USERNAME=$(uuidgen | tr '[:upper:]' '[:lower:]')
+          TEST_PASSWORD=$(uuidgen | tr '[:upper:]' '[:lower:]')
+          echo "TEST_USERNAME=${TEST_USERNAME?}"
+          echo "TEST_PASSWORD=${TEST_PASSWORD?}"
+          echo "TEST_USERNAME=${TEST_USERNAME?}" >> "$GITHUB_OUTPUT"
+          echo "TEST_PASSWORD=${TEST_PASSWORD?}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Node dependencies
+        run: npm ci
+
+      - name: Provision test user
+        run: npm run users:provision '${{ needs.deploy-provider.outputs.users-table }}' '${{ steps.uuid.outputs.TEST_USERNAME }}' '${{ steps.uuid.outputs.TEST_PASSWORD }}'
 
       - name: Setup k6
         uses: grafana/setup-k6-action@v1
 
       - name: Run k6 load test (5 minutes)
-        env:
-          BASE_URL: ${{ steps.oidc-outputs.outputs.BASE_URL }}
-          TEST_USERNAME: ${{ env.TEST_USERNAME }}
-          TEST_PASSWORD: ${{ env.TEST_PASSWORD }}
         run: |
-          echo "BASE_URL=${BASE_URL}"
-          echo "TEST_USERNAME=${TEST_USERNAME}"
           k6 run tests/load.live.test.js --summary-export=load-test-summary.json
+        env:
+          BASE_URL: ${{ needs.deploy-provider.outputs.base-url }}
+          TEST_USERNAME: ${{ steps.uuid.outputs.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ steps.uuid.outputs.TEST_PASSWORD }}
 
-      - name: Upload artifacts (report, trace, screenshots, videos)
+      - name: Upload artifacts
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-artifacts
+          name: load-test-artifacts
           path: |
-            playwright-report
-            test-results
             load-test-summary.json

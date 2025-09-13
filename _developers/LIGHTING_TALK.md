@@ -4,21 +4,25 @@ Here is a concise README‑style walkthrough you can use for a five‑minute lig
 
 ## DIY OIDC Provider – a self‑contained serverless service
 
-This repository implements a full OpenID Connect (OIDC) provider running entirely on AWS serverless services.  It deploys behind CloudFront using Lambda Function URLs, stores state in DynamoDB, exposes well‑known endpoints via S3, and federates with a Cognito user pool.  Everything is pay‑per‑request and the CDK stack destroys resources when torn down.
+This repository implements a full OpenID Connect (OIDC) provider running entirely on AWS serverless services.  It deploys behind CloudFront using Lambda Function URLs, stores state in DynamoDB, and exposes well‑known endpoints via S3. Everything is pay‑per‑request and the CDK stacks destroy resources when torn down. It can also be integrated with AWS Cognito's Hosted UI as a relying party if desired.
 
 ### Repository tour
 
 * **`infra/` – Infrastructure as code**
-  A Java CDK application defines the “ProviderStack”.  It declares S3 buckets for discovery documents, a CloudFront distribution, three Node.js (ESM) Lambda functions for the `/authorize`, `/token` and `/userinfo` endpoints, a user pool, and DynamoDB tables with TTLs.  Deployment options (domain names, hosted zone IDs, etc.) are parameterised via environment variables and outputs.
+  A Java CDK application defines three stacks:
+  - ObservabilityStack (logs bucket, CloudTrail, X-Ray)
+  - DevStack (ECR repository and publishing role)
+  - ProviderStack (S3 buckets for web and `/.well-known`, CloudFront distribution, four Node.js (ESM) Lambda functions for `/authorize`, `/token`, `/userinfo`, `/jwks`, and Route53 alias)
+  Deployment options (domain names, hosted zone IDs, certificate ARN, etc.) are provided via environment variables; stack outputs include the base URL and table names used by tests.
 
-* **`app/oidc-provider/` – Application logic**
+* **`app/oidc/` – Application logic**
   Three handlers implement the OIDC flows.  The authorization handler validates credentials and writes a one‑time code to DynamoDB; the token handler reads the code, issues an ID token and refresh token, and writes/clears the relevant records; the userinfo handler returns user attributes from an in‑memory map.  Supporting scripts provision or clear users in the DynamoDB table.
 
 * **`web/` – Static front‑end**
   Simple HTML pages (index and post‑auth) allow you to trigger the login flow and display the resulting tokens.  CSS is included for styling.
 
-* **`behaviour-tests/` – End‑to‑end tests**
-  Playwright tests exercise the full sign‑in flow against the deployed service.  The configuration installs browser dependencies, logs screenshots, videos and traces, and runs tests via `npm`.
+* **`tests/` – End‑to‑end tests**
+  Playwright tests exercise the full sign‑in flow against the deployed service. The configuration installs browser dependencies, logs screenshots, videos and traces, and runs tests via `npm`.
 
 * **CI/CD workflows**
   `.github/workflows/test-and-deploy.yml` (not shown) builds, tests and deploys the stack.  It assumes a GitHub OIDC‑enabled IAM role and reads parameters like hosted zone name, subdomain and Cognito domain from repository variables.  A separate load‑test workflow can be added, as demonstrated earlier.

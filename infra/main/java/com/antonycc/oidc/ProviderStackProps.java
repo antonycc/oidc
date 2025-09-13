@@ -13,6 +13,8 @@ public class ProviderStackProps implements StackProps {
     public final String deploymentName;
     public final String hostedZoneName;
     public final String hostedZoneId;
+    public final String ecrRepositoryArn;
+    public final String ecrRepositoryName;
     public final String domainName;
     public final String certificateArn;
     public final Bucket logsBucket;
@@ -27,6 +29,8 @@ public class ProviderStackProps implements StackProps {
         this.deploymentName = builder.deploymentName;
         this.hostedZoneName = builder.hostedZoneName;
         this.hostedZoneId = builder.hostedZoneId;
+        this.ecrRepositoryArn = builder.ecrRepositoryArn;
+        this.ecrRepositoryName = builder.ecrRepositoryName;
         this.domainName = builder.domainName;
         this.certificateArn = builder.certificateArn;
         this.logsBucket = builder.logsBucket;
@@ -51,6 +55,8 @@ public class ProviderStackProps implements StackProps {
         private String deploymentName;
         private String hostedZoneName;
         private String hostedZoneId;
+        private String ecrRepositoryArn;
+        private String ecrRepositoryName;
         private String domainName;
         private String certificateArn;
         private Bucket logsBucket;
@@ -81,6 +87,16 @@ public class ProviderStackProps implements StackProps {
 
         public Builder hostedZoneId(String hostedZoneId) {
             this.hostedZoneId = hostedZoneId;
+            return this;
+        }
+
+        public Builder ecrRepositoryArn(String ecrRepositoryArn) {
+            this.ecrRepositoryArn = ecrRepositoryArn;
+            return this;
+        }
+
+        public Builder ecrRepositoryName(String ecrRepositoryName) {
+            this.ecrRepositoryName = ecrRepositoryName;
             return this;
         }
 

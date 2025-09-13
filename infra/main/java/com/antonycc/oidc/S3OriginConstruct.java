@@ -17,8 +17,11 @@ import software.amazon.awscdk.services.s3.BucketEncryption;
 import software.constructs.Construct;
 
 /**
- * Construct that creates an S3 bucket with CloudFront behavior options and S3 Origin Access Control (OAC).
+ * Construct that creates an S3 bucket with CloudFront behavior options.
  * Encapsulates the common configuration for web and well-known buckets including their CloudFront origins.
+ * <p>
+ * Note: This construct does not create or configure S3 Origin Access Control (OAC) itself.
+ * It is compatible with OAC if configured externally.
  */
 public class S3OriginConstruct extends Construct {
     // Exposed created resources/objects

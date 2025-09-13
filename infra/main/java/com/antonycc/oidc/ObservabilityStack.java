@@ -1,5 +1,7 @@
 package com.antonycc.oidc;
 
+import java.util.List;
+import java.util.Map;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.Duration;
@@ -24,9 +26,6 @@ import software.amazon.awscdk.services.s3.BucketEncryption;
 import software.amazon.awscdk.services.s3.ObjectOwnership;
 import software.amazon.awscdk.services.xray.CfnGroup;
 import software.constructs.Construct;
-
-import java.util.List;
-import java.util.Map;
 
 public class ObservabilityStack extends Stack {
     public final Bucket logsBucket;
@@ -65,15 +64,13 @@ public class ObservabilityStack extends Stack {
         final String accountId = Stack.of(this).getAccount();
         final String bucketName = this.logsBucket.getBucketName();
         this.logsBucket.addToResourcePolicy(PolicyStatement.Builder.create()
-            .sid("AllowCloudFrontStandardLogs")
-            .effect(Effect.ALLOW)
-            .principals(List.of(new ServicePrincipal("delivery.logs.amazonaws.com")))
-            .actions(List.of("s3:PutObject"))
-            .resources(List.of(String.format("arn:aws:s3:::%s/AWSLogs/%s/*", bucketName, accountId)))
-            .conditions(Map.of(
-                "StringEquals", Map.of("s3:x-amz-acl", "bucket-owner-full-control")
-            ))
-            .build());
+                .sid("AllowCloudFrontStandardLogs")
+                .effect(Effect.ALLOW)
+                .principals(List.of(new ServicePrincipal("delivery.logs.amazonaws.com")))
+                .actions(List.of("s3:PutObject"))
+                .resources(List.of(String.format("arn:aws:s3:::%s/AWSLogs/%s/*", bucketName, accountId)))
+                .conditions(Map.of("StringEquals", Map.of("s3:x-amz-acl", "bucket-owner-full-control")))
+                .build());
 
         // CloudTrail - capture management events and deliver to S3 and CloudWatch Logs
         this.trailLogGroup = LogGroup.Builder.create(this, resourceNamePrefix + "-CloudTrailLogGroup")

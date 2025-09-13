@@ -41,12 +41,12 @@ paths:
       description: Returns OpenID Connect provider metadata as per RFC 8414
       operationId: getOpenIdConfiguration
       responses:
-        '200':
+        "200":
           description: OpenID Connect Discovery Document
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OpenIdConfiguration'
+                $ref: "#/components/schemas/OpenIdConfiguration"
               example:
                 issuer: "https://oidc.antonycc.com"
                 authorization_endpoint: "https://oidc.antonycc.com/authorize"
@@ -60,7 +60,20 @@ paths:
                 id_token_signing_alg_values_supported: ["RS256"]
                 token_endpoint_auth_methods_supported: ["none"]
                 code_challenge_methods_supported: ["S256"]
-                claims_supported: ["sub", "email", "email_verified", "name", "given_name", "family_name", "aud", "exp", "iat", "iss", "nonce"]
+                claims_supported:
+                  [
+                    "sub",
+                    "email",
+                    "email_verified",
+                    "name",
+                    "given_name",
+                    "family_name",
+                    "aud",
+                    "exp",
+                    "iat",
+                    "iss",
+                    "nonce",
+                  ]
 
   /authorize:
     get:
@@ -132,7 +145,7 @@ paths:
           description: PKCE challenge method (must be S256)
           example: S256
       responses:
-        '200':
+        "200":
           description: Login form HTML page
           content:
             text/html:
@@ -150,12 +163,12 @@ paths:
                   </form>
                 </body>
                 </html>
-        '400':
+        "400":
           description: Invalid request parameters
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
               example:
                 error: "invalid_request"
                 error_description: "Missing required parameter: client_id"
@@ -241,7 +254,7 @@ paths:
               username: test-user
               password: secret-password
       responses:
-        '200':
+        "200":
           description: Login form HTML page (when validation fails or GET request)
           content:
             text/html:
@@ -259,7 +272,7 @@ paths:
                   </form>
                 </body>
                 </html>
-        '302':
+        "302":
           description: Redirect to client with authorization code
           headers:
             Location:
@@ -268,12 +281,12 @@ paths:
                 type: string
                 format: uri
               example: "https://example.com/callback?code=01J6EXAMPLE123&state=random-state-12345"
-        '400':
+        "400":
           description: Invalid request or authentication failed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
               examples:
                 invalid_request:
                   summary: Missing required parameter
@@ -342,23 +355,23 @@ paths:
               redirect_uri: https://example.com/callback
               code_verifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
       responses:
-        '200':
+        "200":
           description: Successful token response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TokenResponse'
+                $ref: "#/components/schemas/TokenResponse"
               example:
                 access_token: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjEyMzQ1In0.eyJzdWIiOiJ0ZXN0LXVzZXIiLCJhdWQiOiJzZWxmLWNsaWVudCIsImlzcyI6Imh0dHBzOi8vb2lkYy5hbnRvbnljYy5jb20iLCJleHAiOjE3NTc1NTU2ODQsImlhdCI6MTc1NzU1NTM4NCwic2NvcGUiOiJvcGVuaWQgZW1haWwgcHJvZmlsZSJ9.example-signature"
                 id_token: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjEyMzQ1In0.eyJzdWIiOiJ0ZXN0LXVzZXIiLCJhdWQiOiJzZWxmLWNsaWVudCIsImlzcyI6Imh0dHBzOi8vb2lkYy5hbnRvbnljYy5jb20iLCJleHAiOjE3NTc1NTU2ODQsImlhdCI6MTc1NzU1NTM4NCwibm9uY2UiOiJyYW5kb20tbm9uY2UtNjc4OTAiLCJlbWFpbCI6InRlc3QtdXNlckBleGFtcGxlLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJuYW1lIjoiVGVzdCBVc2VyIn0.example-signature"
                 token_type: "Bearer"
                 expires_in: 300
-        '400':
+        "400":
           description: Invalid request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
               examples:
                 invalid_grant:
                   summary: Invalid authorization code
@@ -375,12 +388,12 @@ paths:
                   value:
                     error: "unsupported_grant_type"
                     error_description: "Grant type must be authorization_code"
-        '405':
+        "405":
           description: Method not allowed (only POST supported)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
               example:
                 error: "method_not_allowed"
                 error_description: "Only POST method is supported"
@@ -397,12 +410,12 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        '200':
+        "200":
           description: User information claims
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserInfo'
+                $ref: "#/components/schemas/UserInfo"
               examples:
                 full_profile:
                   summary: Full profile with email and name claims
@@ -417,12 +430,12 @@ paths:
                   summary: Minimal profile (openid scope only)
                   value:
                     sub: "test-user"
-        '401':
+        "401":
           description: Unauthorized - missing or invalid access token
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
               examples:
                 missing_token:
                   summary: Missing Authorization header
@@ -445,7 +458,7 @@ paths:
         Keys are cached for 1 hour and rotated automatically.
       operationId: jwks
       responses:
-        '200':
+        "200":
           description: JSON Web Key Set
           headers:
             Cache-Control:
@@ -456,7 +469,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JWKSet'
+                $ref: "#/components/schemas/JWKSet"
               example:
                 keys:
                   - kty: "RSA"
@@ -465,12 +478,12 @@ paths:
                     n: "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw"
                     e: "AQAB"
                     alg: "RS256"
-        '500':
+        "500":
           description: Server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
               example:
                 error: "server_error"
                 error_description: "Internal server error"
@@ -560,7 +573,8 @@ components:
           items:
             type: string
           description: Supported user claims
-          example: ["sub", "email", "email_verified", "name", "given_name", "family_name", "aud", "exp", "iat", "iss", "nonce"]
+          example:
+            ["sub", "email", "email_verified", "name", "given_name", "family_name", "aud", "exp", "iat", "iss", "nonce"]
 
     TokenResponse:
       type: object
@@ -630,7 +644,7 @@ components:
         keys:
           type: array
           items:
-            $ref: '#/components/schemas/JWK'
+            $ref: "#/components/schemas/JWK"
           description: Array of JSON Web Keys
 
     JWK:

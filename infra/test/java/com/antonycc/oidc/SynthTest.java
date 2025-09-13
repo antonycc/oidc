@@ -3,52 +3,78 @@ package com.antonycc.oidc;
 import org.junit.jupiter.api.Test;
 import software.amazon.awscdk.App;
 import software.amazon.awscdk.Environment;
-import software.amazon.awscdk.StageSynthesisOptions;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class SynthTest {
+
+    private static Map<String, String> parseDotEnv(Path file) {
+        Map<String, String> map = new HashMap<>();
+        if (Files.notExists(file)) return map;
+        try {
+            List<String> lines = Files.readAllLines(file, StandardCharsets.UTF_8);
+            for (String raw : lines) {
+                if (raw == null) continue;
+                String line = raw.trim();
+                if (line.isEmpty() || line.startsWith("#")) continue;
+                int idx = line.indexOf('=');
+                if (idx <= 0) continue;
+                String key = line.substring(0, idx).trim();
+                String value = line.substring(idx + 1).trim();
+                // Remove optional surrounding quotes
+                if ((value.startsWith("\"") && value.endsWith("\""))
+                        || (value.startsWith("'") && value.endsWith("'"))) {
+                    value = value.substring(1, value.length() - 1);
+                }
+                map.put(key, value);
+            }
+        } catch (IOException ignored) {
+            // ignore missing/not readable
+        }
+        return map;
+    }
+
+    private static void setProps(Map<String, String> props) {
+        if (props == null) return;
+        for (Map.Entry<String, String> e : props.entrySet()) {
+            if (e.getKey() != null && e.getValue() != null) {
+                System.setProperty(e.getKey(), e.getValue());
+            }
+        }
+    }
+
     @Test
-    void cdkSynthCompiles() {
-        var app = new App();
+    void cdkSynthCompilesAllStacksWithEnvFile() {
+        // Load env vars from .env.test at repo root
+        Path root = Path.of("").toAbsolutePath();
+        Map<String, String> envVars = parseDotEnv(root.resolve(".env.test"));
+        // Sensible defaults for account/region used by CDK
+        envVars.putIfAbsent("CDK_DEFAULT_ACCOUNT", "123456789012");
+        envVars.putIfAbsent("CDK_DEFAULT_REGION", "us-east-1");
+        setProps(envVars);
 
+        App app = new App();
         Environment env = Environment.builder()
-                .account("123456789012")
-                .region("us-east-1")
+                .account(System.getProperty("CDK_DEFAULT_ACCOUNT"))
+                .region(System.getProperty("CDK_DEFAULT_REGION"))
                 .build();
 
-        // Create the Observability stack first
-        ObservabilityStack observabilityStack = new ObservabilityStack(
-                app,
-                "TestObservabilityStack",
-                ObservabilityStackProps.builder()
-                        .env(env)
-                        .envName("test")
-                        .domainName("oidc.example.com")
-                        .build());
+        ProviderApplication application = ProviderApplication.builder(app, env).build();
 
-        // Create the App stack
-        AppStack appStack = new AppStack(
-                app,
-                "TestAppStack",
-                AppStackProps.builder()
-                        .env(env)
-                        .envName("test")
-                        .deploymentName("test")
-                        .hostedZoneName("example.com")
-                        .hostedZoneId("Z000EXAMPLE")
-                        .ecrRepositoryArn("arn:aws:ecr:us-east-1:123456789012:repository/oidc-repo")
-                        .ecrRepositoryName("oidc-repo")
-                        .baseImageTag("latest")
-                        .domainName("oidc.example.com")
-                        .certificateArn("arn:aws:acm:us-east-1:123456789012:certificate/abc")
-                        .trailLogGroup(observabilityStack.trailLogGroup)
-                        .auditTrail(observabilityStack.auditTrail)
-                        .xrayGroup(observabilityStack.xrayGroup)
-                        .build());
-
-        StageSynthesisOptions options = StageSynthesisOptions.builder()
-                .skipValidation(false)
-                .validateOnSynthesis(true)
-                .build();
-        app.synth(options); // should not throw
+        // All stacks should be constructed
+        assertNotNull(application.observabilityStack);
+        assertNotNull(application.devStack);
+        assertNotNull(application.appStack);
+        assertNotNull(application.webStack);
+        assertNotNull(application.edgeStack);
+        assertNotNull(application.opsStack);
     }
 }

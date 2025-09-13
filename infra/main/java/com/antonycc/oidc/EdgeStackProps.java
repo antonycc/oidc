@@ -1,11 +1,10 @@
 package com.antonycc.oidc;
 
+import java.util.Map;
 import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.services.cloudfront.BehaviorOptions;
 import software.amazon.awscdk.services.s3.Bucket;
-
-import java.util.Map;
 
 public class EdgeStackProps implements StackProps {
     public final Environment env;
@@ -162,7 +161,8 @@ public class EdgeStackProps implements StackProps {
             return this;
         }
 
-        public Builder additionalOriginsBehaviourMappings(Map<String, BehaviorOptions> additionalOriginsBehaviourMappings) {
+        public Builder additionalOriginsBehaviourMappings(
+                Map<String, BehaviorOptions> additionalOriginsBehaviourMappings) {
             this.additionalOriginsBehaviourMappings = additionalOriginsBehaviourMappings;
             return this;
         }

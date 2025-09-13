@@ -1,5 +1,6 @@
 package com.antonycc.oidc;
 
+import java.util.List;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.Stack;
@@ -17,8 +18,6 @@ import software.amazon.awscdk.services.lambda.Function;
 import software.amazon.awscdk.services.lambda.FunctionAttributes;
 import software.amazon.awscdk.services.lambda.IFunction;
 import software.constructs.Construct;
-
-import java.util.List;
 
 public class OpsStack extends Stack {
     public final Alarm authorizeErrorAlarm;

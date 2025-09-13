@@ -1,9 +1,8 @@
 package com.antonycc.oidc;
 
-import software.amazon.awscdk.services.cloudfront.AllowedMethods;
-
 import java.util.List;
 import java.util.Map;
+import software.amazon.awscdk.services.cloudfront.AllowedMethods;
 
 /**
  * Props for EndpointFunction construct.

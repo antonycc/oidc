@@ -1,176 +1,170 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
+  <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="API Documentation" />
     <title>OIDC API Documentation</title>
     <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui.css" />
     <style>
-        body {
-            margin: 0;
-            background: #fafafa;
-        }
+      body {
+        margin: 0;
+        background: #fafafa;
+      }
 
-        .swagger-ui .topbar {
-            background-color: #1f4788;
-            border-bottom: 1px solid #d4d4d4;
-        }
+      .swagger-ui .topbar {
+        background-color: #1f4788;
+        border-bottom: 1px solid #d4d4d4;
+      }
 
-        .swagger-ui .topbar .download-url-wrapper input[type=text] {
-            border: 2px solid #ffffff;
-        }
+      .swagger-ui .topbar .download-url-wrapper input[type="text"] {
+        border: 2px solid #ffffff;
+      }
 
-        .swagger-ui .info hgroup.main .title {
-            color: #1f4788;
-        }
+      .swagger-ui .info hgroup.main .title {
+        color: #1f4788;
+      }
 
-        .header-container {
-            background: linear-gradient(135deg, #1f4788 0%, #2563eb 100%);
-            color: white;
-            padding: 2rem 0;
-            margin-bottom: 2rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
+      .header-container {
+        background: linear-gradient(135deg, #1f4788 0%, #2563eb 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      }
 
-        .header-content {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 1rem;
-            text-align: center;
-        }
+      .header-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 1rem;
+        text-align: center;
+      }
 
+      .header-content h1 {
+        font-size: 2.5rem;
+        margin: 0 0 0.5rem 0;
+        font-weight: 300;
+      }
+
+      .header-content .subtitle {
+        font-size: 1.2rem;
+        opacity: 0.9;
+        margin: 0 0 1rem 0;
+      }
+
+      .header-links {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        margin-top: 1.5rem;
+        flex-wrap: wrap;
+      }
+
+      .header-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: white;
+        text-decoration: none;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        transition: background-color 0.2s;
+        font-size: 0.9rem;
+      }
+
+      .header-link:hover {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+      }
+
+      .swagger-ui .topbar {
+        display: none;
+      }
+
+      #swagger-ui {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      .footer {
+        background: #f8f9fa;
+        border-top: 1px solid #e9ecef;
+        padding: 2rem 0;
+        margin-top: 3rem;
+        text-align: center;
+        color: #6c757d;
+      }
+
+      @media (max-width: 768px) {
         .header-content h1 {
-            font-size: 2.5rem;
-            margin: 0 0 0.5rem 0;
-            font-weight: 300;
-        }
-
-        .header-content .subtitle {
-            font-size: 1.2rem;
-            opacity: 0.9;
-            margin: 0 0 1rem 0;
+          font-size: 2rem;
         }
 
         .header-links {
-            display: flex;
-            justify-content: center;
-            gap: 1rem;
-            margin-top: 1.5rem;
-            flex-wrap: wrap;
+          flex-direction: column;
+          align-items: center;
         }
-
-        .header-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            color: white;
-            text-decoration: none;
-            background: rgba(255, 255, 255, 0.1);
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem;
-            transition: background-color 0.2s;
-            font-size: 0.9rem;
-        }
-
-        .header-link:hover {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-        }
-
-        .swagger-ui .topbar {
-            display: none;
-        }
-
-        #swagger-ui {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .footer {
-            background: #f8f9fa;
-            border-top: 1px solid #e9ecef;
-            padding: 2rem 0;
-            margin-top: 3rem;
-            text-align: center;
-            color: #6c757d;
-        }
-
-        @media (max-width: 768px) {
-            .header-content h1 {
-                font-size: 2rem;
-            }
-
-            .header-links {
-                flex-direction: column;
-                align-items: center;
-            }
-        }
+      }
     </style>
-</head>
-<body>
-
+  </head>
+  <body>
     <div id="swagger-ui"></div>
 
     <div class="footer">
-        <p>
-            Built with <a href="https://github.com/swagger-api/swagger-ui" target="_blank">Swagger UI</a> •
-            <a href="https://github.com/antonycc/oidc/blob/main/LICENSE" target="_blank">MIT License</a> •
-            Version <span id="api-version">0.1.0</span>
-        </p>
+      <p>
+        Built with <a href="https://github.com/swagger-api/swagger-ui" target="_blank">Swagger UI</a> •
+        <a href="https://github.com/antonycc/oidc/blob/main/LICENSE" target="_blank">MIT License</a> • Version
+        <span id="api-version">0.1.0</span>
+      </p>
     </div>
 
     <script src="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui-bundle.js" crossorigin></script>
     <script>
-        window.onload = () => {
-            // Determine the base URL dynamically
-            const baseUrl = window.location.origin;
+      window.onload = () => {
+        // Determine the base URL dynamically
+        const baseUrl = window.location.origin;
 
-            window.ui = SwaggerUIBundle({
-                url: baseUrl + '/openapi.yaml',
-                dom_id: '#swagger-ui',
-                deepLinking: true,
-                presets: [
-                    SwaggerUIBundle.presets.apis,
-                    SwaggerUIBundle.presets.standalone
-                ],
-                plugins: [
-                    SwaggerUIBundle.plugins.DownloadUrl
-                ],
-                defaultModelsExpandDepth: 1,
-                defaultModelExpandDepth: 1,
-                docExpansion: "list",
-                filter: true,
-                showRequestHeaders: true,
-                showCommonExtensions: true,
-                tryItOutEnabled: true,
-                requestInterceptor: (request) => {
-                    // Add custom headers if needed
-                    request.headers['X-API-Client'] = 'SwaggerUI';
-                    return request;
-                },
-                responseInterceptor: (response) => {
-                    // Log API responses for debugging
-                    console.log('API Response:', response);
-                    return response;
-                },
-                onComplete: () => {
-                    console.log('Swagger UI loaded successfully');
+        window.ui = SwaggerUIBundle({
+          url: baseUrl + "/openapi.yaml",
+          dom_id: "#swagger-ui",
+          deepLinking: true,
+          presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.presets.standalone],
+          plugins: [SwaggerUIBundle.plugins.DownloadUrl],
+          defaultModelsExpandDepth: 1,
+          defaultModelExpandDepth: 1,
+          docExpansion: "list",
+          filter: true,
+          showRequestHeaders: true,
+          showCommonExtensions: true,
+          tryItOutEnabled: true,
+          requestInterceptor: (request) => {
+            // Add custom headers if needed
+            request.headers["X-API-Client"] = "SwaggerUI";
+            return request;
+          },
+          responseInterceptor: (response) => {
+            // Log API responses for debugging
+            console.log("API Response:", response);
+            return response;
+          },
+          onComplete: () => {
+            console.log("Swagger UI loaded successfully");
 
-                    // Update version in footer if available
-                    const spec = window.ui.getSystem().getState().getIn(['spec', 'json']);
-                    if (spec && spec.info && spec.info.version) {
-                        const versionEl = document.getElementById('api-version');
-                        if (versionEl) {
-                            versionEl.textContent = spec.info.version;
-                        }
-                    }
-                },
-                onFailure: (err) => {
-                    console.error('Swagger UI failed to load:', err);
-                }
-            });
-        };
+            // Update version in footer if available
+            const spec = window.ui.getSystem().getState().getIn(["spec", "json"]);
+            if (spec && spec.info && spec.info.version) {
+              const versionEl = document.getElementById("api-version");
+              if (versionEl) {
+                versionEl.textContent = spec.info.version;
+              }
+            }
+          },
+          onFailure: (err) => {
+            console.error("Swagger UI failed to load:", err);
+          },
+        });
+      };
     </script>
-</body>
+  </body>
 </html>

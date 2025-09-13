@@ -1,5 +1,8 @@
 package com.antonycc.oidc;
 
+import java.util.AbstractMap;
+import java.util.List;
+import java.util.regex.Pattern;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.RemovalPolicy;
@@ -17,10 +20,6 @@ import software.amazon.awscdk.services.iam.ServicePrincipal;
 import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.logs.RetentionDays;
 import software.constructs.Construct;
-
-import java.util.AbstractMap;
-import java.util.List;
-import java.util.regex.Pattern;
 
 /**
  * DevStack for Docker container development and deployment infrastructure.
@@ -43,7 +42,7 @@ public class DevStack extends Stack {
         // Values are provided via WebApp after context/env resolution
 
         // Build naming using same patterns as WebStack
-        //String domainName = Builder.buildDomainName(builder.env, builder.domainName, builder.hostedZoneName);
+        // String domainName = Builder.buildDomainName(builder.env, builder.domainName, builder.hostedZoneName);
         String dashedDomainName =
                 Builder.buildDashedDomainName(builder.env, builder.domainName, builder.hostedZoneName);
 

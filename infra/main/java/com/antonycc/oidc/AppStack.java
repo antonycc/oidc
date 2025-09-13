@@ -1,8 +1,5 @@
 package com.antonycc.oidc;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.RemovalPolicy;
@@ -16,11 +13,16 @@ import software.amazon.awscdk.services.dynamodb.BillingMode;
 import software.amazon.awscdk.services.dynamodb.PointInTimeRecoverySpecification;
 import software.amazon.awscdk.services.dynamodb.Table;
 import software.amazon.awscdk.services.dynamodb.TableEncryption;
+import software.amazon.awscdk.services.s3.BlockPublicAccess;
 import software.amazon.awscdk.services.s3.Bucket;
+import software.amazon.awscdk.services.s3.BucketEncryption;
 import software.constructs.Construct;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 public class AppStack extends Stack {
-    public final S3OriginConstruct wellKnownOriginBucket;
     public final Bucket wellKnownBucket;
     public final Table usersTable;
     public final Table authCodesTable;
@@ -59,16 +61,15 @@ public class AppStack extends Stack {
         // Buckets
 
         // Well-known origin bucket
-        this.wellKnownOriginBucket = new S3OriginConstruct(
-                this,
-                props.resourceNamePrefix + "-WellKnownBucket",
-                S3OriginConstructProps.builder()
-                        .bucketNameSuffix("well-known")
-                        .logsPrefix("s3/well-known/")
-                        // .logsBucket(logsBucket)
-                        .bucketType(S3OriginBucketType.WELL_KNOWN)
-                        .build());
-        this.wellKnownBucket = this.wellKnownOriginBucket.bucket;
+        this.wellKnownBucket = Bucket.Builder.create(this, props.resourceNamePrefix + "-WellKnownBucket")
+            .bucketName(props.resourceNamePrefix + "-" + "well-known")
+            .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
+            .enforceSsl(true)
+            .encryption(BucketEncryption.S3_MANAGED) // Explicit SSE-S3 encryption (zero cost)
+            .autoDeleteObjects(true)
+            .removalPolicy(RemovalPolicy.DESTROY)
+            .serverAccessLogsPrefix("s3/well-known/")
+            .build();
 
         // DynamoDB tables
 

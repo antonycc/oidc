@@ -2,13 +2,15 @@ package com.antonycc.oidc;
 
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
+import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.Tags;
+import software.amazon.awscdk.services.s3.BlockPublicAccess;
 import software.amazon.awscdk.services.s3.Bucket;
+import software.amazon.awscdk.services.s3.BucketEncryption;
 import software.constructs.Construct;
 
 public class WebStack extends Stack {
-    public final S3OriginConstruct webOriginBucket;
     public final Bucket webBucket;
 
     public WebStack(final Construct scope, final String id, final WebStackProps props) {
@@ -32,17 +34,17 @@ public class WebStack extends Stack {
         Tags.of(this).add("BackupRequired", "true");
         Tags.of(this).add("MonitoringEnabled", "true");
 
-        // Buckets
-        this.webOriginBucket = new S3OriginConstruct(
-                this,
-                props.resourceNamePrefix + "-WebBucket",
-                S3OriginConstructProps.builder()
-                        .bucketNameSuffix("web")
-                        .logsPrefix("s3/web/")
-                        // .logsBucket(logsBucket)
-                        .bucketType(S3OriginBucketType.WEB)
-                        .build());
-        this.webBucket = this.webOriginBucket.bucket;
+        // Bucket
+
+        this.webBucket = Bucket.Builder.create(this, props.resourceNamePrefix + "-WebBucket")
+            .bucketName(props.resourceNamePrefix + "-" + "web")
+            .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
+            .enforceSsl(true)
+            .encryption(BucketEncryption.S3_MANAGED) // Explicit SSE-S3 encryption (zero cost)
+            .autoDeleteObjects(true)
+            .removalPolicy(RemovalPolicy.DESTROY)
+            .serverAccessLogsPrefix("s3/web/")
+            .build();
 
         // Outputs
         new CfnOutput(

@@ -223,7 +223,7 @@ jobs:
           retention-days: 1
 
   diff-cdk:
-    name: 'deploy app'
+    name: 'diff cdk'
     needs:
       - names
       - npm-test
@@ -262,31 +262,13 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
           role-session-name: gha-oidc-deploy
 
-      - name: Deploy App stack (CDK)
+      - name: Diff stacks (CDK)
         run: |
           npx cdk diff --all --require-approval never --ci true --outputs-file cdk.out/cdk-outputs-all.json
         env:
           ENV_NAME: ${{ needs.names.outputs.environment-name }}
           DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
           BASE_IMAGE_TAG: ${{ needs.build-images.outputs.image-tag }}
-
-      - name: Resolve stack outputs
-        id: outputs
-        run: |
-          ECR_REPOSITORY_URI=$(jq -r '.["DevStack-${{ needs.names.outputs.deployment-name }}"].EcrRepositoryUri' cdk.out/cdk-outputs-all.json)
-          USERS_TABLE=$(jq -r '.["AppStack-${{ needs.names.outputs.deployment-name }}"].UsersTableName' cdk.out/cdk-outputs-all.json)
-          BASE_URL=$(jq -r '.["WebStack-${{ needs.names.outputs.deployment-name }}"].BaseUrl' cdk.out/cdk-outputs-all.json)
-          echo "ECR_REPOSITORY_URI=$ECR_REPOSITORY_URI"
-          echo "USERS_TABLE=$USERS_TABLE"
-          echo "BASE_URL=$BASE_URL"
-          echo "ECR_REPOSITORY_URI=$ECR_REPOSITORY_URI" >> $GITHUB_OUTPUT
-          echo "USERS_TABLE=$USERS_TABLE" >> $GITHUB_OUTPUT
-          echo "BASE_URL=$BASE_URL" >> $GITHUB_OUTPUT
-        shell: bash
-    outputs:
-      users-table: ${{ steps.app-outputs.outputs.USERS_TABLE }}
-      ecr-repository-uri: ${{ steps.dev-outputs.outputs.ECR_REPOSITORY_URI }}
-      base-url: ${{ steps.edge-outputs.outputs.BASE_URL }}
 
   deploy-observability:
     name: 'deploy observability'

@@ -37,6 +37,7 @@ class SynthTest {
                         .hostedZoneId("Z000EXAMPLE")
                         .ecrRepositoryArn("arn:aws:ecr:us-east-1:123456789012:repository/oidc-repo")
                         .ecrRepositoryName("oidc-repo")
+                        .baseImageTag("latest")
                         .domainName("oidc.example.com")
                         .certificateArn("arn:aws:acm:us-east-1:123456789012:certificate/abc")
                         .trailLogGroup(observabilityStack.trailLogGroup)

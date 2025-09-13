@@ -1,8 +1,9 @@
 package com.antonycc.oidc;
 
+import software.amazon.awscdk.services.cloudfront.AllowedMethods;
+
 import java.util.List;
 import java.util.Map;
-import software.amazon.awscdk.services.cloudfront.AllowedMethods;
 
 public class EndpointConstructProps {
     public final String functionName; // e.g., "AuthorizeFn"
@@ -83,7 +84,6 @@ public class EndpointConstructProps {
             java.util.List<String> missingFields = new java.util.ArrayList<>();
             if (functionName == null) missingFields.add("functionName");
             if (ecrRepositoryArn == null) missingFields.add("ecrRepositoryArn");
-            if (ecrRepositoryName == null) missingFields.add("ecrRepositoryName");
             if (baseImageTag == null) missingFields.add("baseImageTag");
             if (handler == null) missingFields.add("handler");
             if (pathPattern == null) missingFields.add("pathPattern");

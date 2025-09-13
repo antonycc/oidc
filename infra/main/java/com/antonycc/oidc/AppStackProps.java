@@ -23,7 +23,7 @@ public class AppStackProps implements StackProps {
         this.deploymentName = builder.deploymentName;
         this.ecrRepositoryArn = builder.ecrRepositoryArn;
         this.ecrRepositoryName = builder.ecrRepositoryName;
-        this.baseImageTag = builder.baseImageTag != null ? builder.baseImageTag : "latest";
+        this.baseImageTag = builder.baseImageTag;
         this.domainName = builder.domainName;
         this.hostedZoneName = builder.hostedZoneName;
         this.hostedZoneId = builder.hostedZoneId;

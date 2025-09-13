@@ -2,6 +2,9 @@ package com.antonycc.oidc;
 
 import software.amazon.awscdk.Environment;
 
+import static com.antonycc.oidc.ResourceNameUtils.generateCompressedResourceNamePrefix;
+import static com.antonycc.oidc.ResourceNameUtils.generateResourceNamePrefix;
+
 public class App {
     public static void main(final String[] args) {
         var app = new software.amazon.awscdk.App();
@@ -10,9 +13,7 @@ public class App {
         String deploymentName = System.getenv().getOrDefault("DEPLOYMENT_NAME", envName);
         String hostedZoneName = System.getenv().getOrDefault("HOSTED_ZONE_NAME", "example.com");
         String hostedZoneId = System.getenv().getOrDefault("HOSTED_ZONE_ID", "Z000EXAMPLE");
-        String ecrRepositoryArn = System.getenv()
-                .getOrDefault("ECR_REPOSITORY_ARN", "arn:aws:ecr:us-east-1:123456789012:repository/oidc-provider-repo");
-        String ecrRepositoryName = System.getenv().getOrDefault("ECR_REPOSITORY_NAME", "oidc-provider-repo");
+        String baseImageTag = System.getenv().getOrDefault("BASE_IMAGE_TAG", "latest");
 
         // Compute domain name based on deployment pattern
         String domainName;
@@ -30,6 +31,10 @@ public class App {
             // ".auth.oidc.example.com");
         }
 
+        // Generate predictable resource name prefix based on domain and environment
+        String resourceNamePrefix = generateResourceNamePrefix(domainName, envName);
+        String compressedResourceNamePrefix = generateCompressedResourceNamePrefix(domainName, envName);
+
         String certificateArn =
                 System.getenv().getOrDefault("CERTIFICATE_ARN", "arn:aws:acm:us-east-1:123456789012:certificate/abc");
         // String authCertificateArn =
@@ -41,7 +46,7 @@ public class App {
                 .region(System.getenv("CDK_DEFAULT_REGION"))
                 .build();
 
-        // Create the Observability stack first (logging, monitoring, etc.)
+        // Create the Observability stack first (logging, etc.)
         ObservabilityStack observabilityStack = new ObservabilityStack(
                 app,
                 "ObservabilityStack-" + envName,
@@ -49,6 +54,8 @@ public class App {
                         .env(env)
                         .envName(envName)
                         .domainName(domainName)
+                        .resourceNamePrefix(resourceNamePrefix)
+                        .compressedResourceNamePrefix(compressedResourceNamePrefix)
                         .build());
 
         // Create DevStack with resources only used during development or deployment (e.g. ECR)
@@ -58,11 +65,13 @@ public class App {
                         .env(envName)
                         .hostedZoneName(hostedZoneName)
                         .domainName(domainName)
+                        .resourceNamePrefix(resourceNamePrefix)
+                        .compressedResourceNamePrefix(compressedResourceNamePrefix)
                         .build())
                 .build();
         devStack.addDependency(observabilityStack);
 
-        // Create the Provider stack (Lambdas, DynamoDB, S3, CloudFront, Route53)
+        // Create the Provider stack (Lambdas, DynamoDB, S3, CloudFront)
         ProviderStack providerStack = new ProviderStack(
                 app,
                 "ProviderStack-" + deploymentName,
@@ -70,19 +79,66 @@ public class App {
                         .env(env)
                         .envName(envName)
                         .deploymentName(deploymentName)
-                        .hostedZoneName(hostedZoneName)
-                        .hostedZoneId(hostedZoneId)
-                        .ecrRepositoryArn(ecrRepositoryArn)
-                        .ecrRepositoryName(ecrRepositoryName)
+                        .ecrRepositoryArn(devStack.ecrRepository.getRepositoryArn())
+                        .ecrRepositoryName(devStack.ecrRepository.getRepositoryName())
+                        .baseImageTag(baseImageTag)
                         .domainName(domainName)
-                        .certificateArn(certificateArn)
-                        .logsBucket(observabilityStack.logsBucket)
-                        .trailLogGroup(observabilityStack.trailLogGroup)
-                        .auditTrail(observabilityStack.auditTrail)
-                        .xrayGroup(observabilityStack.xrayGroup)
+                        .resourceNamePrefix(resourceNamePrefix)
+                        .compressedResourceNamePrefix(compressedResourceNamePrefix)
+                        .logsBucketName(observabilityStack.logsBucket.getBucketName())
                         .build());
         providerStack.addDependency(observabilityStack);
         providerStack.addDependency(devStack);
+
+        // Create the Web stack (S3, CloudFront, Route53)
+        WebStack webStack = new WebStack(
+            app,
+            "WebStack-" + deploymentName,
+            WebStackProps.builder()
+                .env(env)
+                .envName(envName)
+                .deploymentName(deploymentName)
+                .hostedZoneName(hostedZoneName)
+                .hostedZoneId(hostedZoneId)
+                .domainName(domainName)
+                .resourceNamePrefix(resourceNamePrefix)
+                .compressedResourceNamePrefix(compressedResourceNamePrefix)
+                .certificateArn(certificateArn)
+                .logsBucketArn(observabilityStack.logsBucket.getBucketArn())
+                .wellKnownBucketArn(providerStack.wellKnownBucket.getBucketArn())
+                .jwksEndpointFunctionArn(providerStack.jwksEndpoint.function.getFunctionArn())
+                .authorizeEndpointFunctionArn(providerStack.authorizeEndpoint.function.getFunctionArn())
+                .tokenEndpointFunctionArn(providerStack.tokenEndpoint.function.getFunctionArn())
+                .userinfoEndpointFunctionArn(providerStack.userinfoEndpoint.function.getFunctionArn())
+                .build());
+        webStack.addDependency(observabilityStack);
+        webStack.addDependency(devStack);
+        webStack.addDependency(providerStack);
+
+        // Create the Ops stack (Alarms, etc.)
+        OpsStack opsStack = new OpsStack(
+            app,
+            "OpsStack-" + deploymentName,
+            OpsStackProps.builder()
+                .env(env)
+                .envName(envName)
+                .deploymentName(deploymentName)
+                .domainName(domainName)
+                .resourceNamePrefix(resourceNamePrefix)
+                .compressedResourceNamePrefix(compressedResourceNamePrefix)
+                .jwksEndpointFunctionArn(providerStack.jwksEndpoint.function.getFunctionArn())
+                .authorizeEndpointFunctionArn(providerStack.authorizeEndpoint.function.getFunctionArn())
+                .tokenEndpointFunctionArn(providerStack.tokenEndpoint.function.getFunctionArn())
+                .userinfoEndpointFunctionArn(providerStack.userinfoEndpoint.function.getFunctionArn())
+                .usersTableArn(providerStack.usersTable.getTableArn())
+                .authCodesTableArn(providerStack.authCodesTable.getTableArn())
+                .refreshTokensTableArn(providerStack.refreshTokensTable.getTableArn())
+                .distributionId(webStack.distribution.getDistributionId())
+                .build());
+        opsStack.addDependency(observabilityStack);
+        opsStack.addDependency(devStack);
+        opsStack.addDependency(providerStack);
+        opsStack.addDependency(webStack);
 
         app.synth();
     }

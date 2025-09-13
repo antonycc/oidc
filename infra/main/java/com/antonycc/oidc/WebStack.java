@@ -1,0 +1,323 @@
+package com.antonycc.oidc;
+
+import software.amazon.awscdk.AssetHashType;
+import software.amazon.awscdk.CfnOutput;
+import software.amazon.awscdk.CfnOutputProps;
+import software.amazon.awscdk.Duration;
+import software.amazon.awscdk.Expiration;
+import software.amazon.awscdk.RemovalPolicy;
+import software.amazon.awscdk.Stack;
+import software.amazon.awscdk.Tags;
+import software.amazon.awscdk.services.certificatemanager.Certificate;
+import software.amazon.awscdk.services.cloudfront.BehaviorOptions;
+import software.amazon.awscdk.services.cloudfront.Distribution;
+import software.amazon.awscdk.services.cloudfront.OriginAccessIdentity;
+import software.amazon.awscdk.services.cloudfront.SSLMethod;
+import software.amazon.awscdk.services.iam.ServicePrincipal;
+import software.amazon.awscdk.services.lambda.Function;
+import software.amazon.awscdk.services.lambda.FunctionUrlAuthType;
+import software.amazon.awscdk.services.lambda.IFunction;
+import software.amazon.awscdk.services.lambda.Permission;
+import software.amazon.awscdk.services.logs.LogGroup;
+import software.amazon.awscdk.services.logs.RetentionDays;
+import software.amazon.awscdk.services.route53.ARecord;
+import software.amazon.awscdk.services.route53.ARecordProps;
+import software.amazon.awscdk.services.route53.HostedZone;
+import software.amazon.awscdk.services.route53.HostedZoneAttributes;
+import software.amazon.awscdk.services.route53.IHostedZone;
+import software.amazon.awscdk.services.route53.RecordTarget;
+import software.amazon.awscdk.services.route53.targets.CloudFrontTarget;
+import software.amazon.awscdk.services.s3.Bucket;
+import software.amazon.awscdk.services.s3.IBucket;
+import software.amazon.awscdk.services.s3.assets.AssetOptions;
+import software.amazon.awscdk.services.s3.deployment.BucketDeployment;
+import software.amazon.awscdk.services.s3.deployment.Source;
+import software.amazon.awscdk.services.wafv2.CfnWebACL;
+import software.constructs.Construct;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static com.antonycc.oidc.ResourceNameUtils.generateCompressedResourceNamePrefix;
+import static com.antonycc.oidc.ResourceNameUtils.generateResourceNamePrefix;
+
+public class WebStack extends Stack {
+    public final String baseUrl;
+    public final S3OriginBucket webOriginBucket;
+    public final Bucket webBucket;
+    public final OriginAccessIdentity webOriginAccessIdentity;
+    public final Distribution distribution;
+    public final BucketDeployment webDeployment;
+    public final BucketDeployment wellKnownDeployment;
+    public final ARecord aliasRecord;
+
+    public WebStack(final Construct scope, final String id, final WebStackProps props) {
+        super(scope, id, props);
+
+        // Apply cost allocation tags for all resources in this stack
+        Tags.of(this).add("Environment", props.envName);
+        Tags.of(this).add("Application", "oidc-provider");
+        Tags.of(this).add("CostCenter", "authentication");
+        Tags.of(this).add("Owner", "platform-team");
+        Tags.of(this).add("Project", "identity-management");
+        Tags.of(this).add("DeploymentName", props.deploymentName);
+        Tags.of(this).add("Stack", "WebStack");
+        Tags.of(this).add("ManagedBy", "aws-cdk");
+
+        // Enhanced cost optimization tags
+        Tags.of(this).add("BillingPurpose", "authentication-infrastructure");
+        Tags.of(this).add("ResourceType", "serverless-oidc");
+        Tags.of(this).add("Criticality", "high");
+        Tags.of(this).add("DataClassification", "confidential");
+        Tags.of(this).add("BackupRequired", "true");
+        Tags.of(this).add("MonitoringEnabled", "true");
+
+        var additionalOriginsBehaviourMappings = new HashMap<String, BehaviorOptions>();
+
+        // Generate predictable resource name prefix based on domain and deployment name
+        String resourceNamePrefix = generateResourceNamePrefix(props.domainName, props.deploymentName);
+        String compressedResourceNamePrefix =
+                generateCompressedResourceNamePrefix(props.domainName, props.deploymentName);
+
+        // Use Resources from the passed props
+        IBucket logsBucket = Bucket.fromBucketName(this, "LogsBucket", props.logsBucketArn);
+        IBucket wellKnownBucket = Bucket.fromBucketName(this, "WellKnownBucket", props.wellKnownBucketArn);
+        IFunction jwksEndpointFunction = Function.fromFunctionArn(this, "JwksEndpointFunction", props.jwksEndpointFunctionArn);
+        IFunction authorizeEndpointFunction = Function.fromFunctionArn(this, "AuthorizeEndpointFunction", props.authorizeEndpointFunctionArn);
+        IFunction tokenEndpointFunction = Function.fromFunctionArn(this, "TokenEndpointFunction", props.tokenEndpointFunctionArn);
+        IFunction userinfoEndpointFunction = Function.fromFunctionArn(this, "UserinfoEndpointFunction", props.userinfoEndpointFunctionArn);
+
+        // Hosted zone (must exist)
+        IHostedZone zone = HostedZone.fromHostedZoneAttributes(
+                this,
+                resourceNamePrefix + "-Zone",
+                HostedZoneAttributes.builder()
+                        .hostedZoneId(props.hostedZoneId)
+                        .zoneName(props.hostedZoneName)
+                        .build());
+        String domainName = props.domainName;
+        String recordName = props.hostedZoneName.equals(props.domainName)
+                ? null
+                : (props.domainName.endsWith("." + props.hostedZoneName)
+                        ? props.domainName.substring(0, props.domainName.length() - (props.hostedZoneName.length() + 1))
+                        : props.domainName);
+
+        this.baseUrl = "https://" + domainName;
+
+        // TLS certificate from existing ACM (must be in us-east-1 for CloudFront)
+        var cert = Certificate.fromCertificateArn(this, resourceNamePrefix + "-WebCert", props.certificateArn);
+
+        // Buckets
+
+        // Web origin bucket
+        this.webOriginBucket = new S3OriginBucket(
+                this,
+                resourceNamePrefix + "-WebBucket",
+                S3OriginBucketProps.builder()
+                        .bucketNameSuffix("web")
+                        .logsPrefix("s3/web/")
+                        .oaiComment("Identity created for access to the website origin bucket via the CloudFront"
+                                + " distribution")
+                        .logsBucket(logsBucket)
+                        .bucketType(S3OriginBucketType.WEB)
+                        .build());
+        this.webBucket = this.webOriginBucket.bucket;
+        this.webOriginAccessIdentity = this.webOriginBucket.originAccessIdentity;
+        BehaviorOptions webOriginBehaviorOptions = this.webOriginBucket.behaviorOptions;
+
+        // AWS WAF WebACL for CloudFront protection against common attacks and rate limiting
+        CfnWebACL webAcl = CfnWebACL.Builder.create(this, resourceNamePrefix + "-WebAcl")
+            .name(compressedResourceNamePrefix + "-waf")
+            .scope("CLOUDFRONT")
+            .defaultAction(CfnWebACL.DefaultActionProperty.builder()
+                .allow(CfnWebACL.AllowActionProperty.builder().build())
+                .build())
+            .rules(List.of(
+                // Rate limiting rule - 2000 requests per 5 minutes per IP
+                CfnWebACL.RuleProperty.builder()
+                    .name("RateLimitRule")
+                    .priority(1)
+                    .statement(CfnWebACL.StatementProperty.builder()
+                        .rateBasedStatement(CfnWebACL.RateBasedStatementProperty.builder()
+                            .limit(2000L) // requests per 5 minutes
+                            .aggregateKeyType("IP")
+                            .build())
+                        .build())
+                    .action(CfnWebACL.RuleActionProperty.builder()
+                        .block(CfnWebACL.BlockActionProperty.builder().build())
+                        .build())
+                    .visibilityConfig(CfnWebACL.VisibilityConfigProperty.builder()
+                        .cloudWatchMetricsEnabled(true)
+                        .metricName("RateLimitRule")
+                        .sampledRequestsEnabled(true)
+                        .build())
+                    .build(),
+                // AWS managed rule for known bad inputs
+                CfnWebACL.RuleProperty.builder()
+                    .name("AWSManagedRulesKnownBadInputsRuleSet")
+                    .priority(2)
+                    .statement(CfnWebACL.StatementProperty.builder()
+                        .managedRuleGroupStatement(CfnWebACL.ManagedRuleGroupStatementProperty.builder()
+                            .name("AWSManagedRulesKnownBadInputsRuleSet")
+                            .vendorName("AWS")
+                            .ruleActionOverrides(List.of()) // Empty override list to prevent conflicts
+                            .build())
+                        .build())
+                    .overrideAction(CfnWebACL.OverrideActionProperty.builder()
+                        .none(Map.of())
+                        .build())
+                    .visibilityConfig(CfnWebACL.VisibilityConfigProperty.builder()
+                        .cloudWatchMetricsEnabled(true)
+                        .metricName("AWSManagedRulesKnownBadInputsRuleSet")
+                        .sampledRequestsEnabled(true)
+                        .build())
+                    .build(),
+                // AWS managed rule for common rule set (SQL injection, XSS, etc.)
+                CfnWebACL.RuleProperty.builder()
+                    .name("AWSManagedRulesCommonRuleSet")
+                    .priority(3)
+                    .statement(CfnWebACL.StatementProperty.builder()
+                        .managedRuleGroupStatement(CfnWebACL.ManagedRuleGroupStatementProperty.builder()
+                            .name("AWSManagedRulesCommonRuleSet")
+                            .vendorName("AWS")
+                            .ruleActionOverrides(List.of()) // Empty override list to prevent conflicts
+                            .build())
+                        .build())
+                    .overrideAction(CfnWebACL.OverrideActionProperty.builder()
+                        .none(Map.of())
+                        .build())
+                    .visibilityConfig(CfnWebACL.VisibilityConfigProperty.builder()
+                        .cloudWatchMetricsEnabled(true)
+                        .metricName("AWSManagedRulesCommonRuleSet")
+                        .sampledRequestsEnabled(true)
+                        .build())
+                    .build()
+            ))
+            .description("WAF WebACL for OIDC provider CloudFront distribution - provides rate limiting and protection against common attacks")
+            .visibilityConfig(CfnWebACL.VisibilityConfigProperty.builder()
+                .cloudWatchMetricsEnabled(true)
+                .metricName(compressedResourceNamePrefix + "-waf")
+                .sampledRequestsEnabled(true)
+                .build())
+            .build();
+
+        // CloudFront with two S3 origins and FunctionUrl origins for OIDC endpoints
+        this.distribution = Distribution.Builder.create(this, resourceNamePrefix + "-WebDist")
+                .defaultBehavior(webOriginBehaviorOptions)
+                .additionalBehaviors(additionalOriginsBehaviourMappings)
+                .domainNames(List.of(domainName))
+                .certificate(cert)
+                .defaultRootObject("index.html")
+                .enableLogging(true)
+                .logBucket(logsBucket)
+                .logFilePrefix("cloudfront/")
+                .enableIpv6(true)
+                .sslSupportMethod(SSLMethod.SNI)
+                .webAclId(webAcl.getAttrArn())
+                .build();
+
+        // Grant CloudFront access to the origin lambdas with compressed names
+        Permission invokeFunctionUrlPermission = Permission.builder()
+                .principal(new ServicePrincipal("cloudfront.amazonaws.com"))
+                .action("lambda:InvokeFunctionUrl")
+                .functionUrlAuthType(FunctionUrlAuthType.NONE)
+                .sourceArn(this.distribution.getDistributionArn())
+                .build();
+        authorizeEndpointFunction.addPermission(
+                compressedResourceNamePrefix + "-cf-auth", invokeFunctionUrlPermission);
+        tokenEndpointFunction.addPermission(
+                compressedResourceNamePrefix + "-cf-token", invokeFunctionUrlPermission);
+        userinfoEndpointFunction.addPermission(
+                compressedResourceNamePrefix + "-cf-userinfo", invokeFunctionUrlPermission);
+        jwksEndpointFunction.addPermission(
+                compressedResourceNamePrefix + "-cf-jwks", invokeFunctionUrlPermission);
+
+        var deployPostfix = java.util.UUID.randomUUID().toString().substring(0, 8);
+
+        // Deploy the web website files to the web website bucket and invalidate distribution
+        var webDocRootSource = Source.asset(
+                "web",
+                AssetOptions.builder().assetHashType(AssetHashType.SOURCE).build());
+        var webDeploymentLogGroup = LogGroup.Builder.create(this, resourceNamePrefix + "-WebDeploymentLogGroup")
+                .logGroupName("/deployment/" + resourceNamePrefix + "-web-deployment-" + deployPostfix)
+                .retention(RetentionDays.ONE_DAY)
+                .removalPolicy(RemovalPolicy.DESTROY)
+                .build();
+        this.webDeployment = BucketDeployment.Builder.create(this, resourceNamePrefix + "-DocRootToWebOriginDeployment")
+                .sources(List.of(webDocRootSource))
+                .destinationBucket(this.webBucket)
+                .distribution(this.distribution)
+                .distributionPaths(List.of("/*"))
+                .retainOnDelete(false)
+                .logGroup(webDeploymentLogGroup)
+                .expires(Expiration.after(Duration.minutes(5)))
+                .prune(true)
+                .build();
+
+        // Deploy the well-known website files to the well-known bucket under /.well-known/ with a random suffix on the
+        // log group name
+        var wellKnownRootSource = Source.asset(
+                "well-known",
+                AssetOptions.builder().assetHashType(AssetHashType.SOURCE).build());
+
+        var wellKnownDeploymentLogGroup = LogGroup.Builder.create(
+                        this, resourceNamePrefix + "-WellKnownDeploymentLogGroup")
+                .logGroupName("/deployment/" + resourceNamePrefix + "-well-known-deployment-" + deployPostfix)
+                .retention(RetentionDays.ONE_DAY)
+                .removalPolicy(RemovalPolicy.DESTROY)
+                .build();
+        this.wellKnownDeployment = BucketDeployment.Builder.create(
+                        this, resourceNamePrefix + "-DocRootToWellKnownOriginDeployment")
+                .sources(List.of(wellKnownRootSource))
+                .destinationBucket(wellKnownBucket)
+                .destinationKeyPrefix(".well-known/")
+                .distribution(this.distribution)
+                .distributionPaths(List.of("/*"))
+                .retainOnDelete(false)
+                .logGroup(wellKnownDeploymentLogGroup)
+                .expires(Expiration.after(Duration.minutes(5)))
+                .prune(true)
+                .build();
+
+        // A record
+        this.aliasRecord = new ARecord(
+                this,
+                resourceNamePrefix + "-AliasRecord",
+                ARecordProps.builder()
+                        .recordName(recordName)
+                        .zone(zone)
+                        .target(RecordTarget.fromAlias(new CloudFrontTarget(this.distribution)))
+                        .build());
+
+        // Outputs
+        new CfnOutput(
+                this,
+                "BaseUrl",
+                CfnOutputProps.builder().value(this.baseUrl).build());
+        new CfnOutput(
+                this,
+                "WebOriginBucketName",
+                CfnOutputProps.builder().value(this.webBucket.getBucketName()).build());
+        new CfnOutput(
+                this,
+                "WebOriginAccessIdentityId",
+                CfnOutputProps.builder().value(this.webOriginAccessIdentity.getOriginAccessIdentityId()).build());
+        new CfnOutput(
+                this,
+                "AliasRecord",
+                CfnOutputProps.builder()
+                        .value(this.aliasRecord.getDomainName())
+                        .build());
+        new CfnOutput(
+                this,
+                "WebDistributionDomainName",
+                CfnOutputProps.builder().value(this.distribution.getDomainName()).build());
+        new CfnOutput(
+                this,
+                "DistributionId",
+                CfnOutputProps.builder()
+                        .value(this.distribution.getDistributionId())
+                        .build());
+    }
+}

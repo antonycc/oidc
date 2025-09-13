@@ -208,7 +208,10 @@ jobs:
           cache: 'maven'
 
       - name: Build CDK and synthesize all stacks
-        run: ./mvnw --errors clean package -DskipTests && npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- npx cdk synth --all --version-reporting=false --path-metadata=false --asset-metadata=false
+        run: |
+          ./mvnw --errors clean package -DskipTests \
+            && npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- \
+              npx cdk synth --all --strict --validation --version-reporting=false --path-metadata=false --asset-metadata=false
         env:
           ENV_NAME: ${{ needs.names.outputs.environment-name }}
           DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
@@ -269,7 +272,7 @@ jobs:
 
       - name: Deploy Observability Stack (CDK)
         run: |
-          npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- npx cdk deploy ObservabilityStack-${{ needs.names.outputs.environment-name }} --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-observability.json
+          npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- npx cdk deploy ObservabilityStack-${{ needs.names.outputs.environment-name }} --require-approval never --ci true --outputs-file cdk.out/cdk-outputs-observability.json
         env:
           ENV_NAME: ${{ needs.names.outputs.environment-name }}
           DEPLOYMENT_NAME: ${{ needs.names.outputs.environment-name }}
@@ -318,7 +321,7 @@ jobs:
 
       - name: Deploy Dev Stack (CDK)
         run: |
-          npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- npx cdk deploy DevStack-${{ needs.names.outputs.environment-name }} --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-dev.json
+          npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- npx cdk deploy DevStack-${{ needs.names.outputs.environment-name }} --require-approval never --ci true --outputs-file cdk.out/cdk-outputs-dev.json
         env:
           ENV_NAME: ${{ needs.names.outputs.environment-name }}
           DEPLOYMENT_NAME: ${{ needs.names.outputs.environment-name }}
@@ -328,19 +331,10 @@ jobs:
         shell: bash
         run: |
           ECR_REPOSITORY_URI=$(jq -r '.["DevStack-${{ needs.names.outputs.environment-name }}"].EcrRepositoryUri' cdk.out/cdk-outputs-dev.json)
-          ECR_REPOSITORY_ARN=$(jq -r '.["DevStack-${{ needs.names.outputs.environment-name }}"].EcrRepositoryArn' cdk.out/cdk-outputs-dev.json)
-          # The name is the part after the last /
-          ECR_REPOSITORY_NAME=${ECR_REPOSITORY_URI##*/}
-          echo "ECR_REPOSITORY_NAME=$ECR_REPOSITORY_NAME"
           echo "ECR_REPOSITORY_URI=$ECR_REPOSITORY_URI"
-          echo "ECR_REPOSITORY_ARN=$ECR_REPOSITORY_ARN"
-          echo "ecr-repository-name=$ECR_REPOSITORY_NAME" >> $GITHUB_OUTPUT
           echo "ecr-repository-uri=$ECR_REPOSITORY_URI" >> $GITHUB_OUTPUT
-          echo "ecr-repository-arn=$ECR_REPOSITORY_ARN" >> $GITHUB_OUTPUT
     outputs:
-        ecr-repository-name: ${{ steps.dev-outputs.outputs.ecr-repository-name }}
         ecr-repository-uri: ${{ steps.dev-outputs.outputs.ecr-repository-uri }}
-        ecr-repository-arn: ${{ steps.dev-outputs.outputs.ecr-repository-arn }}
 
   build-images:
     name: 'build and push images'
@@ -355,13 +349,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Setup image tag
-        id: image-tag
-        run: |
-          BASE_IMAGE_TAG="submit-base:${{ github.sha }}"
-          echo "base-image-tag=$BASE_IMAGE_TAG" >> $GITHUB_OUTPUT
-          echo "Building/loading base image with tag: $BASE_IMAGE_TAG"
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
@@ -373,7 +360,7 @@ jobs:
         run: |
           docker buildx build \
             --load \
-            -t "${{ steps.image-tag.outputs.base-image-tag }}" \
+            -t 'oidc-endpoint-function:${{ github.sha }}' \
             -f Dockerfile .
 
       - name: Configure AWS creds via OIDC
@@ -391,27 +378,10 @@ jobs:
       - name: Tag and push Docker image to ECR
         shell: bash
         run: |
-          # Tag with commit hash and latest
-          docker tag ${BASE_IMAGE_TAG?} ${ECR_URI?}:${COMMIT_HASH?}
-          docker tag ${BASE_IMAGE_TAG?} ${ECR_URI?}:latest
-
-          # Push both tags
-          docker push ${ECR_URI?}:${COMMIT_HASH?}
-          docker push ${ECR_URI?}:latest
-
-          echo "Successfully pushed Docker image to ECR:"
-          echo "  ${ECR_URI?}:${COMMIT_HASH?}"
-          echo "  ${ECR_URI?}:latest"
-        env:
-          BASE_IMAGE_TAG: ${{ steps.image-tag.outputs.base-image-tag }}
-          ECR_URI: ${{ needs.deploy-dev.outputs.ecr-repository-uri }}
-          COMMIT_HASH: ${{ github.sha }}
+          docker tag 'oidc-endpoint-function:${{ github.sha }}' ${{ needs.deploy-dev.outputs.ecr-repository-uri }}:${{ github.sha }}
+          docker tag 'oidc-endpoint-function:${{ github.sha }}' ${{ needs.deploy-dev.outputs.ecr-repository-uri }}:latest
     outputs:
-        base-image-tag: ${{ steps.image-tag.outputs.base-image-tag }}
-        commit-sha: ${{ github.sha }}
-        ecr-uri: ${{ steps.ecr-uri.outputs.ecr-uri }}
-        commit-image-tag: ${{ needs.deploy-dev.outputs.ecr-repository-uri }}:${{ github.sha }}
-        latest-image-tag: ${{ needs.deploy-dev.outputs.ecr-repository-uri }}:latest
+        image-tag: ${{ github.sha }}
 
   deploy-provider:
     name: 'deploy provider'
@@ -445,7 +415,7 @@ jobs:
           cache: 'maven'
 
       - name: Download CDK synthesis artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: cdk-synthesis
           path: cdk.out/
@@ -457,26 +427,13 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
           role-session-name: gha-oidc-deploy
 
-      #- name: Set up Docker Buildx
-      #  uses: docker/setup-buildx-action@v3
-      #  with:
-      #    driver-opts: |
-      #      image=moby/buildkit:latest
-
-      #- name: Build base image
-      #  id: build
-      #  run: |
-      #    docker buildx build \
-      #      --load \
-      #      -t "oidc-base:latest" \
-      #      -f Dockerfile .
-
       - name: Deploy Provider Stack (CDK)
         run: |
-          npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- npx cdk deploy ProviderStack-${{ needs.names.outputs.deployment-name }} --exclusively --require-approval never --ci true --strict --validation --outputs-file cdk.out/cdk-outputs-provider.json
+          npx cdk deploy ProviderStack-${{ needs.names.outputs.deployment-name }} --exclusively --require-approval never --ci true --outputs-file cdk.out/cdk-outputs-provider.json
         env:
           ENV_NAME: ${{ needs.names.outputs.environment-name }}
           DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
+          BASE_IMAGE_TAG: ${{ needs.build-images.outputs.image-tag }}
           ECR_REPOSITORY_NAME: ${{ needs.deploy-dev.outputs.ecr-repository-name }}
           ECR_REPOSITORY_ARN: ${{ needs.deploy-dev.outputs.ecr-repository-arn }}
 
@@ -493,6 +450,121 @@ jobs:
     outputs:
       base-url: ${{ steps.oidc-outputs.outputs.BASE_URL }}
       users-table: ${{ steps.oidc-outputs.outputs.USERS_TABLE }}
+
+  deploy-web:
+    name: 'deploy web'
+    if: ${{ inputs.skipDeploy != 'true' }}
+    needs:
+      - names
+      - npm-test
+      - build-cdk
+      - deploy-observability
+      - deploy-dev
+      - build-images
+      - deploy-provider
+    runs-on: ubuntu-24.04
+    environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Node dependencies
+        run: npm ci
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'maven'
+
+      - name: Download CDK synthesis artifacts
+        uses: actions/download-artifact@v5
+        with:
+          name: cdk-synthesis
+          path: cdk.out/
+
+      - name: Configure AWS creds via OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-oidc-deploy
+
+      - name: Deploy Web Stack (CDK)
+        run: |
+          npx cdk deploy WebStack-${{ needs.names.outputs.deployment-name }} --exclusively --require-approval never --ci true --outputs-file cdk.out/cdk-outputs-web.json
+        env:
+          ENV_NAME: ${{ needs.names.outputs.environment-name }}
+          DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
+
+      - name: Resolve stack outputs
+        id: oidc-outputs
+        run: |
+          BASE_URL=$(jq -r '.["ProviderStack-${{ needs.names.outputs.deployment-name }}"].BaseUrl' cdk.out/cdk-outputs-provider.json)
+          echo "BASE_URL=$BASE_URL"
+          echo "BASE_URL=$BASE_URL" >> $GITHUB_OUTPUT
+        shell: bash
+    outputs:
+      base-url: ${{ steps.oidc-outputs.outputs.BASE_URL }}
+
+  deploy-ops:
+    name: 'deploy ops'
+    if: ${{ inputs.skipDeploy != 'true' }}
+    needs:
+      - names
+      - npm-test
+      - build-cdk
+      - deploy-observability
+      - deploy-dev
+      - build-images
+      - deploy-provider
+      - deploy-web
+    runs-on: ubuntu-24.04
+    environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Node dependencies
+        run: npm ci
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'maven'
+
+      - name: Download CDK synthesis artifacts
+        uses: actions/download-artifact@v5
+        with:
+          name: cdk-synthesis
+          path: cdk.out/
+
+      - name: Configure AWS creds via OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-oidc-deploy
+
+      - name: Deploy Ops Stack (CDK)
+        run: |
+          npx cdk deploy OpsStack-${{ needs.names.outputs.deployment-name }} --exclusively --require-approval never --ci true --outputs-file cdk.out/cdk-outputs-ops.json
+        env:
+          ENV_NAME: ${{ needs.names.outputs.environment-name }}
+          DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
 
   api-test:
     name: 'api test'

@@ -1,6 +1,6 @@
 package com.antonycc.oidc;
 
-import software.amazon.awscdk.services.s3.Bucket;
+import software.amazon.awscdk.services.s3.IBucket;
 
 /**
  * Types of S3 origin buckets with different CloudFront behavior configurations.
@@ -18,7 +18,7 @@ public class S3OriginBucketProps {
     public final String bucketNameSuffix; // e.g., "web", "well-known"
     public final String logsPrefix; // e.g., "s3/web/", "s3/well-known/"
     public final String oaiComment; // e.g., "Identity created for access to the website origin bucket..."
-    public final Bucket logsBucket; // The logs bucket for server access logging
+    public final IBucket logsBucket; // The logs bucket for server access logging
     public final S3OriginBucketType bucketType; // Type determining behavior options configuration
 
     private S3OriginBucketProps(Builder b) {
@@ -37,7 +37,7 @@ public class S3OriginBucketProps {
         private String bucketNameSuffix;
         private String logsPrefix;
         private String oaiComment;
-        private Bucket logsBucket;
+        private IBucket logsBucket;
         private S3OriginBucketType bucketType;
 
         public Builder bucketNameSuffix(String v) {
@@ -55,7 +55,7 @@ public class S3OriginBucketProps {
             return this;
         }
 
-        public Builder logsBucket(Bucket v) {
+        public Builder logsBucket(IBucket v) {
             this.logsBucket = v;
             return this;
         }

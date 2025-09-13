@@ -2,42 +2,28 @@ package com.antonycc.oidc;
 
 import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.StackProps;
-import software.amazon.awscdk.services.cloudtrail.Trail;
-import software.amazon.awscdk.services.logs.LogGroup;
-import software.amazon.awscdk.services.s3.Bucket;
-import software.amazon.awscdk.services.xray.CfnGroup;
 
 public class ProviderStackProps implements StackProps {
     public final Environment env;
     public final String envName;
     public final String deploymentName;
-    public final String hostedZoneName;
-    public final String hostedZoneId;
     public final String ecrRepositoryArn;
     public final String ecrRepositoryName;
+    public final String baseImageTag;
     public final String domainName;
-    public final String certificateArn;
-    public final Bucket logsBucket;
-    public final LogGroup trailLogGroup;
-    public final Trail auditTrail;
-    public final CfnGroup xrayGroup;
-    public final LogGroup bucketDeploymentLogGroup;
+    public final String resourceNamePrefix;
+    public final String compressedResourceNamePrefix;
+    public final String logsBucketName;
 
     private ProviderStackProps(Builder builder) {
         this.env = builder.env;
         this.envName = builder.envName;
         this.deploymentName = builder.deploymentName;
-        this.hostedZoneName = builder.hostedZoneName;
-        this.hostedZoneId = builder.hostedZoneId;
         this.ecrRepositoryArn = builder.ecrRepositoryArn;
         this.ecrRepositoryName = builder.ecrRepositoryName;
+        this.baseImageTag = builder.baseImageTag;
         this.domainName = builder.domainName;
-        this.certificateArn = builder.certificateArn;
-        this.logsBucket = builder.logsBucket;
-        this.trailLogGroup = builder.trailLogGroup;
-        this.auditTrail = builder.auditTrail;
-        this.xrayGroup = builder.xrayGroup;
-        this.bucketDeploymentLogGroup = builder.bucketDeploymentLogGroup;
+        this.logsBucketName = builder.logsBucketName;
     }
 
     @Override
@@ -53,17 +39,11 @@ public class ProviderStackProps implements StackProps {
         private Environment env;
         private String envName;
         private String deploymentName;
-        private String hostedZoneName;
-        private String hostedZoneId;
         private String ecrRepositoryArn;
         private String ecrRepositoryName;
+        private String baseImageTag;
         private String domainName;
-        private String certificateArn;
-        private Bucket logsBucket;
-        private LogGroup trailLogGroup;
-        private Trail auditTrail;
-        private CfnGroup xrayGroup;
-        private LogGroup bucketDeploymentLogGroup;
+        private String logsBucketName;
 
         public Builder env(Environment env) {
             this.env = env;
@@ -80,16 +60,6 @@ public class ProviderStackProps implements StackProps {
             return this;
         }
 
-        public Builder hostedZoneName(String hostedZoneName) {
-            this.hostedZoneName = hostedZoneName;
-            return this;
-        }
-
-        public Builder hostedZoneId(String hostedZoneId) {
-            this.hostedZoneId = hostedZoneId;
-            return this;
-        }
-
         public Builder ecrRepositoryArn(String ecrRepositoryArn) {
             this.ecrRepositoryArn = ecrRepositoryArn;
             return this;
@@ -100,38 +70,18 @@ public class ProviderStackProps implements StackProps {
             return this;
         }
 
+        public Builder baseImageTag(String baseImageTag) {
+            this.baseImageTag = baseImageTag;
+            return this;
+        }
+
         public Builder domainName(String domainName) {
             this.domainName = domainName;
             return this;
         }
 
-        public Builder certificateArn(String certificateArn) {
-            this.certificateArn = certificateArn;
-            return this;
-        }
-
-        public Builder logsBucket(Bucket logsBucket) {
-            this.logsBucket = logsBucket;
-            return this;
-        }
-
-        public Builder trailLogGroup(LogGroup trailLogGroup) {
-            this.trailLogGroup = trailLogGroup;
-            return this;
-        }
-
-        public Builder auditTrail(Trail auditTrail) {
-            this.auditTrail = auditTrail;
-            return this;
-        }
-
-        public Builder xrayGroup(CfnGroup xrayGroup) {
-            this.xrayGroup = xrayGroup;
-            return this;
-        }
-
-        public Builder bucketDeploymentLogGroup(LogGroup bucketDeploymentLogGroup) {
-            this.bucketDeploymentLogGroup = bucketDeploymentLogGroup;
+        public Builder logsBucketName(String logsBucketName) {
+            this.logsBucketName = logsBucketName;
             return this;
         }
 

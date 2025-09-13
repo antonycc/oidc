@@ -7,6 +7,8 @@ public class ObservabilityStackProps implements StackProps {
     public final Environment env;
     public final String envName;
     public final String domainName;
+    public final String resourceNamePrefix;
+    public final String compressedResourceNamePrefix;
 
     private ObservabilityStackProps(Builder builder) {
         this.env = builder.env;

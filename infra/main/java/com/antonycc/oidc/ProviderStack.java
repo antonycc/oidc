@@ -325,8 +325,9 @@ public class ProviderStack extends Stack {
         this.jwksEndpoint.function.addPermission(
                 compressedResourceNamePrefix + "-cf-jwks", invokeFunctionUrlPermission);
 
-        // Reliability Monitoring: CloudWatch Alarms for Lambda functions
+        // Reliability Monitoring: CloudWatch Alarms for Lambda functions and DynamoDB
         createLambdaReliabilityAlarms(resourceNamePrefix, compressedResourceNamePrefix);
+        createDynamoDbReliabilityAlarms(resourceNamePrefix, compressedResourceNamePrefix);
 
         // Operational Dashboard for system health monitoring
         createOperationalDashboard(resourceNamePrefix, compressedResourceNamePrefix);
@@ -476,7 +477,46 @@ public class ProviderStack extends Stack {
     }
 
     /**
-     * Apply comprehensive cost allocation tags for all resources in the stack
+     * Create CloudWatch alarms for DynamoDB reliability monitoring
+     */
+    private void createDynamoDbReliabilityAlarms(String resourceNamePrefix, String compressedResourceNamePrefix) {
+        // DynamoDB user table throttling alarm
+        Alarm.Builder.create(this, resourceNamePrefix + "-DynamoDbUserThrottleAlarm")
+                .alarmName(compressedResourceNamePrefix + "-dynamodb-user-throttles")
+                .metric(this.usersTable.metricThrottledRequests())
+                .threshold(1.0) // Alert on any throttling
+                .evaluationPeriods(2) // Over 2 evaluation periods (10 minutes)
+                .comparisonOperator(ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD)
+                .treatMissingData(TreatMissingData.NOT_BREACHING)
+                .alarmDescription("DynamoDB throttling detected on users table - may need on-demand scaling review")
+                .build();
+
+        // DynamoDB auth codes table throttling alarm
+        Alarm.Builder.create(this, resourceNamePrefix + "-DynamoDbAuthCodesThrottleAlarm")
+                .alarmName(compressedResourceNamePrefix + "-dynamodb-auth-codes-throttles")
+                .metric(this.authCodesTable.metricThrottledRequests())
+                .threshold(1.0)
+                .evaluationPeriods(2)
+                .comparisonOperator(ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD)
+                .treatMissingData(TreatMissingData.NOT_BREACHING)
+                .alarmDescription("DynamoDB throttling detected on auth codes table - critical for authentication flow")
+                .build();
+
+        // DynamoDB refresh tokens table throttling alarm
+        Alarm.Builder.create(this, resourceNamePrefix + "-DynamoDbRefreshTokensThrottleAlarm")
+                .alarmName(compressedResourceNamePrefix + "-dynamodb-refresh-tokens-throttles")
+                .metric(this.refreshTokensTable.metricThrottledRequests())
+                .threshold(1.0)
+                .evaluationPeriods(2)
+                .comparisonOperator(ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD)
+                .treatMissingData(TreatMissingData.NOT_BREACHING)
+                .alarmDescription("DynamoDB throttling detected on refresh tokens table - may impact token refresh")
+                .build();
+    }
+
+    /**
+     * Apply comprehensive cost allocation tags for all resources in the stack.
+     * Enhanced with detailed metadata for complete cost visibility and optimization.
      */
     private void applyCostAllocationTags(ProviderStackProps props) {
         Tags.of(this).add("Environment", props.envName);
@@ -487,6 +527,14 @@ public class ProviderStack extends Stack {
         Tags.of(this).add("DeploymentName", props.deploymentName);
         Tags.of(this).add("Stack", "ProviderStack");
         Tags.of(this).add("ManagedBy", "aws-cdk");
+        
+        // Enhanced cost optimization tags
+        Tags.of(this).add("BillingPurpose", "authentication-infrastructure");
+        Tags.of(this).add("ResourceType", "serverless-oidc");
+        Tags.of(this).add("Criticality", "high");
+        Tags.of(this).add("DataClassification", "confidential");
+        Tags.of(this).add("BackupRequired", "true");
+        Tags.of(this).add("MonitoringEnabled", "true");
     }
 
     public BucketDeployment getWellKnownDeployment() {
@@ -717,7 +765,8 @@ public class ProviderStack extends Stack {
 
     /**
      * Create operational dashboard for system health monitoring.
-     * Provides comprehensive visibility into Lambda performance, CloudFront requests, and system metrics.
+     * Provides comprehensive visibility into Lambda performance, CloudFront requests, 
+     * DynamoDB performance, and system metrics as recommended by AWS Well-Architected.
      */
     private void createOperationalDashboard(String resourceNamePrefix, String compressedResourceNamePrefix) {
         Dashboard.Builder.create(this, resourceNamePrefix + "-OperationalDashboard")
@@ -771,6 +820,34 @@ public class ProviderStack extends Stack {
                                         this.tokenEndpoint.function.metricThrottles(),
                                         this.userinfoEndpoint.function.metricThrottles(),
                                         this.jwksEndpoint.function.metricThrottles()
+                                ))
+                                .width(12)
+                                .height(6)
+                                .build(),
+                        // CloudFront metrics
+                        GraphWidget.Builder.create()
+                                .title("CloudFront Requests and Data Transfer")
+                                .region(this.getRegion())
+                                .left(List.of(
+                                        this.distribution.metricRequests(),
+                                        this.distribution.metricBytesDownloaded()
+                                ))
+                                .width(12)
+                                .height(6)
+                                .build(),
+                        // DynamoDB metrics
+                        GraphWidget.Builder.create()
+                                .title("DynamoDB Consumed Capacity")
+                                .region(this.getRegion())
+                                .left(List.of(
+                                        this.usersTable.metricConsumedReadCapacityUnits(),
+                                        this.authCodesTable.metricConsumedReadCapacityUnits(),
+                                        this.refreshTokensTable.metricConsumedReadCapacityUnits()
+                                ))
+                                .right(List.of(
+                                        this.usersTable.metricConsumedWriteCapacityUnits(),
+                                        this.authCodesTable.metricConsumedWriteCapacityUnits(),
+                                        this.refreshTokensTable.metricConsumedWriteCapacityUnits()
                                 ))
                                 .width(12)
                                 .height(6)

@@ -64,14 +64,53 @@ public class ResourceNameUtils {
         return sb.toString();
     }
 
+    /**
+     * Generate AWS IAM-compatible resource names by replacing invalid characters.
+     * AWS IAM role names can only contain: alphanumeric characters, plus (+), equals (=), 
+     * comma (,), period (.), at (@), and hyphen (-). 
+     * Length must be between 1 and 64 characters.
+     * 
+     * @param resourceNamePrefix base resource name prefix
+     * @param suffix additional suffix for the resource name
+     * @return IAM-compatible resource name, truncated to 64 characters if needed
+     */
+    public static String generateIamCompatibleName(String resourceNamePrefix, String suffix) {
+        if (resourceNamePrefix == null || resourceNamePrefix.isBlank()) {
+            throw new IllegalArgumentException("resourceNamePrefix must be non-empty");
+        }
+        if (suffix == null || suffix.isBlank()) {
+            throw new IllegalArgumentException("suffix must be non-empty");
+        }
+
+        // Replace any invalid characters with dashes and normalize
+        String cleanPrefix = resourceNamePrefix.replaceAll("[^a-zA-Z0-9+=,.@-]", "-")
+                .replaceAll("-+", "-") // Collapse multiple dashes
+                .replaceAll("^-+|-+$", ""); // Remove leading/trailing dashes
+        
+        String cleanSuffix = suffix.replaceAll("[^a-zA-Z0-9+=,.@-]", "-")
+                .replaceAll("-+", "-")
+                .replaceAll("^-+|-+$", "");
+        
+        String fullName = cleanPrefix + "-" + cleanSuffix;
+        
+        // Truncate to 64 characters if needed
+        if (fullName.length() > 64) {
+            fullName = fullName.substring(0, 64);
+            // Ensure we don't end with a dash after truncation
+            fullName = fullName.replaceAll("-+$", "");
+        }
+        
+        return fullName;
+    }
+
     public static String buildDashedDomainName(String env, String domainName) {
         return ResourceNameUtils.convertDotSeparatedToDashSeparated(
                 "%s.%s".formatted(env, domainName), domainNameMappings);
     }
 
-    public static String buildDashedDomainName(String env, String subDomainName, String domainName) {
+    public static String buildDashedDomainName(String env, String deploymentName, String domainName) {
         return ResourceNameUtils.convertDotSeparatedToDashSeparated(
-                "%s.%s.%s".formatted(env, subDomainName, domainName), domainNameMappings);
+                "%s.%s.%s".formatted(env, deploymentName, domainName), domainNameMappings);
     }
 
     public static final List<AbstractMap.SimpleEntry<Pattern, String>> domainNameMappings = List.of();

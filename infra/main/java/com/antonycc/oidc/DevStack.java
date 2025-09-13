@@ -1,5 +1,7 @@
 package com.antonycc.oidc;
 
+import static com.antonycc.oidc.ResourceNameUtils.generateIamCompatibleName;
+
 import java.util.List;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.Duration;
@@ -29,7 +31,7 @@ public class DevStack extends Stack {
         super(scope, id, props);
 
         // ECR Repository with lifecycle rules
-        String ecrRepositoryName = "%s-ecr".formatted(props.dashedDomainName);
+        String ecrRepositoryName = "%s-ecr".formatted(props.compressedResourceNamePrefix);
         this.ecrRepository = Repository.Builder.create(this, "EcrRepository")
                 .repositoryName(ecrRepositoryName)
                 .imageScanOnPush(true) // Enable vulnerability scanning
@@ -45,7 +47,7 @@ public class DevStack extends Stack {
                 .build();
 
         // CloudWatch Log Group for ECR operations with 7-day retention
-        String ecrLogGroupName = "/aws/ecr/%s".formatted(props.dashedDomainName);
+        String ecrLogGroupName = "/aws/ecr/%s".formatted(props.compressedResourceNamePrefix);
         this.ecrLogGroup = LogGroup.Builder.create(this, "EcrLogGroup")
                 .logGroupName(ecrLogGroupName)
                 .retention(RetentionDays.ONE_WEEK) // 7-day retention as requested
@@ -53,8 +55,9 @@ public class DevStack extends Stack {
                 .build();
 
         // IAM Role for ECR publishing with comprehensive permissions
+        String ecrPublishRoleName = generateIamCompatibleName(props.compressedResourceNamePrefix, "ecr-publish-role");
         this.ecrPublishRole = Role.Builder.create(this, "EcrPublishRole")
-                .roleName("%s-ecr-publish-role".formatted(props.dashedDomainName))
+                .roleName(ecrPublishRoleName)
                 .assumedBy(new ServicePrincipal("lambda.amazonaws.com"))
                 .inlinePolicies(java.util.Map.of(
                         "EcrPublishPolicy",

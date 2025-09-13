@@ -2,6 +2,7 @@ package com.antonycc.oidc;
 
 import static com.antonycc.oidc.ResourceNameUtils.buildDashedDomainName;
 import static com.antonycc.oidc.ResourceNameUtils.generateCompressedResourceNamePrefix;
+import static com.antonycc.oidc.ResourceNameUtils.generateIamCompatibleName;
 import static com.antonycc.oidc.ResourceNameUtils.generateResourceNamePrefix;
 
 import software.amazon.awscdk.App;

@@ -72,7 +72,7 @@ public class EndpointConstruct extends Construct {
         // Add OTEL environment
         var otelEnv = Map.of(
                 "AWS_LAMBDA_EXEC_WRAPPER", "/opt/otel-instrument", // enable auto-instrumentation
-                "OTEL_SERVICE_NAME", "oidc-provider", // group functions in ProviderApplication Signals
+                "OTEL_SERVICE_NAME", "oidc-provider", // group functions in Application Signals
                 "OTEL_TRACES_EXPORTER", "otlp", // explicit traces exporter (reduces startup noise)
                 "OTEL_METRICS_EXPORTER", "otlp", // enable metrics export to CloudWatch via Application Signals
                 "OTEL_LOGS_EXPORTER", "otlp", // explicit logs exporter (reduces startup noise)

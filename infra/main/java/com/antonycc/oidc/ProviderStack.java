@@ -48,6 +48,7 @@ import software.amazon.awscdk.services.route53.IHostedZone;
 import software.amazon.awscdk.services.route53.RecordTarget;
 import software.amazon.awscdk.services.route53.targets.CloudFrontTarget;
 import software.amazon.awscdk.services.s3.Bucket;
+import software.amazon.awscdk.services.wafv2.CfnWebACL;
 import software.amazon.awscdk.services.s3.assets.AssetOptions;
 import software.amazon.awscdk.services.s3.deployment.BucketDeployment;
 import software.amazon.awscdk.services.s3.deployment.Source;
@@ -285,6 +286,9 @@ public class ProviderStack extends Stack {
         additionalOriginsBehaviourMappings.put("/jwks", this.jwksEndpoint.behaviorOptions);
         this.authCodesTable.grantReadWriteData(this.jwksEndpoint.function);
 
+        // AWS WAF WebACL for CloudFront protection against common attacks and rate limiting
+        CfnWebACL webAcl = createWebAclForCloudFront(resourceNamePrefix, compressedResourceNamePrefix);
+
         // CloudFront with two S3 origins and FunctionUrl origins for OIDC endpoints
         this.distribution = Distribution.Builder.create(this, resourceNamePrefix + "-WebDist")
                 .defaultBehavior(webOriginBehaviorOptions)
@@ -297,6 +301,7 @@ public class ProviderStack extends Stack {
                 .logFilePrefix("cloudfront/")
                 .enableIpv6(true)
                 .sslSupportMethod(SSLMethod.SNI)
+                .webAclId(webAcl.getAttrArn())
                 .build();
 
         // Grant CloudFront access to the origin lambdas with compressed names
@@ -618,5 +623,84 @@ public class ProviderStack extends Stack {
 
         // Ensure invalidation runs after config is updated
         wellKnownInvalidationCustomResource.getNode().addDependency(wellKnownConfigCustomResource);
+    }
+
+    /**
+     * Create AWS WAF WebACL for CloudFront distribution protection.
+     * Implements rate limiting and basic security rules to protect against common attacks.
+     */
+    private CfnWebACL createWebAclForCloudFront(String resourceNamePrefix, String compressedResourceNamePrefix) {
+        return CfnWebACL.Builder.create(this, resourceNamePrefix + "-WebAcl")
+                .name(compressedResourceNamePrefix + "-waf")
+                .scope("CLOUDFRONT")
+                .defaultAction(CfnWebACL.DefaultActionProperty.builder()
+                        .allow(CfnWebACL.AllowActionProperty.builder().build())
+                        .build())
+                .rules(List.of(
+                        // Rate limiting rule - 2000 requests per 5 minutes per IP
+                        CfnWebACL.RuleProperty.builder()
+                                .name("RateLimitRule")
+                                .priority(1)
+                                .statement(CfnWebACL.StatementProperty.builder()
+                                        .rateBasedStatement(CfnWebACL.RateBasedStatementProperty.builder()
+                                                .limit(2000L) // requests per 5 minutes
+                                                .aggregateKeyType("IP")
+                                                .build())
+                                        .build())
+                                .action(CfnWebACL.RuleActionProperty.builder()
+                                        .block(CfnWebACL.BlockActionProperty.builder().build())
+                                        .build())
+                                .visibilityConfig(CfnWebACL.VisibilityConfigProperty.builder()
+                                        .cloudWatchMetricsEnabled(true)
+                                        .metricName("RateLimitRule")
+                                        .sampledRequestsEnabled(true)
+                                        .build())
+                                .build(),
+                        // AWS managed rule for known bad inputs
+                        CfnWebACL.RuleProperty.builder()
+                                .name("AWSManagedRulesKnownBadInputsRuleSet")
+                                .priority(2)
+                                .statement(CfnWebACL.StatementProperty.builder()
+                                        .managedRuleGroupStatement(CfnWebACL.ManagedRuleGroupStatementProperty.builder()
+                                                .name("AWSManagedRulesKnownBadInputsRuleSet")
+                                                .vendorName("AWS")
+                                                .build())
+                                        .build())
+                                .action(CfnWebACL.RuleActionProperty.builder()
+                                        .block(CfnWebACL.BlockActionProperty.builder().build())
+                                        .build())
+                                .visibilityConfig(CfnWebACL.VisibilityConfigProperty.builder()
+                                        .cloudWatchMetricsEnabled(true)
+                                        .metricName("AWSManagedRulesKnownBadInputsRuleSet")
+                                        .sampledRequestsEnabled(true)
+                                        .build())
+                                .build(),
+                        // AWS managed rule for common rule set (SQL injection, XSS, etc.)
+                        CfnWebACL.RuleProperty.builder()
+                                .name("AWSManagedRulesCommonRuleSet")
+                                .priority(3)
+                                .statement(CfnWebACL.StatementProperty.builder()
+                                        .managedRuleGroupStatement(CfnWebACL.ManagedRuleGroupStatementProperty.builder()
+                                                .name("AWSManagedRulesCommonRuleSet")
+                                                .vendorName("AWS")
+                                                .build())
+                                        .build())
+                                .action(CfnWebACL.RuleActionProperty.builder()
+                                        .block(CfnWebACL.BlockActionProperty.builder().build())
+                                        .build())
+                                .visibilityConfig(CfnWebACL.VisibilityConfigProperty.builder()
+                                        .cloudWatchMetricsEnabled(true)
+                                        .metricName("AWSManagedRulesCommonRuleSet")
+                                        .sampledRequestsEnabled(true)
+                                        .build())
+                                .build()
+                ))
+                .description("WAF WebACL for OIDC provider CloudFront distribution - provides rate limiting and protection against common attacks")
+                .visibilityConfig(CfnWebACL.VisibilityConfigProperty.builder()
+                        .cloudWatchMetricsEnabled(true)
+                        .metricName(compressedResourceNamePrefix + "-waf")
+                        .sampledRequestsEnabled(true)
+                        .build())
+                .build();
     }
 }

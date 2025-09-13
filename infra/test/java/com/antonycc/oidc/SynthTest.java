@@ -39,7 +39,6 @@ class SynthTest {
                         .ecrRepositoryName("oidc-repo")
                         .domainName("oidc.example.com")
                         .certificateArn("arn:aws:acm:us-east-1:123456789012:certificate/abc")
-                        .logsBucket(observabilityStack.logsBucket)
                         .trailLogGroup(observabilityStack.trailLogGroup)
                         .auditTrail(observabilityStack.auditTrail)
                         .xrayGroup(observabilityStack.xrayGroup)

@@ -16,7 +16,6 @@ public class AppStackProps implements StackProps {
     public final String certificateArn;
     public final String resourceNamePrefix;
     public final String compressedResourceNamePrefix;
-    public final String logsBucketName;
 
     private AppStackProps(Builder builder) {
         this.env = builder.env;
@@ -31,7 +30,6 @@ public class AppStackProps implements StackProps {
         this.certificateArn = builder.certificateArn;
         this.resourceNamePrefix = builder.resourceNamePrefix;
         this.compressedResourceNamePrefix = builder.compressedResourceNamePrefix;
-        this.logsBucketName = builder.logsBucketName;
     }
 
     @Override
@@ -56,7 +54,6 @@ public class AppStackProps implements StackProps {
         private String certificateArn;
         private String resourceNamePrefix;
         private String compressedResourceNamePrefix;
-        private String logsBucketName;
 
         public Builder env(Environment env) {
             this.env = env;
@@ -108,11 +105,6 @@ public class AppStackProps implements StackProps {
             return this;
         }
 
-        public Builder logsBucket(software.amazon.awscdk.services.s3.Bucket logsBucket) {
-            this.logsBucketName = logsBucket.getBucketName();
-            return this;
-        }
-
         public Builder trailLogGroup(software.amazon.awscdk.services.logs.LogGroup logGroup) {
             // not used in AppStackProps; method provided for compatibility with tests
             return this;
@@ -135,11 +127,6 @@ public class AppStackProps implements StackProps {
 
         public Builder compressedResourceNamePrefix(String compressedResourceNamePrefix) {
             this.compressedResourceNamePrefix = compressedResourceNamePrefix;
-            return this;
-        }
-
-        public Builder logsBucketName(String logsBucketName) {
-            this.logsBucketName = logsBucketName;
             return this;
         }
 

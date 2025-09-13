@@ -385,13 +385,12 @@ jobs:
         image-tag: ${{ github.sha }}
 
   deploy-app:
-    name: 'deploy provider'
+    name: 'deploy app'
     if: ${{ inputs.skipDeploy != 'true' }}
     needs:
       - names
       - npm-test
       - build-cdk
-      - deploy-observability
       - deploy-dev
       - build-images
     runs-on: ubuntu-24.04
@@ -453,8 +452,6 @@ jobs:
       - names
       - npm-test
       - build-cdk
-      - deploy-observability
-      - deploy-app
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
     steps:
@@ -496,15 +493,65 @@ jobs:
           ENV_NAME: ${{ needs.names.outputs.environment-name }}
           DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
 
-      - name: Resolve stack outputs
-        id: web-outputs
+  deploy-edge:
+    name: 'deploy edge'
+    if: ${{ inputs.skipDeploy != 'true' }}
+    needs:
+      - names
+      - npm-test
+      - build-cdk
+      - deploy-app
+      - deploy-web
+    runs-on: ubuntu-24.04
+    environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Node dependencies
+        run: npm ci
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'maven'
+
+      - name: Download CDK synthesis artifacts
+        uses: actions/download-artifact@v5
+        with:
+          name: cdk-synthesis
+          path: cdk.out/
+
+      - name: Configure AWS creds via OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-oidc-deploy
+
+      - name: Deploy Edge Stack (CDK)
         run: |
-          BASE_URL=$(jq -r '.["WebStack-${{ needs.names.outputs.deployment-name }}"].BaseUrl' cdk.out/cdk-outputs-web.json)
+          npx cdk deploy EdgeStack-${{ needs.names.outputs.deployment-name }} --exclusively --require-approval never --ci true --outputs-file cdk.out/cdk-outputs-edge.json
+        env:
+          ENV_NAME: ${{ needs.names.outputs.environment-name }}
+          DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
+
+      - name: Resolve stack outputs
+        id: edge-outputs
+        run: |
+          BASE_URL=$(jq -r '.["WebStack-${{ needs.names.outputs.deployment-name }}"].BaseUrl' cdk.out/cdk-outputs-edge.json)
           echo "BASE_URL=$BASE_URL"
           echo "BASE_URL=$BASE_URL" >> $GITHUB_OUTPUT
         shell: bash
     outputs:
-      base-url: ${{ steps.web-outputs.outputs.BASE_URL }}
+      base-url: ${{ steps.edge-outputs.outputs.BASE_URL }}
 
   deploy-ops:
     name: 'deploy ops'

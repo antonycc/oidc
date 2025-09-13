@@ -1,13 +1,9 @@
 package com.antonycc.oidc;
 
-import java.util.List;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.Tags;
-import software.amazon.awscdk.services.cloudfront.Distribution;
-import software.amazon.awscdk.services.cloudfront.DistributionAttributes;
-import software.amazon.awscdk.services.cloudfront.IDistribution;
 import software.amazon.awscdk.services.cloudwatch.Alarm;
 import software.amazon.awscdk.services.cloudwatch.ComparisonOperator;
 import software.amazon.awscdk.services.cloudwatch.Dashboard;
@@ -21,6 +17,8 @@ import software.amazon.awscdk.services.lambda.Function;
 import software.amazon.awscdk.services.lambda.FunctionAttributes;
 import software.amazon.awscdk.services.lambda.IFunction;
 import software.constructs.Construct;
+
+import java.util.List;
 
 public class OpsStack extends Stack {
     public final Alarm authorizeErrorAlarm;
@@ -85,13 +83,6 @@ public class OpsStack extends Stack {
         ITable usersTable = Table.fromTableArn(this, "UsersTable", props.usersTableArn);
         ITable authCodesTable = Table.fromTableArn(this, "AuthCodesTable", props.authCodesTableArn);
         ITable refreshTokensTable = Table.fromTableArn(this, "RefreshTokensTable", props.refreshTokensTableArn);
-        IDistribution distribution = Distribution.fromDistributionAttributes(
-                this,
-                "CloudFrontDistribution",
-                DistributionAttributes.builder()
-                        .distributionId(props.distributionId)
-                        .domainName(props.domainName)
-                        .build());
 
         // Error rate alarm for authorize endpoint
         this.authorizeErrorAlarm = Alarm.Builder.create(this, props.resourceNamePrefix + "-AuthorizeErrorAlarm")
@@ -235,18 +226,6 @@ public class OpsStack extends Stack {
                                 .width(12)
                                 .height(6)
                                 .build(),
-                        // CloudFront metrics
-                        // GraphWidget.Builder.create()
-                        //    .title("CloudFront Requests and Data Transfer")
-                        //    .region(this.getRegion())
-                        //    .left(List.of(
-                        //        distribution.metricRequests(),
-                        //        distribution.metricBytesDownloaded()
-                        //    ))
-                        //    .width(12)
-                        //    .height(6)
-                        //    .build(),
-                        // DynamoDB metrics
                         GraphWidget.Builder.create()
                                 .title("DynamoDB Consumed Capacity")
                                 .region(this.getRegion())

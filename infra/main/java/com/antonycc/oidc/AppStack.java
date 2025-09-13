@@ -1,16 +1,20 @@
 package com.antonycc.oidc;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
+import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.Tags;
 import software.amazon.awscdk.services.cloudfront.AllowedMethods;
 import software.amazon.awscdk.services.cloudfront.BehaviorOptions;
 import software.amazon.awscdk.services.cloudfront.CachePolicy;
+import software.amazon.awscdk.services.cloudfront.IOrigin;
+import software.amazon.awscdk.services.cloudfront.OriginRequestPolicy;
+import software.amazon.awscdk.services.cloudfront.ResponseHeadersPolicy;
+import software.amazon.awscdk.services.cloudfront.ViewerProtocolPolicy;
+import software.amazon.awscdk.services.cloudfront.origins.S3BucketOrigin;
+import software.amazon.awscdk.services.cloudfront.origins.S3BucketOriginWithOACProps;
 import software.amazon.awscdk.services.dynamodb.Attribute;
 import software.amazon.awscdk.services.dynamodb.AttributeType;
 import software.amazon.awscdk.services.dynamodb.BillingMode;
@@ -18,13 +22,15 @@ import software.amazon.awscdk.services.dynamodb.PointInTimeRecoverySpecification
 import software.amazon.awscdk.services.dynamodb.Table;
 import software.amazon.awscdk.services.dynamodb.TableEncryption;
 import software.amazon.awscdk.services.s3.Bucket;
-import software.amazon.awscdk.services.s3.IBucket;
 import software.constructs.Construct;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class AppStack extends Stack {
     public final S3OriginConstruct wellKnownOriginBucket;
     public final Bucket wellKnownBucket;
-    public final CachePolicy shortTtl;
     public final Table usersTable;
     public final Table authCodesTable;
     public final Table refreshTokensTable;
@@ -58,7 +64,6 @@ public class AppStack extends Stack {
         this.additionalOriginsBehaviourMappings = new HashMap<String, BehaviorOptions>();
 
         // Use Resources from the passed props
-        IBucket logsBucket = Bucket.fromBucketName(this, "LogsBucket", props.logsBucketName);
 
         // Buckets
 
@@ -73,8 +78,24 @@ public class AppStack extends Stack {
                         .bucketType(S3OriginBucketType.WELL_KNOWN)
                         .build());
         this.wellKnownBucket = this.wellKnownOriginBucket.bucket;
-        this.shortTtl = this.wellKnownOriginBucket.cachePolicy;
-        BehaviorOptions wellKnownOriginBehaviorOptions = this.wellKnownOriginBucket.behaviorOptions;
+        CachePolicy cachePolicy = CachePolicy.Builder.create(this, props.resourceNamePrefix + "-ShortTTL")
+            .cachePolicyName(props.resourceNamePrefix + "-short-ttl")
+            .defaultTtl(Duration.seconds(60))
+            .minTtl(Duration.seconds(0))
+            .maxTtl(Duration.minutes(5))
+            .enableAcceptEncodingBrotli(true)
+            .enableAcceptEncodingGzip(true)
+            .build();
+        IOrigin wellKnownBucketOrigin = S3BucketOrigin.withOriginAccessControl(wellKnownBucket, S3BucketOriginWithOACProps.builder().build());
+        BehaviorOptions wellKnownOriginBehaviorOptions = BehaviorOptions.builder()
+            .origin(wellKnownBucketOrigin)
+            .cachePolicy(cachePolicy)
+            .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
+            .originRequestPolicy(OriginRequestPolicy.CORS_S3_ORIGIN)
+            .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
+            .responseHeadersPolicy(
+                ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS_WITH_PREFLIGHT_AND_SECURITY_HEADERS)
+            .build();
         this.additionalOriginsBehaviourMappings.put("/.well-known/*", wellKnownOriginBehaviorOptions);
 
         // DynamoDB tables

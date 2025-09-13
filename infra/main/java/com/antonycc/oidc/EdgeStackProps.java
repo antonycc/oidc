@@ -2,36 +2,51 @@ package com.antonycc.oidc;
 
 import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.StackProps;
+import software.amazon.awscdk.services.cloudfront.BehaviorOptions;
 
-public class OpsStackProps implements StackProps {
+import java.util.Map;
+
+public class EdgeStackProps implements StackProps {
     public final Environment env;
     public final String envName;
     public final String deploymentName;
+    public final String hostedZoneName;
+    public final String hostedZoneId;
     public final String domainName;
+    public final String baseUrl;
     public final String resourceNamePrefix;
     public final String compressedResourceNamePrefix;
+    public final String certificateArn;
+    public final String logsBucketArn;
+    public final String webBucketArn;
+    public final String wellKnownBucketArn;
     public final String jwksEndpointFunctionArn;
     public final String authorizeEndpointFunctionArn;
     public final String tokenEndpointFunctionArn;
     public final String userinfoEndpointFunctionArn;
-    public final String usersTableArn;
-    public final String authCodesTableArn;
-    public final String refreshTokensTableArn;
+    public final BehaviorOptions webOriginBehaviorOptions;
+    public final Map<String, BehaviorOptions> additionalOriginsBehaviourMappings;
 
-    private OpsStackProps(Builder builder) {
+    private EdgeStackProps(Builder builder) {
         this.env = builder.env;
         this.envName = builder.envName;
         this.deploymentName = builder.deploymentName;
+        this.hostedZoneName = builder.hostedZoneName;
+        this.hostedZoneId = builder.hostedZoneId;
         this.domainName = builder.domainName;
+        this.baseUrl = builder.baseUrl;
         this.resourceNamePrefix = builder.resourceNamePrefix;
         this.compressedResourceNamePrefix = builder.compressedResourceNamePrefix;
+        this.certificateArn = builder.certificateArn;
+        this.logsBucketArn = builder.logsBucketArn;
+        this.webBucketArn = builder.webBucketArn;
+        this.wellKnownBucketArn = builder.wellKnownBucketArn;
         this.jwksEndpointFunctionArn = builder.jwksEndpointFunctionArn;
         this.authorizeEndpointFunctionArn = builder.authorizeEndpointFunctionArn;
         this.tokenEndpointFunctionArn = builder.tokenEndpointFunctionArn;
         this.userinfoEndpointFunctionArn = builder.userinfoEndpointFunctionArn;
-        this.usersTableArn = builder.usersTableArn;
-        this.authCodesTableArn = builder.authCodesTableArn;
-        this.refreshTokensTableArn = builder.refreshTokensTableArn;
+        this.webOriginBehaviorOptions = builder.webOriginBehaviorOptions;
+        this.additionalOriginsBehaviourMappings = builder.additionalOriginsBehaviourMappings;
     }
 
     @Override
@@ -47,16 +62,22 @@ public class OpsStackProps implements StackProps {
         private Environment env;
         private String envName;
         private String deploymentName;
+        private String hostedZoneName;
+        private String hostedZoneId;
         private String domainName;
+        private String baseUrl;
         private String resourceNamePrefix;
         private String compressedResourceNamePrefix;
+        private String certificateArn;
+        private String logsBucketArn;
+        private String webBucketArn;
+        private String wellKnownBucketArn;
         private String jwksEndpointFunctionArn;
         private String authorizeEndpointFunctionArn;
         private String tokenEndpointFunctionArn;
         private String userinfoEndpointFunctionArn;
-        private String usersTableArn;
-        private String authCodesTableArn;
-        private String refreshTokensTableArn;
+        private BehaviorOptions webOriginBehaviorOptions;
+        private Map<String, BehaviorOptions> additionalOriginsBehaviourMappings;
 
         public Builder env(Environment env) {
             this.env = env;
@@ -73,8 +94,23 @@ public class OpsStackProps implements StackProps {
             return this;
         }
 
+        public Builder hostedZoneName(String hostedZoneName) {
+            this.hostedZoneName = hostedZoneName;
+            return this;
+        }
+
+        public Builder hostedZoneId(String hostedZoneId) {
+            this.hostedZoneId = hostedZoneId;
+            return this;
+        }
+
         public Builder domainName(String domainName) {
             this.domainName = domainName;
+            return this;
+        }
+
+        public Builder baseUrl(String baseUrl) {
+            this.baseUrl = baseUrl;
             return this;
         }
 
@@ -85,6 +121,26 @@ public class OpsStackProps implements StackProps {
 
         public Builder compressedResourceNamePrefix(String compressedResourceNamePrefix) {
             this.compressedResourceNamePrefix = compressedResourceNamePrefix;
+            return this;
+        }
+
+        public Builder certificateArn(String certificateArn) {
+            this.certificateArn = certificateArn;
+            return this;
+        }
+
+        public Builder logsBucketArn(String logsBucketArn) {
+            this.logsBucketArn = logsBucketArn;
+            return this;
+        }
+
+        public Builder webBucketArn(String webBucketArn) {
+            this.webBucketArn = webBucketArn;
+            return this;
+        }
+
+        public Builder wellKnownBucketArn(String wellKnownBucketArn) {
+            this.wellKnownBucketArn = wellKnownBucketArn;
             return this;
         }
 
@@ -108,23 +164,18 @@ public class OpsStackProps implements StackProps {
             return this;
         }
 
-        public Builder usersTableArn(String usersTableArn) {
-            this.usersTableArn = usersTableArn;
+        public Builder additionalOriginsBehaviourMappings(Map<String, BehaviorOptions> additionalOriginsBehaviourMappings) {
+            this.additionalOriginsBehaviourMappings = additionalOriginsBehaviourMappings;
             return this;
         }
 
-        public Builder authCodesTableArn(String authCodesTableArn) {
-            this.authCodesTableArn = authCodesTableArn;
+        public Builder webOriginBehaviorOptions(BehaviorOptions webOriginBehaviorOptions) {
+            this.webOriginBehaviorOptions = webOriginBehaviorOptions;
             return this;
         }
 
-        public Builder refreshTokensTableArn(String refreshTokensTableArn) {
-            this.refreshTokensTableArn = refreshTokensTableArn;
-            return this;
-        }
-
-        public OpsStackProps build() {
-            return new OpsStackProps(this);
+        public EdgeStackProps build() {
+            return new EdgeStackProps(this);
         }
     }
 }

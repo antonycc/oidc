@@ -26,6 +26,7 @@ public class ProviderApplication {
     public DevStack devStack;
     public AppStack appStack;
     public WebStack webStack;
+    public EdgeStack edgeStack;
     public OpsStack opsStack;
 
     public ProviderApplication() {}
@@ -134,12 +135,10 @@ public class ProviderApplication {
                             .domainName(this.application.domainName)
                             .resourceNamePrefix(this.application.resourceNamePrefix)
                             .compressedResourceNamePrefix(this.application.compressedResourceNamePrefix)
-                            .logsBucketName(this.application.observabilityStack.logsBucket.getBucketName())
                             .build());
-            this.application.appStack.addDependency(this.application.observabilityStack);
             this.application.appStack.addDependency(this.application.devStack);
 
-            // Create the Web stack (S3, CloudFront, Route53)
+            // Create the Web stack (S3 origin)
             String webStackId = "WebStack-%s".formatted(this.application.deploymentName);
             this.application.webStack = new WebStack(
                     app,
@@ -148,24 +147,42 @@ public class ProviderApplication {
                             .env(env)
                             .envName(this.application.envName)
                             .deploymentName(this.application.deploymentName)
-                            .hostedZoneName(this.application.hostedZoneName)
-                            .hostedZoneId(this.application.hostedZoneId)
                             .domainName(this.application.domainName)
-                            .baseUrl(this.application.baseUrl)
                             .resourceNamePrefix(this.application.resourceNamePrefix)
                             .compressedResourceNamePrefix(this.application.compressedResourceNamePrefix)
-                            .certificateArn(this.application.certificateArn)
-                            .logsBucketArn(this.application.observabilityStack.logsBucket.getBucketArn())
-                            .wellKnownBucketArn(this.application.appStack.wellKnownBucket.getBucketArn())
-                            .jwksEndpointFunctionArn(this.application.appStack.jwksEndpoint.function.getFunctionArn())
-                            .authorizeEndpointFunctionArn(
-                                    this.application.appStack.authorizeEndpoint.function.getFunctionArn())
-                            .tokenEndpointFunctionArn(this.application.appStack.tokenEndpoint.function.getFunctionArn())
-                            .userinfoEndpointFunctionArn(
-                                    this.application.appStack.userinfoEndpoint.function.getFunctionArn())
                             .build());
-            this.application.webStack.addDependency(this.application.observabilityStack);
-            this.application.webStack.addDependency(this.application.appStack);
+
+            // Create the Edge stack (CloudFront, Route53)
+            String edgeStackId = "EdgeStack-%s".formatted(this.application.deploymentName);
+            this.application.edgeStack = new EdgeStack(
+                app,
+                edgeStackId,
+                EdgeStackProps.builder()
+                    .env(env)
+                    .envName(this.application.envName)
+                    .deploymentName(this.application.deploymentName)
+                    .hostedZoneName(this.application.hostedZoneName)
+                    .hostedZoneId(this.application.hostedZoneId)
+                    .domainName(this.application.domainName)
+                    .baseUrl(this.application.baseUrl)
+                    .resourceNamePrefix(this.application.resourceNamePrefix)
+                    .compressedResourceNamePrefix(this.application.compressedResourceNamePrefix)
+                    .certificateArn(this.application.certificateArn)
+                    .logsBucketArn(this.application.observabilityStack.logsBucket.getBucketArn())
+                    .webBucketArn(this.application.webStack.webBucket.getBucketArn())
+                    .wellKnownBucketArn(this.application.appStack.wellKnownBucket.getBucketArn())
+                    .jwksEndpointFunctionArn(this.application.appStack.jwksEndpoint.function.getFunctionArn())
+                    .authorizeEndpointFunctionArn(
+                        this.application.appStack.authorizeEndpoint.function.getFunctionArn())
+                    .tokenEndpointFunctionArn(this.application.appStack.tokenEndpoint.function.getFunctionArn())
+                    .userinfoEndpointFunctionArn(
+                        this.application.appStack.userinfoEndpoint.function.getFunctionArn())
+                    .webOriginBehaviorOptions(this.application.webStack.webOriginBehaviorOptions)
+                    .additionalOriginsBehaviourMappings(this.application.appStack.additionalOriginsBehaviourMappings)
+                    .build());
+            this.application.edgeStack.addDependency(this.application.observabilityStack);
+            this.application.edgeStack.addDependency(this.application.appStack);
+            this.application.edgeStack.addDependency(this.application.webStack);
 
             // Create the Ops stack (Alarms, etc.)
             String opsStackId = "OpsStack-%s".formatted(this.application.deploymentName);
@@ -188,7 +205,6 @@ public class ProviderApplication {
                             .usersTableArn(this.application.appStack.usersTable.getTableArn())
                             .authCodesTableArn(this.application.appStack.authCodesTable.getTableArn())
                             .refreshTokensTableArn(this.application.appStack.refreshTokensTable.getTableArn())
-                            .distributionId(this.application.webStack.distribution.getDistributionId())
                             .build());
             this.application.opsStack.addDependency(this.application.appStack);
             this.application.opsStack.addDependency(this.application.webStack);

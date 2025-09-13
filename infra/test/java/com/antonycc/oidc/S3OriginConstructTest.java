@@ -13,7 +13,6 @@ import software.amazon.awscdk.services.s3.Bucket;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 
 class S3OriginConstructTest {
 
@@ -50,9 +49,6 @@ class S3OriginConstructTest {
 
         // Verify the construct exposes the expected resources
         assertNotNull(s3OriginConstruct.bucket, "Bucket should be created and exposed");
-        assertNotNull(s3OriginConstruct.origin, "Origin should be created and exposed");
-        assertNotNull(s3OriginConstruct.behaviorOptions, "BehaviorOptions should be created and exposed");
-        assertNull(s3OriginConstruct.cachePolicy, "CachePolicy should be null for WEB bucket type");
 
         // Generate CloudFormation template for verification
         Template template = Template.fromStack(testStack);
@@ -107,9 +103,6 @@ class S3OriginConstructTest {
                         .build());
 
         assertNotNull(wellKnownBucket.bucket);
-        assertNotNull(wellKnownBucket.origin);
-        assertNotNull(wellKnownBucket.behaviorOptions);
-        assertNotNull(wellKnownBucket.cachePolicy, "CachePolicy should be created for WELL_KNOWN bucket type");
 
         Template template = Template.fromStack(testStack);
 
@@ -121,16 +114,5 @@ class S3OriginConstructTest {
                         "test-prefix-well-known",
                         "LoggingConfiguration",
                         Map.of("LogFilePrefix", "s3/well-known/")));
-
-        // Verify that CachePolicy is created for WELL_KNOWN bucket type
-        template.hasResourceProperties(
-                "AWS::CloudFront::CachePolicy",
-                Map.of(
-                        "CachePolicyConfig",
-                        Map.of(
-                                "Name", "test-prefix-short-ttl",
-                                "DefaultTTL", 60,
-                                "MinTTL", 0,
-                                "MaxTTL", 300)));
     }
 }

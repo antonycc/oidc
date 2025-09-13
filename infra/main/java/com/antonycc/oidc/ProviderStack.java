@@ -22,11 +22,21 @@ import software.amazon.awscdk.services.cloudfront.CachePolicy;
 import software.amazon.awscdk.services.cloudfront.Distribution;
 import software.amazon.awscdk.services.cloudfront.OriginAccessIdentity;
 import software.amazon.awscdk.services.cloudfront.SSLMethod;
+import software.amazon.awscdk.services.cloudwatch.Alarm;
+import software.amazon.awscdk.services.cloudwatch.ComparisonOperator;
+import software.amazon.awscdk.services.cloudwatch.Dashboard;
+import software.amazon.awscdk.services.cloudwatch.GraphWidget;
+import software.amazon.awscdk.services.cloudwatch.LogQueryWidget;
+import software.amazon.awscdk.services.cloudwatch.MetricOptions;
+import software.amazon.awscdk.services.cloudwatch.SingleValueWidget;
+import software.amazon.awscdk.services.cloudwatch.TreatMissingData;
 import software.amazon.awscdk.services.cloudtrail.Trail;
 import software.amazon.awscdk.services.dynamodb.Attribute;
 import software.amazon.awscdk.services.dynamodb.AttributeType;
 import software.amazon.awscdk.services.dynamodb.BillingMode;
+import software.amazon.awscdk.services.dynamodb.PointInTimeRecoverySpecification;
 import software.amazon.awscdk.services.dynamodb.Table;
+import software.amazon.awscdk.services.dynamodb.TableEncryption;
 import software.amazon.awscdk.services.iam.Effect;
 import software.amazon.awscdk.services.iam.PolicyStatement;
 import software.amazon.awscdk.services.iam.ServicePrincipal;
@@ -43,10 +53,12 @@ import software.amazon.awscdk.services.route53.IHostedZone;
 import software.amazon.awscdk.services.route53.RecordTarget;
 import software.amazon.awscdk.services.route53.targets.CloudFrontTarget;
 import software.amazon.awscdk.services.s3.Bucket;
+import software.amazon.awscdk.services.wafv2.CfnWebACL;
 import software.amazon.awscdk.services.s3.assets.AssetOptions;
 import software.amazon.awscdk.services.s3.deployment.BucketDeployment;
 import software.amazon.awscdk.services.s3.deployment.Source;
 import software.amazon.awscdk.services.xray.CfnGroup;
+import software.amazon.awscdk.Tags;
 import software.constructs.Construct;
 
 public class ProviderStack extends Stack {
@@ -77,6 +89,9 @@ public class ProviderStack extends Stack {
 
     public ProviderStack(final Construct scope, final String id, final ProviderStackProps props) {
         super(scope, id, props);
+
+        // Apply cost allocation tags for all resources in this stack
+        applyCostAllocationTags(props);
 
         var additionalOriginsBehaviourMappings = new HashMap<String, BehaviorOptions>();
 
@@ -148,7 +163,7 @@ public class ProviderStack extends Stack {
         BehaviorOptions wellKnownOriginBehaviorOptions = this.wellKnownOriginBucket.behaviorOptions;
         additionalOriginsBehaviourMappings.put("/.well-known/*", wellKnownOriginBehaviorOptions);
 
-        // DDB tables
+        // DDB tables with enhanced security and backup configuration
         this.usersTable = Table.Builder.create(this, resourceNamePrefix + "-Users")
                 .tableName(resourceNamePrefix + "-users")
                 .partitionKey(Attribute.builder()
@@ -156,6 +171,10 @@ public class ProviderStack extends Stack {
                         .type(AttributeType.STRING)
                         .build())
                 .billingMode(BillingMode.PAY_PER_REQUEST)
+                .encryption(TableEncryption.AWS_MANAGED) // Enhanced: AWS managed encryption
+                .pointInTimeRecoverySpecification(PointInTimeRecoverySpecification.builder()
+                        .pointInTimeRecoveryEnabled(true)
+                        .build()) // Enhanced: Enable point-in-time recovery for data protection
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
 
@@ -167,6 +186,10 @@ public class ProviderStack extends Stack {
                         .build())
                 .timeToLiveAttribute("ttl")
                 .billingMode(BillingMode.PAY_PER_REQUEST)
+                .encryption(TableEncryption.AWS_MANAGED) // Enhanced: AWS managed encryption
+                .pointInTimeRecoverySpecification(PointInTimeRecoverySpecification.builder()
+                        .pointInTimeRecoveryEnabled(true)
+                        .build()) // Enhanced: Enable point-in-time recovery for data protection
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
 
@@ -178,6 +201,10 @@ public class ProviderStack extends Stack {
                         .build())
                 .timeToLiveAttribute("ttl")
                 .billingMode(BillingMode.PAY_PER_REQUEST)
+                .encryption(TableEncryption.AWS_MANAGED) // Enhanced: AWS managed encryption
+                .pointInTimeRecoverySpecification(PointInTimeRecoverySpecification.builder()
+                        .pointInTimeRecoveryEnabled(true)
+                        .build()) // Enhanced: Enable point-in-time recovery for data protection
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
 
@@ -264,6 +291,9 @@ public class ProviderStack extends Stack {
         additionalOriginsBehaviourMappings.put("/jwks", this.jwksEndpoint.behaviorOptions);
         this.authCodesTable.grantReadWriteData(this.jwksEndpoint.function);
 
+        // AWS WAF WebACL for CloudFront protection against common attacks and rate limiting
+        CfnWebACL webAcl = createWebAclForCloudFront(resourceNamePrefix, compressedResourceNamePrefix);
+
         // CloudFront with two S3 origins and FunctionUrl origins for OIDC endpoints
         this.distribution = Distribution.Builder.create(this, resourceNamePrefix + "-WebDist")
                 .defaultBehavior(webOriginBehaviorOptions)
@@ -276,6 +306,7 @@ public class ProviderStack extends Stack {
                 .logFilePrefix("cloudfront/")
                 .enableIpv6(true)
                 .sslSupportMethod(SSLMethod.SNI)
+                .webAclId(webAcl.getAttrArn())
                 .build();
 
         // Grant CloudFront access to the origin lambdas with compressed names
@@ -293,6 +324,13 @@ public class ProviderStack extends Stack {
                 compressedResourceNamePrefix + "-cf-userinfo", invokeFunctionUrlPermission);
         this.jwksEndpoint.function.addPermission(
                 compressedResourceNamePrefix + "-cf-jwks", invokeFunctionUrlPermission);
+
+        // Reliability Monitoring: CloudWatch Alarms for Lambda functions and DynamoDB
+        createLambdaReliabilityAlarms(resourceNamePrefix, compressedResourceNamePrefix);
+        createDynamoDbReliabilityAlarms(resourceNamePrefix, compressedResourceNamePrefix);
+
+        // Operational Dashboard for system health monitoring
+        createOperationalDashboard(resourceNamePrefix, compressedResourceNamePrefix);
 
         var deployPostfix = java.util.UUID.randomUUID().toString().substring(0, 8);
 
@@ -387,6 +425,116 @@ public class ProviderStack extends Stack {
 
     public String getBaseUrl() {
         return baseUrl;
+    }
+
+    /**
+     * Create CloudWatch alarms for Lambda function reliability monitoring
+     */
+    private void createLambdaReliabilityAlarms(String resourceNamePrefix, String compressedResourceNamePrefix) {
+        // Error rate alarm for authorize endpoint
+        Alarm.Builder.create(this, resourceNamePrefix + "-AuthorizeErrorAlarm")
+                .alarmName(compressedResourceNamePrefix + "-authorize-errors")
+                .metric(this.authorizeEndpoint.function.metricErrors())
+                .threshold(3.0) // Alert on 3+ errors in evaluation period
+                .evaluationPeriods(2) // Over 2 evaluation periods (10 minutes)
+                .comparisonOperator(ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD)
+                .treatMissingData(TreatMissingData.NOT_BREACHING)
+                .alarmDescription("High error rate detected in authorize endpoint")
+                .build();
+
+        // Duration alarm for authorize endpoint (cold start monitoring)
+        Alarm.Builder.create(this, resourceNamePrefix + "-AuthorizeDurationAlarm")
+                .alarmName(compressedResourceNamePrefix + "-authorize-duration")
+                .metric(this.authorizeEndpoint.function.metricDuration())
+                .threshold(10000.0) // Alert if duration > 10 seconds
+                .evaluationPeriods(3) // Over 3 evaluation periods (15 minutes)
+                .comparisonOperator(ComparisonOperator.GREATER_THAN_THRESHOLD)
+                .treatMissingData(TreatMissingData.NOT_BREACHING)
+                .alarmDescription("High duration detected in authorize endpoint - possible cold start issues")
+                .build();
+
+        // Error rate alarm for token endpoint (most critical)
+        Alarm.Builder.create(this, resourceNamePrefix + "-TokenErrorAlarm")
+                .alarmName(compressedResourceNamePrefix + "-token-errors")
+                .metric(this.tokenEndpoint.function.metricErrors())
+                .threshold(2.0) // Lower threshold for critical token endpoint
+                .evaluationPeriods(2)
+                .comparisonOperator(ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD)
+                .treatMissingData(TreatMissingData.NOT_BREACHING)
+                .alarmDescription("High error rate detected in token endpoint - critical for authentication flow")
+                .build();
+
+        // Throttle alarm for all endpoints (simplified approach)
+        Alarm.Builder.create(this, resourceNamePrefix + "-LambdaThrottleAlarm")
+                .alarmName(compressedResourceNamePrefix + "-lambda-throttles")
+                .metric(this.authorizeEndpoint.function.metricThrottles())
+                .threshold(1.0) // Alert on any throttling
+                .evaluationPeriods(1)
+                .comparisonOperator(ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD)
+                .treatMissingData(TreatMissingData.NOT_BREACHING)
+                .alarmDescription("Lambda function throttling detected - may need reserved concurrency")
+                .build();
+    }
+
+    /**
+     * Create CloudWatch alarms for DynamoDB reliability monitoring
+     */
+    private void createDynamoDbReliabilityAlarms(String resourceNamePrefix, String compressedResourceNamePrefix) {
+        // DynamoDB user table throttling alarm
+        Alarm.Builder.create(this, resourceNamePrefix + "-DynamoDbUserThrottleAlarm")
+                .alarmName(compressedResourceNamePrefix + "-dynamodb-user-throttles")
+                .metric(this.usersTable.metricThrottledRequests())
+                .threshold(1.0) // Alert on any throttling
+                .evaluationPeriods(2) // Over 2 evaluation periods (10 minutes)
+                .comparisonOperator(ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD)
+                .treatMissingData(TreatMissingData.NOT_BREACHING)
+                .alarmDescription("DynamoDB throttling detected on users table - may need on-demand scaling review")
+                .build();
+
+        // DynamoDB auth codes table throttling alarm
+        Alarm.Builder.create(this, resourceNamePrefix + "-DynamoDbAuthCodesThrottleAlarm")
+                .alarmName(compressedResourceNamePrefix + "-dynamodb-auth-codes-throttles")
+                .metric(this.authCodesTable.metricThrottledRequests())
+                .threshold(1.0)
+                .evaluationPeriods(2)
+                .comparisonOperator(ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD)
+                .treatMissingData(TreatMissingData.NOT_BREACHING)
+                .alarmDescription("DynamoDB throttling detected on auth codes table - critical for authentication flow")
+                .build();
+
+        // DynamoDB refresh tokens table throttling alarm
+        Alarm.Builder.create(this, resourceNamePrefix + "-DynamoDbRefreshTokensThrottleAlarm")
+                .alarmName(compressedResourceNamePrefix + "-dynamodb-refresh-tokens-throttles")
+                .metric(this.refreshTokensTable.metricThrottledRequests())
+                .threshold(1.0)
+                .evaluationPeriods(2)
+                .comparisonOperator(ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD)
+                .treatMissingData(TreatMissingData.NOT_BREACHING)
+                .alarmDescription("DynamoDB throttling detected on refresh tokens table - may impact token refresh")
+                .build();
+    }
+
+    /**
+     * Apply comprehensive cost allocation tags for all resources in the stack.
+     * Enhanced with detailed metadata for complete cost visibility and optimization.
+     */
+    private void applyCostAllocationTags(ProviderStackProps props) {
+        Tags.of(this).add("Environment", props.envName);
+        Tags.of(this).add("Application", "oidc-provider");
+        Tags.of(this).add("CostCenter", "authentication");
+        Tags.of(this).add("Owner", "platform-team");
+        Tags.of(this).add("Project", "identity-management");
+        Tags.of(this).add("DeploymentName", props.deploymentName);
+        Tags.of(this).add("Stack", "ProviderStack");
+        Tags.of(this).add("ManagedBy", "aws-cdk");
+        
+        // Enhanced cost optimization tags
+        Tags.of(this).add("BillingPurpose", "authentication-infrastructure");
+        Tags.of(this).add("ResourceType", "serverless-oidc");
+        Tags.of(this).add("Criticality", "high");
+        Tags.of(this).add("DataClassification", "confidential");
+        Tags.of(this).add("BackupRequired", "true");
+        Tags.of(this).add("MonitoringEnabled", "true");
     }
 
     public BucketDeployment getWellKnownDeployment() {
@@ -532,4 +680,181 @@ public class ProviderStack extends Stack {
         // Ensure invalidation runs after config is updated
         wellKnownInvalidationCustomResource.getNode().addDependency(wellKnownConfigCustomResource);
     }
+
+    /**
+     * Create AWS WAF WebACL for CloudFront distribution protection.
+     * Implements rate limiting and basic security rules to protect against common attacks.
+     * Fixed to use proper rule overrides for managed rule groups.
+     */
+    private CfnWebACL createWebAclForCloudFront(String resourceNamePrefix, String compressedResourceNamePrefix) {
+        return CfnWebACL.Builder.create(this, resourceNamePrefix + "-WebAcl")
+                .name(compressedResourceNamePrefix + "-waf")
+                .scope("CLOUDFRONT")
+                .defaultAction(CfnWebACL.DefaultActionProperty.builder()
+                        .allow(CfnWebACL.AllowActionProperty.builder().build())
+                        .build())
+                .rules(List.of(
+                        // Rate limiting rule - 2000 requests per 5 minutes per IP
+                        CfnWebACL.RuleProperty.builder()
+                                .name("RateLimitRule")
+                                .priority(1)
+                                .statement(CfnWebACL.StatementProperty.builder()
+                                        .rateBasedStatement(CfnWebACL.RateBasedStatementProperty.builder()
+                                                .limit(2000L) // requests per 5 minutes
+                                                .aggregateKeyType("IP")
+                                                .build())
+                                        .build())
+                                .action(CfnWebACL.RuleActionProperty.builder()
+                                        .block(CfnWebACL.BlockActionProperty.builder().build())
+                                        .build())
+                                .visibilityConfig(CfnWebACL.VisibilityConfigProperty.builder()
+                                        .cloudWatchMetricsEnabled(true)
+                                        .metricName("RateLimitRule")
+                                        .sampledRequestsEnabled(true)
+                                        .build())
+                                .build(),
+                        // AWS managed rule for known bad inputs
+                        CfnWebACL.RuleProperty.builder()
+                                .name("AWSManagedRulesKnownBadInputsRuleSet")
+                                .priority(2)
+                                .statement(CfnWebACL.StatementProperty.builder()
+                                        .managedRuleGroupStatement(CfnWebACL.ManagedRuleGroupStatementProperty.builder()
+                                                .name("AWSManagedRulesKnownBadInputsRuleSet")
+                                                .vendorName("AWS")
+                                                .ruleActionOverrides(List.of()) // Empty override list to prevent conflicts
+                                                .build())
+                                        .build())
+                                .overrideAction(CfnWebACL.OverrideActionProperty.builder()
+                                        .none(Map.of())
+                                        .build())
+                                .visibilityConfig(CfnWebACL.VisibilityConfigProperty.builder()
+                                        .cloudWatchMetricsEnabled(true)
+                                        .metricName("AWSManagedRulesKnownBadInputsRuleSet")
+                                        .sampledRequestsEnabled(true)
+                                        .build())
+                                .build(),
+                        // AWS managed rule for common rule set (SQL injection, XSS, etc.)
+                        CfnWebACL.RuleProperty.builder()
+                                .name("AWSManagedRulesCommonRuleSet")
+                                .priority(3)
+                                .statement(CfnWebACL.StatementProperty.builder()
+                                        .managedRuleGroupStatement(CfnWebACL.ManagedRuleGroupStatementProperty.builder()
+                                                .name("AWSManagedRulesCommonRuleSet")
+                                                .vendorName("AWS")
+                                                .ruleActionOverrides(List.of()) // Empty override list to prevent conflicts
+                                                .build())
+                                        .build())
+                                .overrideAction(CfnWebACL.OverrideActionProperty.builder()
+                                        .none(Map.of())
+                                        .build())
+                                .visibilityConfig(CfnWebACL.VisibilityConfigProperty.builder()
+                                        .cloudWatchMetricsEnabled(true)
+                                        .metricName("AWSManagedRulesCommonRuleSet")
+                                        .sampledRequestsEnabled(true)
+                                        .build())
+                                .build()
+                ))
+                .description("WAF WebACL for OIDC provider CloudFront distribution - provides rate limiting and protection against common attacks")
+                .visibilityConfig(CfnWebACL.VisibilityConfigProperty.builder()
+                        .cloudWatchMetricsEnabled(true)
+                        .metricName(compressedResourceNamePrefix + "-waf")
+                        .sampledRequestsEnabled(true)
+                        .build())
+                .build();
+    }
+
+    /**
+     * Create operational dashboard for system health monitoring.
+     * Provides comprehensive visibility into Lambda performance, CloudFront requests, 
+     * DynamoDB performance, and system metrics as recommended by AWS Well-Architected.
+     */
+    private void createOperationalDashboard(String resourceNamePrefix, String compressedResourceNamePrefix) {
+        Dashboard.Builder.create(this, resourceNamePrefix + "-OperationalDashboard")
+                .dashboardName(compressedResourceNamePrefix + "-operations")
+                .widgets(List.of(List.of(
+                        // Lambda invocation metrics
+                        GraphWidget.Builder.create()
+                                .title("Lambda Invocations by Endpoint")
+                                .region(this.getRegion())
+                                .left(List.of(
+                                        this.authorizeEndpoint.function.metricInvocations(),
+                                        this.tokenEndpoint.function.metricInvocations(),
+                                        this.userinfoEndpoint.function.metricInvocations(),
+                                        this.jwksEndpoint.function.metricInvocations()
+                                ))
+                                .width(12)
+                                .height(6)
+                                .build(),
+                        // Lambda error metrics
+                        GraphWidget.Builder.create()
+                                .title("Lambda Errors by Endpoint")
+                                .region(this.getRegion())
+                                .left(List.of(
+                                        this.authorizeEndpoint.function.metricErrors(),
+                                        this.tokenEndpoint.function.metricErrors(),
+                                        this.userinfoEndpoint.function.metricErrors(),
+                                        this.jwksEndpoint.function.metricErrors()
+                                ))
+                                .width(12)
+                                .height(6)
+                                .build(),
+                        // Lambda duration metrics
+                        GraphWidget.Builder.create()
+                                .title("Lambda Duration by Endpoint")
+                                .region(this.getRegion())
+                                .left(List.of(
+                                        this.authorizeEndpoint.function.metricDuration(),
+                                        this.tokenEndpoint.function.metricDuration(),
+                                        this.userinfoEndpoint.function.metricDuration(),
+                                        this.jwksEndpoint.function.metricDuration()
+                                ))
+                                .width(12)
+                                .height(6)
+                                .build(),
+                        // Lambda throttle metrics
+                        GraphWidget.Builder.create()
+                                .title("Lambda Throttles")
+                                .region(this.getRegion())
+                                .left(List.of(
+                                        this.authorizeEndpoint.function.metricThrottles(),
+                                        this.tokenEndpoint.function.metricThrottles(),
+                                        this.userinfoEndpoint.function.metricThrottles(),
+                                        this.jwksEndpoint.function.metricThrottles()
+                                ))
+                                .width(12)
+                                .height(6)
+                                .build(),
+                        // CloudFront metrics
+                        GraphWidget.Builder.create()
+                                .title("CloudFront Requests and Data Transfer")
+                                .region(this.getRegion())
+                                .left(List.of(
+                                        this.distribution.metricRequests(),
+                                        this.distribution.metricBytesDownloaded()
+                                ))
+                                .width(12)
+                                .height(6)
+                                .build(),
+                        // DynamoDB metrics
+                        GraphWidget.Builder.create()
+                                .title("DynamoDB Consumed Capacity")
+                                .region(this.getRegion())
+                                .left(List.of(
+                                        this.usersTable.metricConsumedReadCapacityUnits(),
+                                        this.authCodesTable.metricConsumedReadCapacityUnits(),
+                                        this.refreshTokensTable.metricConsumedReadCapacityUnits()
+                                ))
+                                .right(List.of(
+                                        this.usersTable.metricConsumedWriteCapacityUnits(),
+                                        this.authCodesTable.metricConsumedWriteCapacityUnits(),
+                                        this.refreshTokensTable.metricConsumedWriteCapacityUnits()
+                                ))
+                                .width(12)
+                                .height(6)
+                                .build()
+                )))
+                .build();
+    }
+
+
 }

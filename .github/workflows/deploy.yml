@@ -693,9 +693,9 @@ jobs:
           ENV_NAME: ${{ needs.names.outputs.environment-name }}
           DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
 
-  test-parameters:
+  calculate-test-parameters:
     if: ${{ !cancelled() }}
-    name: 'calculate parameters'
+    name: 'calculate test parameters'
     needs:
       - names
       - build-cdk
@@ -756,7 +756,7 @@ jobs:
       - names
       - build-cdk
       - deploy-edge
-      - test-parameters
+      - calculate-test-parameters
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
     steps:
@@ -783,9 +783,9 @@ jobs:
           echo "BASE_URL=${BASE_URL}"
           npm run test:api
         env:
-          BASE_URL: ${{ needs.test-parameters.outputs.base-url }}
-          TEST_USERNAME: ${{ needs.test-parameters.outputs.test-username }}
-          TEST_PASSWORD: ${{ needs.test-parameters.outputs.test-password }}
+          BASE_URL: ${{ needs.calculate-test-parameters.outputs.base-url }}
+          TEST_USERNAME: ${{ needs.calculate-test-parameters.outputs.test-username }}
+          TEST_PASSWORD: ${{ needs.calculate-test-parameters.outputs.test-password }}
 
       - name: Upload artifacts
         if: ${{ !cancelled() }}
@@ -803,7 +803,7 @@ jobs:
       - names
       - build-cdk
       - deploy-edge
-      - test-parameters
+      - calculate-test-parameters
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
     steps:
@@ -829,9 +829,9 @@ jobs:
         run: |
           npm run test:web --project=chromium
         env:
-          BASE_URL: ${{ needs.test-parameters.outputs.base-url }}
-          TEST_USERNAME: ${{ needs.test-parameters.outputs.test-username }}
-          TEST_PASSWORD: ${{ needs.test-parameters.outputs.test-password }}
+          BASE_URL: ${{ needs.calculate-test-parameters.outputs.base-url }}
+          TEST_USERNAME: ${{ needs.calculate-test-parameters.outputs.test-username }}
+          TEST_PASSWORD: ${{ needs.calculate-test-parameters.outputs.test-password }}
 
       - name: Upload artifacts
         if: ${{ !cancelled() }}
@@ -849,7 +849,7 @@ jobs:
       - names
       - build-cdk
       - deploy-edge
-      - test-parameters
+      - calculate-test-parameters
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
     steps:
@@ -872,9 +872,9 @@ jobs:
         run: |
           k6 run tests/load.live.test.js --summary-export=load-test-summary.json
         env:
-          BASE_URL: ${{ needs.test-parameters.outputs.base-url }}
-          TEST_USERNAME: ${{ needs.test-parameters.outputs.test-username }}
-          TEST_PASSWORD: ${{ needs.test-parameters.outputs.test-password }}
+          BASE_URL: ${{ needs.calculate-test-parameters.outputs.base-url }}
+          TEST_USERNAME: ${{ needs.calculate-test-parameters.outputs.test-username }}
+          TEST_PASSWORD: ${{ needs.calculate-test-parameters.outputs.test-password }}
 
       - name: Upload artifacts
         if: ${{ !cancelled() }}

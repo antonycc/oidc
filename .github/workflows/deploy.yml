@@ -457,19 +457,19 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
           role-session-name: gha-oidc-deploy
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: |
-            image=moby/buildkit:latest
+      #- name: Set up Docker Buildx
+      #  uses: docker/setup-buildx-action@v3
+      #  with:
+      #    driver-opts: |
+      #      image=moby/buildkit:latest
 
-      - name: Build base image
-        id: build
-        run: |
-          docker buildx build \
-            --load \
-            -t "oidc-base:latest" \
-            -f Dockerfile .
+      #- name: Build base image
+      #  id: build
+      #  run: |
+      #    docker buildx build \
+      #      --load \
+      #      -t "oidc-base:latest" \
+      #      -f Dockerfile .
 
       - name: Deploy Provider Stack (CDK)
         run: |

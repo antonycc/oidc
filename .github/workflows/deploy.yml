@@ -693,18 +693,27 @@ jobs:
           ENV_NAME: ${{ needs.names.outputs.environment-name }}
           DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
 
-  api-test:
-    name: 'api test'
+  test-parameters:
+    if: ${{ !cancelled() }}
+    name: 'calculate parameters'
     needs:
       - names
       - build-cdk
       - deploy-app
-      - deploy-web
+      - deploy-edge
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
+    env:
+      USERS_TABLE: ${{ needs.deploy-app.outputs.users-table || format('oidc-antonycc-com-{0}-users', needs.names.outputs.deployment-name) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: base-url
+        id: base-url
+        run: |
+          echo "BASE_URL=${BASE_URL}"
+          npm run test:api
 
       - name: Configure AWS creds via OIDC
         uses: aws-actions/configure-aws-credentials@v5
@@ -733,7 +742,35 @@ jobs:
         run: npm ci
 
       - name: Provision test user
-        run: npm run users:provision '${{ needs.deploy-app.outputs.users-table }}' '${{ steps.uuid.outputs.TEST_USERNAME }}' '${{ steps.uuid.outputs.TEST_PASSWORD }}'
+        run: npm run users:provision '${{ env.USERS_TABLE }}' '${{ steps.uuid.outputs.TEST_USERNAME }}' '${{ steps.uuid.outputs.TEST_PASSWORD }}'
+
+    outputs:
+      base-url: ${{ needs.deploy-web.outputs.base-url || ( needs.names.outputs.deployment-name == 'prod' && 'oidc.antonycc.com' || format('{0}.oidc.antonycc.com', needs.names.outputs.deployment-name) ) }}
+      test-username: ${{ steps.uuid.outputs.TEST_USERNAME }}
+      test-password: ${{ steps.uuid.outputs.TEST_PASSWORD }}
+
+  api-test:
+    if: ${{ !cancelled() }}
+    name: 'api test'
+    needs:
+      - names
+      - build-cdk
+      - deploy-edge
+      - test-parameters
+    runs-on: ubuntu-24.04
+    environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Node dependencies
+        run: npm ci
 
       - name: Install dependencies and Playwright browsers
         run: |
@@ -746,9 +783,9 @@ jobs:
           echo "BASE_URL=${BASE_URL}"
           npm run test:api
         env:
-          BASE_URL: ${{ needs.deploy-web.outputs.base-url }}
-          TEST_USERNAME: ${{ steps.uuid.outputs.TEST_USERNAME }}
-          TEST_PASSWORD: ${{ steps.uuid.outputs.TEST_PASSWORD }}
+          BASE_URL: ${{ needs.test-parameters.outputs.base-url }}
+          TEST_USERNAME: ${{ needs.test-parameters.outputs.test-username }}
+          TEST_PASSWORD: ${{ needs.test-parameters.outputs.test-password }}
 
       - name: Upload artifacts
         if: ${{ !cancelled() }}
@@ -760,34 +797,18 @@ jobs:
             test-results
 
   web-test:
+    if: ${{ !cancelled() }}
     name: 'web test'
     needs:
       - names
       - build-cdk
-      - deploy-app
-      - deploy-web
+      - deploy-edge
+      - test-parameters
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-
-      - name: Configure AWS creds via OIDC
-        uses: aws-actions/configure-aws-credentials@v5
-        with:
-          role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-          role-session-name: gha-oidc-deploy
-
-      - name: Create test username and a test password
-        id: uuid
-        run: |
-          TEST_USERNAME=$(uuidgen | tr '[:upper:]' '[:lower:]')
-          TEST_PASSWORD=$(uuidgen | tr '[:upper:]' '[:lower:]')
-          echo "TEST_USERNAME=${TEST_USERNAME?}"
-          echo "TEST_PASSWORD=${TEST_PASSWORD?}"
-          echo "TEST_USERNAME=${TEST_USERNAME?}" >> "$GITHUB_OUTPUT"
-          echo "TEST_PASSWORD=${TEST_PASSWORD?}" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node
         uses: actions/setup-node@v5
@@ -797,9 +818,6 @@ jobs:
 
       - name: Node dependencies
         run: npm ci
-
-      - name: Provision test user
-        run: npm run users:provision '${{ needs.deploy-app.outputs.users-table }}' '${{ steps.uuid.outputs.TEST_USERNAME }}' '${{ steps.uuid.outputs.TEST_PASSWORD }}'
 
       - name: Install dependencies and Playwright browsers
         run: |
@@ -811,9 +829,9 @@ jobs:
         run: |
           npm run test:web --project=chromium
         env:
-          BASE_URL: ${{ needs.deploy-web.outputs.base-url }}
-          TEST_USERNAME: ${{ steps.uuid.outputs.TEST_USERNAME }}
-          TEST_PASSWORD: ${{ steps.uuid.outputs.TEST_PASSWORD }}
+          BASE_URL: ${{ needs.test-parameters.outputs.base-url }}
+          TEST_USERNAME: ${{ needs.test-parameters.outputs.test-username }}
+          TEST_PASSWORD: ${{ needs.test-parameters.outputs.test-password }}
 
       - name: Upload artifacts
         if: ${{ !cancelled() }}
@@ -825,34 +843,18 @@ jobs:
             test-results
 
   load-test:
+    if: ${{ !cancelled() }}
     name: 'load test'
     needs:
       - names
       - build-cdk
-      - deploy-app
-      - deploy-web
+      - deploy-edge
+      - test-parameters
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-
-      - name: Configure AWS creds via OIDC
-        uses: aws-actions/configure-aws-credentials@v5
-        with:
-          role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-          role-session-name: gha-oidc-deploy
-
-      - name: Create test username and a test password
-        id: uuid
-        run: |
-          TEST_USERNAME=$(uuidgen | tr '[:upper:]' '[:lower:]')
-          TEST_PASSWORD=$(uuidgen | tr '[:upper:]' '[:lower:]')
-          echo "TEST_USERNAME=${TEST_USERNAME?}"
-          echo "TEST_PASSWORD=${TEST_PASSWORD?}"
-          echo "TEST_USERNAME=${TEST_USERNAME?}" >> "$GITHUB_OUTPUT"
-          echo "TEST_PASSWORD=${TEST_PASSWORD?}" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node
         uses: actions/setup-node@v5
@@ -863,9 +865,6 @@ jobs:
       - name: Node dependencies
         run: npm ci
 
-      - name: Provision test user
-        run: npm run users:provision '${{ needs.deploy-app.outputs.users-table }}' '${{ steps.uuid.outputs.TEST_USERNAME }}' '${{ steps.uuid.outputs.TEST_PASSWORD }}'
-
       - name: Setup k6
         uses: grafana/setup-k6-action@v1
 
@@ -873,9 +872,9 @@ jobs:
         run: |
           k6 run tests/load.live.test.js --summary-export=load-test-summary.json
         env:
-          BASE_URL: ${{ needs.deploy-web.outputs.base-url }}
-          TEST_USERNAME: ${{ steps.uuid.outputs.TEST_USERNAME }}
-          TEST_PASSWORD: ${{ steps.uuid.outputs.TEST_PASSWORD }}
+          BASE_URL: ${{ needs.test-parameters.outputs.base-url }}
+          TEST_USERNAME: ${{ needs.test-parameters.outputs.test-username }}
+          TEST_PASSWORD: ${{ needs.test-parameters.outputs.test-password }}
 
       - name: Upload artifacts
         if: ${{ !cancelled() }}

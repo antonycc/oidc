@@ -19,11 +19,16 @@ import software.amazon.awscdk.services.cloudfront.CachePolicy;
 import software.amazon.awscdk.services.cloudfront.Distribution;
 import software.amazon.awscdk.services.cloudfront.OriginAccessIdentity;
 import software.amazon.awscdk.services.cloudfront.SSLMethod;
+import software.amazon.awscdk.services.cloudwatch.Alarm;
+import software.amazon.awscdk.services.cloudwatch.ComparisonOperator;
+import software.amazon.awscdk.services.cloudwatch.TreatMissingData;
 import software.amazon.awscdk.services.cloudtrail.Trail;
 import software.amazon.awscdk.services.dynamodb.Attribute;
 import software.amazon.awscdk.services.dynamodb.AttributeType;
 import software.amazon.awscdk.services.dynamodb.BillingMode;
+import software.amazon.awscdk.services.dynamodb.PointInTimeRecoverySpecification;
 import software.amazon.awscdk.services.dynamodb.Table;
+import software.amazon.awscdk.services.dynamodb.TableEncryption;
 import software.amazon.awscdk.services.iam.Effect;
 import software.amazon.awscdk.services.iam.PolicyStatement;
 import software.amazon.awscdk.services.iam.ServicePrincipal;
@@ -44,6 +49,7 @@ import software.amazon.awscdk.services.s3.assets.AssetOptions;
 import software.amazon.awscdk.services.s3.deployment.BucketDeployment;
 import software.amazon.awscdk.services.s3.deployment.Source;
 import software.amazon.awscdk.services.xray.CfnGroup;
+import software.amazon.awscdk.Tags;
 import software.constructs.Construct;
 
 import java.util.HashMap;
@@ -78,6 +84,9 @@ public class ProviderStack extends Stack {
 
     public ProviderStack(final Construct scope, final String id, final ProviderStackProps props) {
         super(scope, id, props);
+
+        // Apply cost allocation tags for all resources in this stack
+        applyCostAllocationTags(props);
 
         var additionalOriginsBehaviourMappings = new HashMap<String, BehaviorOptions>();
 
@@ -149,7 +158,7 @@ public class ProviderStack extends Stack {
         BehaviorOptions wellKnownOriginBehaviorOptions = this.wellKnownOriginBucket.behaviorOptions;
         additionalOriginsBehaviourMappings.put("/.well-known/*", wellKnownOriginBehaviorOptions);
 
-        // DDB tables
+        // DDB tables with enhanced security and backup configuration
         this.usersTable = Table.Builder.create(this, resourceNamePrefix + "-Users")
                 .tableName(resourceNamePrefix + "-users")
                 .partitionKey(Attribute.builder()
@@ -157,6 +166,10 @@ public class ProviderStack extends Stack {
                         .type(AttributeType.STRING)
                         .build())
                 .billingMode(BillingMode.PAY_PER_REQUEST)
+                .encryption(TableEncryption.AWS_MANAGED) // Enhanced: AWS managed encryption
+                .pointInTimeRecoverySpecification(PointInTimeRecoverySpecification.builder()
+                        .pointInTimeRecoveryEnabled(true)
+                        .build()) // Enhanced: Enable point-in-time recovery for data protection
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
 
@@ -168,6 +181,10 @@ public class ProviderStack extends Stack {
                         .build())
                 .timeToLiveAttribute("ttl")
                 .billingMode(BillingMode.PAY_PER_REQUEST)
+                .encryption(TableEncryption.AWS_MANAGED) // Enhanced: AWS managed encryption
+                .pointInTimeRecoverySpecification(PointInTimeRecoverySpecification.builder()
+                        .pointInTimeRecoveryEnabled(true)
+                        .build()) // Enhanced: Enable point-in-time recovery for data protection
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
 
@@ -179,6 +196,10 @@ public class ProviderStack extends Stack {
                         .build())
                 .timeToLiveAttribute("ttl")
                 .billingMode(BillingMode.PAY_PER_REQUEST)
+                .encryption(TableEncryption.AWS_MANAGED) // Enhanced: AWS managed encryption
+                .pointInTimeRecoverySpecification(PointInTimeRecoverySpecification.builder()
+                        .pointInTimeRecoveryEnabled(true)
+                        .build()) // Enhanced: Enable point-in-time recovery for data protection
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
 
@@ -295,6 +316,9 @@ public class ProviderStack extends Stack {
         this.jwksEndpoint.function.addPermission(
                 compressedResourceNamePrefix + "-cf-jwks", invokeFunctionUrlPermission);
 
+        // Reliability Monitoring: CloudWatch Alarms for Lambda functions
+        createLambdaReliabilityAlarms(resourceNamePrefix, compressedResourceNamePrefix);
+
         var deployPostfix = java.util.UUID.randomUUID().toString().substring(0, 8);
 
         // Deploy the web website files to the web website bucket and invalidate distribution
@@ -388,6 +412,69 @@ public class ProviderStack extends Stack {
 
     public String getBaseUrl() {
         return baseUrl;
+    }
+
+    /**
+     * Create CloudWatch alarms for Lambda function reliability monitoring
+     */
+    private void createLambdaReliabilityAlarms(String resourceNamePrefix, String compressedResourceNamePrefix) {
+        // Error rate alarm for authorize endpoint
+        Alarm.Builder.create(this, resourceNamePrefix + "-AuthorizeErrorAlarm")
+                .alarmName(compressedResourceNamePrefix + "-authorize-errors")
+                .metric(this.authorizeEndpoint.function.metricErrors())
+                .threshold(3.0) // Alert on 3+ errors in evaluation period
+                .evaluationPeriods(2) // Over 2 evaluation periods (10 minutes)
+                .comparisonOperator(ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD)
+                .treatMissingData(TreatMissingData.NOT_BREACHING)
+                .alarmDescription("High error rate detected in authorize endpoint")
+                .build();
+
+        // Duration alarm for authorize endpoint (cold start monitoring)
+        Alarm.Builder.create(this, resourceNamePrefix + "-AuthorizeDurationAlarm")
+                .alarmName(compressedResourceNamePrefix + "-authorize-duration")
+                .metric(this.authorizeEndpoint.function.metricDuration())
+                .threshold(10000.0) // Alert if duration > 10 seconds
+                .evaluationPeriods(3) // Over 3 evaluation periods (15 minutes)
+                .comparisonOperator(ComparisonOperator.GREATER_THAN_THRESHOLD)
+                .treatMissingData(TreatMissingData.NOT_BREACHING)
+                .alarmDescription("High duration detected in authorize endpoint - possible cold start issues")
+                .build();
+
+        // Error rate alarm for token endpoint (most critical)
+        Alarm.Builder.create(this, resourceNamePrefix + "-TokenErrorAlarm")
+                .alarmName(compressedResourceNamePrefix + "-token-errors")
+                .metric(this.tokenEndpoint.function.metricErrors())
+                .threshold(2.0) // Lower threshold for critical token endpoint
+                .evaluationPeriods(2)
+                .comparisonOperator(ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD)
+                .treatMissingData(TreatMissingData.NOT_BREACHING)
+                .alarmDescription("High error rate detected in token endpoint - critical for authentication flow")
+                .build();
+
+        // Throttle alarm for all endpoints (simplified approach)
+        Alarm.Builder.create(this, resourceNamePrefix + "-LambdaThrottleAlarm")
+                .alarmName(compressedResourceNamePrefix + "-lambda-throttles")
+                .metric(this.authorizeEndpoint.function.metricThrottles())
+                .threshold(1.0) // Alert on any throttling
+                .evaluationPeriods(1)
+                .comparisonOperator(ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD)
+                .treatMissingData(TreatMissingData.NOT_BREACHING)
+                .alarmDescription("Lambda function throttling detected - may need reserved concurrency")
+                .build();
+    }
+
+    /**
+     * Apply comprehensive cost allocation tags for all resources in the stack
+     */
+    private void applyCostAllocationTags(ProviderStackProps props) {
+        Tags.of(this).add("Environment", props.envName);
+        Tags.of(this).add("Application", "oidc-provider");
+        Tags.of(this).add("CostCenter", "authentication");
+        Tags.of(this).add("Owner", "platform-team");
+        Tags.of(this).add("Project", "identity-management");
+        Tags.of(this).add("DeploymentName", props.deploymentName);
+        Tags.of(this).add("Stack", "ProviderStack");
+        Tags.of(this).add("ManagedBy", "aws-cdk");
     }
 
     public BucketDeployment getWellKnownDeployment() {

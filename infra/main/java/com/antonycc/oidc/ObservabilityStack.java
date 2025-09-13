@@ -23,6 +23,7 @@ import software.amazon.awscdk.services.s3.BucketAccessControl;
 import software.amazon.awscdk.services.s3.BucketEncryption;
 import software.amazon.awscdk.services.s3.ObjectOwnership;
 import software.amazon.awscdk.services.xray.CfnGroup;
+import software.amazon.awscdk.Tags;
 import software.constructs.Construct;
 
 import java.util.List;
@@ -40,6 +41,9 @@ public class ObservabilityStack extends Stack {
 
     public ObservabilityStack(final Construct scope, final String id, final ObservabilityStackProps props) {
         super(scope, id, props);
+
+        // Apply cost allocation tags for all resources in this stack
+        applyCostAllocationTags(props);
 
         // Generate predictable resource name prefix based on domain and environment
         String resourceNamePrefix = generateResourceNamePrefix(props.domainName, props.envName);
@@ -173,6 +177,19 @@ public class ObservabilityStack extends Stack {
                 this,
                 "XRayGroupName",
                 CfnOutputProps.builder().value(this.xrayGroup.getGroupName()).build());
+    }
+
+    /**
+     * Apply comprehensive cost allocation tags for all resources in the stack
+     */
+    private void applyCostAllocationTags(ObservabilityStackProps props) {
+        Tags.of(this).add("Environment", props.envName);
+        Tags.of(this).add("Application", "oidc-provider");
+        Tags.of(this).add("CostCenter", "authentication");
+        Tags.of(this).add("Owner", "platform-team");
+        Tags.of(this).add("Project", "identity-management");
+        Tags.of(this).add("Stack", "ObservabilityStack");
+        Tags.of(this).add("ManagedBy", "aws-cdk");
     }
 
     /**

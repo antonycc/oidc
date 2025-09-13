@@ -2,6 +2,9 @@
   "app": "./mvnw --errors compile exec:java",
   "context": {
     "@aws-cdk/core:newStyleStackSynthesis": true,
+    "acknowledgements": {
+      "@aws-cdk/aws-cloudfront-origins:updateImportedBucketPolicyOac": "Bucket policies are managed explicitly in EdgeStack for imported buckets"
+    },
     "@aws-cdk/aws-cloudfront:defaultSecurityPolicyTLSv1.2_2021": true,
     "@aws-cdk/aws-s3:serverAccessLogsUseBucketPolicy": true,
     "@aws-cdk/aws-lambda:useCdkManagedLogGroup": true,

@@ -11,6 +11,7 @@ import software.amazon.awscdk.Tags;
 import software.amazon.awscdk.services.certificatemanager.Certificate;
 import software.amazon.awscdk.services.cloudfront.Distribution;
 import software.amazon.awscdk.services.cloudfront.SSLMethod;
+import software.amazon.awscdk.services.iam.PolicyStatement;
 import software.amazon.awscdk.services.iam.ServicePrincipal;
 import software.amazon.awscdk.services.lambda.Function;
 import software.amazon.awscdk.services.lambda.FunctionAttributes;
@@ -27,6 +28,7 @@ import software.amazon.awscdk.services.route53.IHostedZone;
 import software.amazon.awscdk.services.route53.RecordTarget;
 import software.amazon.awscdk.services.route53.targets.CloudFrontTarget;
 import software.amazon.awscdk.services.s3.Bucket;
+import software.amazon.awscdk.services.s3.BucketPolicy;
 import software.amazon.awscdk.services.s3.IBucket;
 import software.amazon.awscdk.services.s3.assets.AssetOptions;
 import software.amazon.awscdk.services.s3.deployment.BucketDeployment;
@@ -250,6 +252,29 @@ public class EdgeStack extends Stack {
                 .sslSupportMethod(SSLMethod.SNI)
                 .webAclId(webAcl.getAttrArn())
                 .build();
+
+        // Explicit bucket policies for imported buckets to allow access from CloudFront OAC
+        BucketPolicy webBucketPolicy = BucketPolicy.Builder.create(this, props.resourceNamePrefix + "-WebBucketPolicy")
+                .bucket(webBucket)
+                .build();
+        webBucketPolicy.getDocument().addStatements(PolicyStatement.Builder.create()
+                .sid("AllowCloudFrontReadWeb")
+                .actions(List.of("s3:GetObject"))
+                .principals(List.of(new ServicePrincipal("cloudfront.amazonaws.com")))
+                .resources(List.of(webBucket.arnForObjects("*")))
+                .conditions(Map.of("StringEquals", Map.of("AWS:SourceArn", this.distribution.getDistributionArn())))
+                .build());
+
+        BucketPolicy wellKnownBucketPolicy = BucketPolicy.Builder.create(this, props.resourceNamePrefix + "-WellKnownBucketPolicy")
+                .bucket(wellKnownBucket)
+                .build();
+        wellKnownBucketPolicy.getDocument().addStatements(PolicyStatement.Builder.create()
+                .sid("AllowCloudFrontReadWellKnown")
+                .actions(List.of("s3:GetObject"))
+                .principals(List.of(new ServicePrincipal("cloudfront.amazonaws.com")))
+                .resources(List.of(wellKnownBucket.arnForObjects(".well-known/*")))
+                .conditions(Map.of("StringEquals", Map.of("AWS:SourceArn", this.distribution.getDistributionArn())))
+                .build());
 
         // Grant CloudFront access to the origin lambdas with compressed names
         Permission invokeFunctionUrlPermission = Permission.builder()

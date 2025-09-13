@@ -1,5 +1,8 @@
 package com.antonycc.oidc;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.RemovalPolicy;
@@ -19,10 +22,6 @@ import software.amazon.awscdk.services.dynamodb.TableEncryption;
 import software.amazon.awscdk.services.s3.Bucket;
 import software.amazon.awscdk.services.s3.IBucket;
 import software.constructs.Construct;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 public class AppStack extends Stack {
     public final S3OriginConstruct wellKnownOriginBucket;

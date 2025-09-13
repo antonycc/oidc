@@ -1,5 +1,9 @@
 package com.antonycc.oidc;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import software.amazon.awscdk.App;
 import software.amazon.awscdk.Environment;
@@ -9,11 +13,6 @@ import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.assertions.Template;
 import software.amazon.awscdk.services.s3.BlockPublicAccess;
 import software.amazon.awscdk.services.s3.Bucket;
-
-import java.util.Map;
-
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 
 class S3OriginConstructTest {
 
@@ -52,7 +51,7 @@ class S3OriginConstructTest {
 
         // Verify the construct exposes the expected resources
         assertNotNull(s3OriginConstruct.bucket, "Bucket should be created and exposed");
-        //assertNotNull(s3OriginConstruct.originAccessIdentity, "OAI should be created and exposed");
+        // assertNotNull(s3OriginConstruct.originAccessIdentity, "OAI should be created and exposed");
         assertNotNull(s3OriginConstruct.origin, "Origin should be created and exposed");
         assertNotNull(s3OriginConstruct.behaviorOptions, "BehaviorOptions should be created and exposed");
         assertNull(s3OriginConstruct.cachePolicy, "CachePolicy should be null for WEB bucket type");
@@ -112,7 +111,7 @@ class S3OriginConstructTest {
                         .build());
 
         assertNotNull(wellKnownBucket.bucket);
-        //assertNotNull(wellKnownBucket.originAccessIdentity);
+        // assertNotNull(wellKnownBucket.originAccessIdentity);
         assertNotNull(wellKnownBucket.origin);
         assertNotNull(wellKnownBucket.behaviorOptions);
         assertNotNull(wellKnownBucket.cachePolicy, "CachePolicy should be created for WELL_KNOWN bucket type");

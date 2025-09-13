@@ -26,7 +26,7 @@ public class S3OriginConstruct extends Construct {
     public final IOrigin origin;
     public final BehaviorOptions behaviorOptions;
     public final CachePolicy cachePolicy;
-    //public final OriginAccessIdentity originAccessIdentity;
+    // public final OriginAccessIdentity originAccessIdentity;
 
     public S3OriginConstruct(final Construct scope, final String id, final S3OriginConstructProps props) {
         super(scope, id);
@@ -50,8 +50,7 @@ public class S3OriginConstruct extends Construct {
 
         // Create the S3BucketOrigin using Origin Access Control (OAC)
         this.origin = S3BucketOrigin.withOriginAccessControl(
-                this.bucket,
-                S3BucketOriginWithOACProps.builder().build());
+                this.bucket, S3BucketOriginWithOACProps.builder().build());
 
         // Create cache policy if needed for WELL_KNOWN bucket type
         if (props.bucketType == S3OriginBucketType.WELL_KNOWN) {

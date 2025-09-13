@@ -53,11 +53,6 @@ public class OpsStack extends Stack {
         Tags.of(this).add("BackupRequired", "true");
         Tags.of(this).add("MonitoringEnabled", "true");
 
-        // Generate predictable resource name prefix based on domain and deployment name
-        String resourceNamePrefix = ResourceNameUtils.generateResourceNamePrefix(props.domainName, props.deploymentName);
-        String compressedResourceNamePrefix =
-            ResourceNameUtils.generateCompressedResourceNamePrefix(props.domainName, props.deploymentName);
-
         // Use resources from the passed props
         IFunction jwksEndpointFunction = Function.fromFunctionArn(this, "JwksEndpointFunction", props.jwksEndpointFunctionArn);
         IFunction authorizeEndpointFunction = Function.fromFunctionArn(this, "AuthorizeEndpointFunction", props.authorizeEndpointFunctionArn);
@@ -72,8 +67,8 @@ public class OpsStack extends Stack {
             .build());
 
         // Error rate alarm for authorize endpoint
-        this.authorizeErrorAlarm = Alarm.Builder.create(this, resourceNamePrefix + "-AuthorizeErrorAlarm")
-            .alarmName(compressedResourceNamePrefix + "-authorize-errors")
+        this.authorizeErrorAlarm = Alarm.Builder.create(this, props.resourceNamePrefix + "-AuthorizeErrorAlarm")
+            .alarmName(props.compressedResourceNamePrefix + "-authorize-errors")
             .metric(authorizeEndpointFunction.metricErrors())
             .threshold(3.0) // Alert on 3+ errors in evaluation period
             .evaluationPeriods(2) // Over 2 evaluation periods (10 minutes)
@@ -83,8 +78,8 @@ public class OpsStack extends Stack {
             .build();
 
         // Duration alarm for authorize endpoint (cold start monitoring)
-        this.authorizeDurationAlarm = Alarm.Builder.create(this, resourceNamePrefix + "-AuthorizeDurationAlarm")
-            .alarmName(compressedResourceNamePrefix + "-authorize-duration")
+        this.authorizeDurationAlarm = Alarm.Builder.create(this, props.resourceNamePrefix + "-AuthorizeDurationAlarm")
+            .alarmName(props.compressedResourceNamePrefix + "-authorize-duration")
             .metric(authorizeEndpointFunction.metricDuration())
             .threshold(10000.0) // Alert if duration > 10 seconds
             .evaluationPeriods(3) // Over 3 evaluation periods (15 minutes)
@@ -94,8 +89,8 @@ public class OpsStack extends Stack {
             .build();
 
         // Error rate alarm for token endpoint (most critical)
-        this.tokenErrorAlarm = Alarm.Builder.create(this, resourceNamePrefix + "-TokenErrorAlarm")
-            .alarmName(compressedResourceNamePrefix + "-token-errors")
+        this.tokenErrorAlarm = Alarm.Builder.create(this, props.resourceNamePrefix + "-TokenErrorAlarm")
+            .alarmName(props.compressedResourceNamePrefix + "-token-errors")
             .metric(tokenEndpointFunction.metricErrors())
             .threshold(2.0) // Lower threshold for critical token endpoint
             .evaluationPeriods(2)
@@ -105,8 +100,8 @@ public class OpsStack extends Stack {
             .build();
 
         // Throttle alarm for all endpoints (simplified approach)
-        this.lambdaThrottleAlarm = Alarm.Builder.create(this, resourceNamePrefix + "-LambdaThrottleAlarm")
-            .alarmName(compressedResourceNamePrefix + "-lambda-throttles")
+        this.lambdaThrottleAlarm = Alarm.Builder.create(this, props.resourceNamePrefix + "-LambdaThrottleAlarm")
+            .alarmName(props.compressedResourceNamePrefix + "-lambda-throttles")
             .metric(authorizeEndpointFunction.metricThrottles())
             .threshold(1.0) // Alert on any throttling
             .evaluationPeriods(1)
@@ -120,8 +115,8 @@ public class OpsStack extends Stack {
             .build();
 
         // DynamoDB user table throttling alarm
-        this.dynamoDbUserThrottleAlarm = Alarm.Builder.create(this, resourceNamePrefix + "-DynamoDbUserThrottleAlarm")
-            .alarmName(compressedResourceNamePrefix + "-dynamodb-user-throttles")
+        this.dynamoDbUserThrottleAlarm = Alarm.Builder.create(this, props.resourceNamePrefix + "-DynamoDbUserThrottleAlarm")
+            .alarmName(props.compressedResourceNamePrefix + "-dynamodb-user-throttles")
             .metric(usersTable.metricThrottledRequestsForOperations(dynamoDbMetricOptions))
             .threshold(1.0) // Alert on any throttling
             .evaluationPeriods(2) // Over 2 evaluation periods (10 minutes)
@@ -131,8 +126,8 @@ public class OpsStack extends Stack {
             .build();
 
         // DynamoDB auth codes table throttling alarm
-        this.dynamoDbAuthCodeThrottleAlarm = Alarm.Builder.create(this, resourceNamePrefix + "-DynamoDbAuthCodesThrottleAlarm")
-            .alarmName(compressedResourceNamePrefix + "-dynamodb-auth-codes-throttles")
+        this.dynamoDbAuthCodeThrottleAlarm = Alarm.Builder.create(this, props.resourceNamePrefix + "-DynamoDbAuthCodesThrottleAlarm")
+            .alarmName(props.compressedResourceNamePrefix + "-dynamodb-auth-codes-throttles")
             .metric(authCodesTable.metricThrottledRequestsForOperations(dynamoDbMetricOptions))
             .threshold(1.0)
             .evaluationPeriods(2)
@@ -142,8 +137,8 @@ public class OpsStack extends Stack {
             .build();
 
         // DynamoDB refresh tokens table throttling alarm
-        this.dynamoDbRefreshTokenThrottleAlarm = Alarm.Builder.create(this, resourceNamePrefix + "-DynamoDbRefreshTokensThrottleAlarm")
-            .alarmName(compressedResourceNamePrefix + "-dynamodb-refresh-tokens-throttles")
+        this.dynamoDbRefreshTokenThrottleAlarm = Alarm.Builder.create(this, props.resourceNamePrefix + "-DynamoDbRefreshTokensThrottleAlarm")
+            .alarmName(props.compressedResourceNamePrefix + "-dynamodb-refresh-tokens-throttles")
             .metric(refreshTokensTable.metricThrottledRequestsForOperations(dynamoDbMetricOptions))
             .threshold(1.0)
             .evaluationPeriods(2)
@@ -153,8 +148,8 @@ public class OpsStack extends Stack {
             .build();
 
         // Create CloudWatch dashboard with key metrics
-        this.operationalDashboard = Dashboard.Builder.create(this, resourceNamePrefix + "-OperationalDashboard")
-            .dashboardName(compressedResourceNamePrefix + "-operations")
+        this.operationalDashboard = Dashboard.Builder.create(this, props.resourceNamePrefix + "-OperationalDashboard")
+            .dashboardName(props.compressedResourceNamePrefix + "-operations")
             .widgets(List.of(List.of(
                 // Lambda invocation metrics
                 GraphWidget.Builder.create()

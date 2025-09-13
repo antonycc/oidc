@@ -64,6 +64,18 @@ public class ResourceNameUtils {
         return sb.toString();
     }
 
+    public static String buildDashedDomainName(String env, String domainName) {
+        return ResourceNameUtils.convertDotSeparatedToDashSeparated(
+            "%s.%s".formatted(env, domainName), domainNameMappings);
+    }
+
+    public static String buildDashedDomainName(String env, String subDomainName, String domainName) {
+        return ResourceNameUtils.convertDotSeparatedToDashSeparated(
+            "%s.%s.%s".formatted(env, subDomainName, domainName), domainNameMappings);
+    }
+
+    public static final List<AbstractMap.SimpleEntry<Pattern, String>> domainNameMappings = List.of();
+
     public static String convertCamelCaseToDashSeparated(String input) {
         if (input == null || input.isEmpty()) {
             // return input;

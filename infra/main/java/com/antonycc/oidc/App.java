@@ -2,6 +2,7 @@ package com.antonycc.oidc;
 
 import software.amazon.awscdk.Environment;
 
+import static com.antonycc.oidc.ResourceNameUtils.buildDashedDomainName;
 import static com.antonycc.oidc.ResourceNameUtils.generateCompressedResourceNamePrefix;
 import static com.antonycc.oidc.ResourceNameUtils.generateResourceNamePrefix;
 
@@ -30,6 +31,7 @@ public class App {
             // authDomainName = System.getenv().getOrDefault("AUTH_DOMAIN_NAME", deploymentName +
             // ".auth.oidc.example.com");
         }
+        String dashedDomainName = buildDashedDomainName(envName, domainName);
 
         // Generate predictable resource name prefix based on domain and environment
         String resourceNamePrefix = generateResourceNamePrefix(domainName, envName);
@@ -60,15 +62,17 @@ public class App {
 
         // Create DevStack with resources only used during development or deployment (e.g. ECR)
         String devStackId = "DevStack-%s".formatted(envName);
-        DevStack devStack = DevStack.Builder.create(app, devStackId)
-                .props(DevStackProps.builder()
+        DevStack devStack = new DevStack(
+                app,
+                devStackId,
+                DevStackProps.builder()
                         .env(envName)
                         .hostedZoneName(hostedZoneName)
                         .domainName(domainName)
+                        .dashedDomainName(dashedDomainName)
                         .resourceNamePrefix(resourceNamePrefix)
                         .compressedResourceNamePrefix(compressedResourceNamePrefix)
-                        .build())
-                .build();
+                        .build());
         devStack.addDependency(observabilityStack);
 
         // Create the Provider stack (Lambdas, DynamoDB, S3, CloudFront)

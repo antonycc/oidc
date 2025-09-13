@@ -39,9 +39,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.antonycc.oidc.ResourceNameUtils.generateCompressedResourceNamePrefix;
-import static com.antonycc.oidc.ResourceNameUtils.generateResourceNamePrefix;
-
 public class WebStack extends Stack {
     public final String baseUrl;
     public final S3OriginBucket webOriginBucket;
@@ -75,11 +72,6 @@ public class WebStack extends Stack {
 
         var additionalOriginsBehaviourMappings = new HashMap<String, BehaviorOptions>();
 
-        // Generate predictable resource name prefix based on domain and deployment name
-        String resourceNamePrefix = generateResourceNamePrefix(props.domainName, props.deploymentName);
-        String compressedResourceNamePrefix =
-                generateCompressedResourceNamePrefix(props.domainName, props.deploymentName);
-
         // Use Resources from the passed props
         IBucket logsBucket = Bucket.fromBucketName(this, "LogsBucket", props.logsBucketArn);
         IBucket wellKnownBucket = Bucket.fromBucketName(this, "WellKnownBucket", props.wellKnownBucketArn);
@@ -91,7 +83,7 @@ public class WebStack extends Stack {
         // Hosted zone (must exist)
         IHostedZone zone = HostedZone.fromHostedZoneAttributes(
                 this,
-                resourceNamePrefix + "-Zone",
+            props.resourceNamePrefix + "-Zone",
                 HostedZoneAttributes.builder()
                         .hostedZoneId(props.hostedZoneId)
                         .zoneName(props.hostedZoneName)
@@ -106,14 +98,14 @@ public class WebStack extends Stack {
         this.baseUrl = "https://" + domainName;
 
         // TLS certificate from existing ACM (must be in us-east-1 for CloudFront)
-        var cert = Certificate.fromCertificateArn(this, resourceNamePrefix + "-WebCert", props.certificateArn);
+        var cert = Certificate.fromCertificateArn(this, props.resourceNamePrefix + "-WebCert", props.certificateArn);
 
         // Buckets
 
         // Web origin bucket
         this.webOriginBucket = new S3OriginBucket(
                 this,
-                resourceNamePrefix + "-WebBucket",
+            props.resourceNamePrefix + "-WebBucket",
                 S3OriginBucketProps.builder()
                         .bucketNameSuffix("web")
                         .logsPrefix("s3/web/")
@@ -127,8 +119,8 @@ public class WebStack extends Stack {
         BehaviorOptions webOriginBehaviorOptions = this.webOriginBucket.behaviorOptions;
 
         // AWS WAF WebACL for CloudFront protection against common attacks and rate limiting
-        CfnWebACL webAcl = CfnWebACL.Builder.create(this, resourceNamePrefix + "-WebAcl")
-            .name(compressedResourceNamePrefix + "-waf")
+        CfnWebACL webAcl = CfnWebACL.Builder.create(this, props.resourceNamePrefix + "-WebAcl")
+            .name(props.compressedResourceNamePrefix + "-waf")
             .scope("CLOUDFRONT")
             .defaultAction(CfnWebACL.DefaultActionProperty.builder()
                 .allow(CfnWebACL.AllowActionProperty.builder().build())
@@ -197,13 +189,13 @@ public class WebStack extends Stack {
             .description("WAF WebACL for OIDC provider CloudFront distribution - provides rate limiting and protection against common attacks")
             .visibilityConfig(CfnWebACL.VisibilityConfigProperty.builder()
                 .cloudWatchMetricsEnabled(true)
-                .metricName(compressedResourceNamePrefix + "-waf")
+                .metricName(props.compressedResourceNamePrefix + "-waf")
                 .sampledRequestsEnabled(true)
                 .build())
             .build();
 
         // CloudFront with two S3 origins and FunctionUrl origins for OIDC endpoints
-        this.distribution = Distribution.Builder.create(this, resourceNamePrefix + "-WebDist")
+        this.distribution = Distribution.Builder.create(this, props.resourceNamePrefix + "-WebDist")
                 .defaultBehavior(webOriginBehaviorOptions)
                 .additionalBehaviors(additionalOriginsBehaviourMappings)
                 .domainNames(List.of(domainName))
@@ -225,13 +217,13 @@ public class WebStack extends Stack {
                 .sourceArn(this.distribution.getDistributionArn())
                 .build();
         authorizeEndpointFunction.addPermission(
-                compressedResourceNamePrefix + "-cf-auth", invokeFunctionUrlPermission);
+            props.compressedResourceNamePrefix + "-cf-auth", invokeFunctionUrlPermission);
         tokenEndpointFunction.addPermission(
-                compressedResourceNamePrefix + "-cf-token", invokeFunctionUrlPermission);
+            props.compressedResourceNamePrefix + "-cf-token", invokeFunctionUrlPermission);
         userinfoEndpointFunction.addPermission(
-                compressedResourceNamePrefix + "-cf-userinfo", invokeFunctionUrlPermission);
+            props.compressedResourceNamePrefix + "-cf-userinfo", invokeFunctionUrlPermission);
         jwksEndpointFunction.addPermission(
-                compressedResourceNamePrefix + "-cf-jwks", invokeFunctionUrlPermission);
+            props.compressedResourceNamePrefix + "-cf-jwks", invokeFunctionUrlPermission);
 
         var deployPostfix = java.util.UUID.randomUUID().toString().substring(0, 8);
 
@@ -239,12 +231,12 @@ public class WebStack extends Stack {
         var webDocRootSource = Source.asset(
                 "web",
                 AssetOptions.builder().assetHashType(AssetHashType.SOURCE).build());
-        var webDeploymentLogGroup = LogGroup.Builder.create(this, resourceNamePrefix + "-WebDeploymentLogGroup")
-                .logGroupName("/deployment/" + resourceNamePrefix + "-web-deployment-" + deployPostfix)
+        var webDeploymentLogGroup = LogGroup.Builder.create(this, props.resourceNamePrefix + "-WebDeploymentLogGroup")
+                .logGroupName("/deployment/" + props.resourceNamePrefix + "-web-deployment-" + deployPostfix)
                 .retention(RetentionDays.ONE_DAY)
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
-        this.webDeployment = BucketDeployment.Builder.create(this, resourceNamePrefix + "-DocRootToWebOriginDeployment")
+        this.webDeployment = BucketDeployment.Builder.create(this, props.resourceNamePrefix + "-DocRootToWebOriginDeployment")
                 .sources(List.of(webDocRootSource))
                 .destinationBucket(this.webBucket)
                 .distribution(this.distribution)
@@ -262,13 +254,13 @@ public class WebStack extends Stack {
                 AssetOptions.builder().assetHashType(AssetHashType.SOURCE).build());
 
         var wellKnownDeploymentLogGroup = LogGroup.Builder.create(
-                        this, resourceNamePrefix + "-WellKnownDeploymentLogGroup")
-                .logGroupName("/deployment/" + resourceNamePrefix + "-well-known-deployment-" + deployPostfix)
+                        this, props.resourceNamePrefix + "-WellKnownDeploymentLogGroup")
+                .logGroupName("/deployment/" + props.resourceNamePrefix + "-well-known-deployment-" + deployPostfix)
                 .retention(RetentionDays.ONE_DAY)
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
         this.wellKnownDeployment = BucketDeployment.Builder.create(
-                        this, resourceNamePrefix + "-DocRootToWellKnownOriginDeployment")
+                        this, props.resourceNamePrefix + "-DocRootToWellKnownOriginDeployment")
                 .sources(List.of(wellKnownRootSource))
                 .destinationBucket(wellKnownBucket)
                 .destinationKeyPrefix(".well-known/")
@@ -283,7 +275,7 @@ public class WebStack extends Stack {
         // A record
         this.aliasRecord = new ARecord(
                 this,
-                resourceNamePrefix + "-AliasRecord",
+            props.resourceNamePrefix + "-AliasRecord",
                 ARecordProps.builder()
                         .recordName(recordName)
                         .zone(zone)

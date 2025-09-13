@@ -24,6 +24,8 @@ public class OpsStackProps implements StackProps {
         this.envName = builder.envName;
         this.deploymentName = builder.deploymentName;
         this.domainName = builder.domainName;
+        this.resourceNamePrefix = builder.resourceNamePrefix;
+        this.compressedResourceNamePrefix = builder.compressedResourceNamePrefix;
         this.jwksEndpointFunctionArn = builder.jwksEndpointFunctionArn;
         this.authorizeEndpointFunctionArn = builder.authorizeEndpointFunctionArn;
         this.tokenEndpointFunctionArn = builder.tokenEndpointFunctionArn;
@@ -48,6 +50,8 @@ public class OpsStackProps implements StackProps {
         private String envName;
         private String deploymentName;
         private String domainName;
+        private String resourceNamePrefix;
+        private String compressedResourceNamePrefix;
         private String jwksEndpointFunctionArn;
         private String authorizeEndpointFunctionArn;
         private String tokenEndpointFunctionArn;
@@ -74,6 +78,16 @@ public class OpsStackProps implements StackProps {
 
         public Builder domainName(String domainName) {
             this.domainName = domainName;
+            return this;
+        }
+
+        public Builder resourceNamePrefix(String resourceNamePrefix) {
+            this.resourceNamePrefix = resourceNamePrefix;
+            return this;
+        }
+
+        public Builder compressedResourceNamePrefix(String compressedResourceNamePrefix) {
+            this.compressedResourceNamePrefix = compressedResourceNamePrefix;
             return this;
         }
 

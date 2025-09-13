@@ -14,6 +14,8 @@ public class ObservabilityStackProps implements StackProps {
         this.env = builder.env;
         this.envName = builder.envName;
         this.domainName = builder.domainName;
+        this.resourceNamePrefix = builder.resourceNamePrefix;
+        this.compressedResourceNamePrefix = builder.compressedResourceNamePrefix;
     }
 
     @Override
@@ -29,6 +31,8 @@ public class ObservabilityStackProps implements StackProps {
         private Environment env;
         private String envName;
         private String domainName;
+        private String resourceNamePrefix;
+        private String compressedResourceNamePrefix;
 
         public Builder env(Environment env) {
             this.env = env;
@@ -42,6 +46,16 @@ public class ObservabilityStackProps implements StackProps {
 
         public Builder domainName(String domainName) {
             this.domainName = domainName;
+            return this;
+        }
+
+        public Builder resourceNamePrefix(String resourceNamePrefix) {
+            this.resourceNamePrefix = resourceNamePrefix;
+            return this;
+        }
+
+        public Builder compressedResourceNamePrefix(String compressedResourceNamePrefix) {
+            this.compressedResourceNamePrefix = compressedResourceNamePrefix;
             return this;
         }
 

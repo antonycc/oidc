@@ -11,6 +11,9 @@ public class ProviderStackProps implements StackProps {
     public final String ecrRepositoryName;
     public final String baseImageTag;
     public final String domainName;
+    public final String hostedZoneName;
+    public final String hostedZoneId;
+    public final String certificateArn;
     public final String resourceNamePrefix;
     public final String compressedResourceNamePrefix;
     public final String logsBucketName;
@@ -21,8 +24,13 @@ public class ProviderStackProps implements StackProps {
         this.deploymentName = builder.deploymentName;
         this.ecrRepositoryArn = builder.ecrRepositoryArn;
         this.ecrRepositoryName = builder.ecrRepositoryName;
-        this.baseImageTag = builder.baseImageTag;
+        this.baseImageTag = builder.baseImageTag != null ? builder.baseImageTag : "latest";
         this.domainName = builder.domainName;
+        this.hostedZoneName = builder.hostedZoneName;
+        this.hostedZoneId = builder.hostedZoneId;
+        this.certificateArn = builder.certificateArn;
+        this.resourceNamePrefix = builder.resourceNamePrefix;
+        this.compressedResourceNamePrefix = builder.compressedResourceNamePrefix;
         this.logsBucketName = builder.logsBucketName;
     }
 
@@ -43,6 +51,11 @@ public class ProviderStackProps implements StackProps {
         private String ecrRepositoryName;
         private String baseImageTag;
         private String domainName;
+        private String hostedZoneName;
+        private String hostedZoneId;
+        private String certificateArn;
+        private String resourceNamePrefix;
+        private String compressedResourceNamePrefix;
         private String logsBucketName;
 
         public Builder env(Environment env) {
@@ -77,6 +90,51 @@ public class ProviderStackProps implements StackProps {
 
         public Builder domainName(String domainName) {
             this.domainName = domainName;
+            return this;
+        }
+
+        public Builder hostedZoneName(String hostedZoneName) {
+            this.hostedZoneName = hostedZoneName;
+            return this;
+        }
+
+        public Builder hostedZoneId(String hostedZoneId) {
+            this.hostedZoneId = hostedZoneId;
+            return this;
+        }
+
+        public Builder certificateArn(String certificateArn) {
+            this.certificateArn = certificateArn;
+            return this;
+        }
+
+        public Builder logsBucket(software.amazon.awscdk.services.s3.Bucket logsBucket) {
+            this.logsBucketName = logsBucket.getBucketName();
+            return this;
+        }
+
+        public Builder trailLogGroup(software.amazon.awscdk.services.logs.LogGroup logGroup) {
+            // not used in ProviderStackProps; method provided for compatibility with tests
+            return this;
+        }
+
+        public Builder auditTrail(software.amazon.awscdk.services.cloudtrail.Trail trail) {
+            // not used in ProviderStackProps; method provided for compatibility with tests
+            return this;
+        }
+
+        public Builder xrayGroup(software.amazon.awscdk.services.xray.CfnGroup group) {
+            // not used in ProviderStackProps; method provided for compatibility with tests
+            return this;
+        }
+
+        public Builder resourceNamePrefix(String resourceNamePrefix) {
+            this.resourceNamePrefix = resourceNamePrefix;
+            return this;
+        }
+
+        public Builder compressedResourceNamePrefix(String compressedResourceNamePrefix) {
+            this.compressedResourceNamePrefix = compressedResourceNamePrefix;
             return this;
         }
 

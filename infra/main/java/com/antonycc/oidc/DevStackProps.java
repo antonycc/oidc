@@ -1,8 +1,11 @@
 package com.antonycc.oidc;
 
-public class DevStackProps {
+import software.amazon.awscdk.StackProps;
+
+public class DevStackProps implements StackProps  {
     public final String env;
     public final String domainName;
+    public final String dashedDomainName;
     public final String resourceNamePrefix;
     public final String compressedResourceNamePrefix;
     public final String hostedZoneName;
@@ -10,6 +13,7 @@ public class DevStackProps {
     private DevStackProps(Builder b) {
         this.env = b.env;
         this.domainName = b.domainName;
+        this.dashedDomainName = b.dashedDomainName;
         this.resourceNamePrefix = b.resourceNamePrefix;
         this.compressedResourceNamePrefix = b.compressedResourceNamePrefix;
         this.hostedZoneName = b.hostedZoneName;
@@ -22,6 +26,7 @@ public class DevStackProps {
     public static class Builder {
         private String env;
         private String domainName;
+        private String dashedDomainName;
         private String resourceNamePrefix;
         private String compressedResourceNamePrefix;
         private String hostedZoneName;
@@ -33,6 +38,11 @@ public class DevStackProps {
 
         public Builder domainName(String v) {
             this.domainName = v;
+            return this;
+        }
+
+        public Builder dashedDomainName(String v) {
+            this.dashedDomainName = v;
             return this;
         }
 

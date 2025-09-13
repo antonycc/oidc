@@ -25,9 +25,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.antonycc.oidc.ResourceNameUtils.generateCompressedResourceNamePrefix;
-import static com.antonycc.oidc.ResourceNameUtils.generateResourceNamePrefix;
-
 public class ProviderStack extends Stack {
     public final S3OriginBucket wellKnownOriginBucket;
     public final Bucket wellKnownBucket;
@@ -65,11 +62,6 @@ public class ProviderStack extends Stack {
 
         this.additionalOriginsBehaviourMappings = new HashMap<String, BehaviorOptions>();
 
-        // Generate predictable resource name prefix based on domain and deployment name
-        String resourceNamePrefix = generateResourceNamePrefix(props.domainName, props.deploymentName);
-        String compressedResourceNamePrefix =
-                generateCompressedResourceNamePrefix(props.domainName, props.deploymentName);
-
         // Use Resources from the passed props
         IBucket logsBucket = Bucket.fromBucketName(this, "LogsBucket", props.logsBucketName);
 
@@ -78,7 +70,7 @@ public class ProviderStack extends Stack {
         // Well-known origin bucket
         this.wellKnownOriginBucket = new S3OriginBucket(
                 this,
-                resourceNamePrefix + "-WellKnownBucket",
+            props.resourceNamePrefix + "-WellKnownBucket",
                 S3OriginBucketProps.builder()
                         .bucketNameSuffix("well-known")
                         .logsPrefix("s3/well-known/")
@@ -96,8 +88,8 @@ public class ProviderStack extends Stack {
         // DynamoDB tables
 
         // DDB tables with enhanced security and backup configuration
-        this.usersTable = Table.Builder.create(this, resourceNamePrefix + "-Users")
-                .tableName(resourceNamePrefix + "-users")
+        this.usersTable = Table.Builder.create(this, props.resourceNamePrefix + "-Users")
+                .tableName(props.resourceNamePrefix + "-users")
                 .partitionKey(Attribute.builder()
                         .name("username")
                         .type(AttributeType.STRING)
@@ -110,8 +102,8 @@ public class ProviderStack extends Stack {
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
 
-        this.authCodesTable = Table.Builder.create(this, resourceNamePrefix + "-AuthCodes")
-                .tableName(resourceNamePrefix + "-auth-codes")
+        this.authCodesTable = Table.Builder.create(this, props.resourceNamePrefix + "-AuthCodes")
+                .tableName(props.resourceNamePrefix + "-auth-codes")
                 .partitionKey(Attribute.builder()
                         .name("code")
                         .type(AttributeType.STRING)
@@ -125,8 +117,8 @@ public class ProviderStack extends Stack {
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
 
-        this.refreshTokensTable = Table.Builder.create(this, resourceNamePrefix + "-RefreshTokens")
-                .tableName(resourceNamePrefix + "-refresh-tokens")
+        this.refreshTokensTable = Table.Builder.create(this, props.resourceNamePrefix + "-RefreshTokens")
+                .tableName(props.resourceNamePrefix + "-refresh-tokens")
                 .partitionKey(Attribute.builder()
                         .name("rt")
                         .type(AttributeType.STRING)
@@ -145,9 +137,9 @@ public class ProviderStack extends Stack {
         // Authorize endpoint via construct
         this.authorizeEndpoint = new EndpointFunction(
                 this,
-                resourceNamePrefix + "-AuthorizeEndpoint",
+            props.resourceNamePrefix + "-AuthorizeEndpoint",
                 EndpointFunctionProps.builder()
-                        .functionName(compressedResourceNamePrefix + "-authorize")
+                        .functionName(props.compressedResourceNamePrefix + "-authorize")
                         .ecrRepositoryArn(props.ecrRepositoryArn)
                         .ecrRepositoryName(props.ecrRepositoryName)
                         .baseImageTag(props.baseImageTag)
@@ -166,9 +158,9 @@ public class ProviderStack extends Stack {
         // Token endpoint via construct
         this.tokenEndpoint = new EndpointFunction(
                 this,
-                resourceNamePrefix + "-TokenEndpoint",
+            props.resourceNamePrefix + "-TokenEndpoint",
                 EndpointFunctionProps.builder()
-                        .functionName(compressedResourceNamePrefix + "-token")
+                        .functionName(props.compressedResourceNamePrefix + "-token")
                         .ecrRepositoryArn(props.ecrRepositoryArn)
                         .ecrRepositoryName(props.ecrRepositoryName)
                         .baseImageTag(props.baseImageTag)
@@ -190,9 +182,9 @@ public class ProviderStack extends Stack {
         // UserInfo endpoint via construct
         this.userinfoEndpoint = new EndpointFunction(
                 this,
-                resourceNamePrefix + "-UserInfoEndpoint",
+            props.resourceNamePrefix + "-UserInfoEndpoint",
                 EndpointFunctionProps.builder()
-                        .functionName(compressedResourceNamePrefix + "-userinfo")
+                        .functionName(props.compressedResourceNamePrefix + "-userinfo")
                         .ecrRepositoryArn(props.ecrRepositoryArn)
                         .ecrRepositoryName(props.ecrRepositoryName)
                         .baseImageTag(props.baseImageTag)
@@ -208,9 +200,9 @@ public class ProviderStack extends Stack {
         // JWKS endpoint via construct
         this.jwksEndpoint = new EndpointFunction(
                 this,
-                resourceNamePrefix + "-JwksEndpoint",
+            props.resourceNamePrefix + "-JwksEndpoint",
                 EndpointFunctionProps.builder()
-                        .functionName(compressedResourceNamePrefix + "-jwks")
+                        .functionName(props.compressedResourceNamePrefix + "-jwks")
                         .ecrRepositoryArn(props.ecrRepositoryArn)
                         .ecrRepositoryName(props.ecrRepositoryName)
                         .baseImageTag(props.baseImageTag)
@@ -224,7 +216,7 @@ public class ProviderStack extends Stack {
         this.authCodesTable.grantReadWriteData(this.jwksEndpoint.function);
 
         // Create a custom resource to fix the well-known configuration with correct domain
-        createWellKnownConfigFix(resourceNamePrefix, props.domainName);
+        createWellKnownConfigFix(props.resourceNamePrefix, props.domainName);
 
         // Outputs
         new CfnOutput(

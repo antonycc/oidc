@@ -18,7 +18,6 @@ import software.amazon.awscdk.services.cloudfront.ResponseHeadersPolicy;
 import software.amazon.awscdk.services.cloudfront.SSLMethod;
 import software.amazon.awscdk.services.cloudfront.ViewerProtocolPolicy;
 import software.amazon.awscdk.services.cloudfront.origins.S3BucketOrigin;
-import software.amazon.awscdk.services.cloudfront.origins.S3BucketOriginWithOACProps;
 import software.amazon.awscdk.services.iam.ServicePrincipal;
 import software.amazon.awscdk.services.lambda.Function;
 import software.amazon.awscdk.services.lambda.FunctionAttributes;
@@ -228,8 +227,9 @@ public class EdgeStack extends Stack {
                 .enableAcceptEncodingBrotli(true)
                 .enableAcceptEncodingGzip(true)
                 .build();
-        var wellKnownBucketOrigin = S3BucketOrigin.withOriginAccessControl(
-            wellKnownBucketImported, S3BucketOriginWithOACProps.builder().build());
+        //var wellKnownBucketOrigin = S3BucketOrigin.withOriginAccessControl(
+        //    wellKnownBucketImported, S3BucketOriginWithOACProps.builder().build());
+        var wellKnownBucketOrigin = S3BucketOrigin.withBucketDefaults(wellKnownBucketImported);
         var wellKnownBehaviorOptions = BehaviorOptions.builder()
                 .origin(wellKnownBucketOrigin)
                 .cachePolicy(cachePolicy)

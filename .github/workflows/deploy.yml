@@ -181,7 +181,6 @@ jobs:
 
   build-cdk:
     name: 'build cdk'
-    if: ${{ inputs.skipDeploy != 'true' }}
     needs:
       - names
     runs-on: ubuntu-24.04
@@ -222,6 +221,72 @@ jobs:
           name: cdk-synthesis
           path: cdk.out/
           retention-days: 1
+
+  diff-cdk:
+    name: 'deploy app'
+    needs:
+      - names
+      - npm-test
+      - build-cdk
+    runs-on: ubuntu-24.04
+    environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Node dependencies
+        run: npm ci
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'maven'
+
+      - name: Download CDK synthesis artifacts
+        uses: actions/download-artifact@v5
+        with:
+          name: cdk-synthesis
+          path: cdk.out/
+
+      - name: Configure AWS creds via OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-oidc-deploy
+
+      - name: Deploy App stack (CDK)
+        run: |
+          npx cdk diff --all --require-approval never --ci true --outputs-file cdk.out/cdk-outputs-all.json
+        env:
+          ENV_NAME: ${{ needs.names.outputs.environment-name }}
+          DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
+          BASE_IMAGE_TAG: ${{ needs.build-images.outputs.image-tag }}
+
+      - name: Resolve stack outputs
+        id: outputs
+        run: |
+          ECR_REPOSITORY_URI=$(jq -r '.["DevStack-${{ needs.names.outputs.deployment-name }}"].EcrRepositoryUri' cdk.out/cdk-outputs-all.json)
+          USERS_TABLE=$(jq -r '.["AppStack-${{ needs.names.outputs.deployment-name }}"].UsersTableName' cdk.out/cdk-outputs-all.json)
+          BASE_URL=$(jq -r '.["WebStack-${{ needs.names.outputs.deployment-name }}"].BaseUrl' cdk.out/cdk-outputs-all.json)
+          echo "ECR_REPOSITORY_URI=$ECR_REPOSITORY_URI"
+          echo "USERS_TABLE=$USERS_TABLE"
+          echo "BASE_URL=$BASE_URL"
+          echo "ECR_REPOSITORY_URI=$ECR_REPOSITORY_URI" >> $GITHUB_OUTPUT
+          echo "USERS_TABLE=$USERS_TABLE" >> $GITHUB_OUTPUT
+          echo "BASE_URL=$BASE_URL" >> $GITHUB_OUTPUT
+        shell: bash
+    outputs:
+      users-table: ${{ steps.app-outputs.outputs.USERS_TABLE }}
+      ecr-repository-uri: ${{ steps.dev-outputs.outputs.ECR_REPOSITORY_URI }}
+      base-url: ${{ steps.edge-outputs.outputs.BASE_URL }}
 
   deploy-observability:
     name: 'deploy observability'
@@ -331,9 +396,9 @@ jobs:
         run: |
           ECR_REPOSITORY_URI=$(jq -r '.["DevStack-${{ needs.names.outputs.deployment-name }}"].EcrRepositoryUri' cdk.out/cdk-outputs-dev.json)
           echo "ECR_REPOSITORY_URI=$ECR_REPOSITORY_URI"
-          echo "ecr-repository-uri=$ECR_REPOSITORY_URI" >> $GITHUB_OUTPUT
+          echo "ECR_REPOSITORY_URI=$ECR_REPOSITORY_URI" >> $GITHUB_OUTPUT
     outputs:
-        ecr-repository-uri: ${{ steps.dev-outputs.outputs.ecr-repository-uri }}
+        ecr-repository-uri: ${{ steps.dev-outputs.outputs.ECR_REPOSITORY_URI }}
 
   build-images:
     name: 'build and push images'
@@ -382,6 +447,7 @@ jobs:
           docker push ${{ needs.deploy-dev.outputs.ecr-repository-uri }}:${{ github.sha }}
           docker push ${{ needs.deploy-dev.outputs.ecr-repository-uri }}:latest
     outputs:
+        ecr-repository-uri: ${{ needs.deploy-dev.outputs.ecr-repository-uri }}
         image-tag: ${{ github.sha }}
 
   deploy-app:

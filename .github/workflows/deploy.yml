@@ -703,7 +703,7 @@ jobs:
           DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
 
   calculate-test-parameters:
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && inputs.skipDeploy == 'true' || needs.deploy-edge.result == 'success' }}
     name: 'calculate test parameters'
     needs:
       - names
@@ -748,12 +748,12 @@ jobs:
         run: npm run users:provision '${{ env.USERS_TABLE }}' '${{ steps.uuid.outputs.TEST_USERNAME }}' '${{ steps.uuid.outputs.TEST_PASSWORD }}'
 
     outputs:
-      base-url: ${{ needs.deploy-web.outputs.base-url || ( needs.names.outputs.deployment-name == 'prod' && 'oidc.antonycc.com' || format('{0}.oidc.antonycc.com', needs.names.outputs.deployment-name) ) }}
+      base-url: ${{ needs.deploy-edge.outputs.base-url || ( needs.names.outputs.deployment-name == 'prod' && 'oidc.antonycc.com' || format('{0}.oidc.antonycc.com', needs.names.outputs.deployment-name) ) }}
       test-username: ${{ steps.uuid.outputs.TEST_USERNAME }}
       test-password: ${{ steps.uuid.outputs.TEST_PASSWORD }}
 
   api-test:
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && inputs.skipDeploy == 'true' || needs.deploy-edge.result == 'success' }}
     name: 'api test'
     needs:
       - names
@@ -800,7 +800,7 @@ jobs:
             test-results
 
   web-test:
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && inputs.skipDeploy == 'true' || needs.deploy-edge.result == 'success' }}
     name: 'web test'
     needs:
       - names
@@ -846,7 +846,7 @@ jobs:
             test-results
 
   load-test:
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && inputs.skipDeploy == 'true' || needs.deploy-edge.result == 'success' }}
     name: 'load test'
     needs:
       - names

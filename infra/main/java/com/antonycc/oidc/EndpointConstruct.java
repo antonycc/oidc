@@ -88,10 +88,10 @@ public class EndpointConstruct extends Construct {
                 .tagOrDigest(props.baseImageTag) // e.g. "latest" or specific digest for immutability
                 .cmd(props.handler)
                 .build();
-        var ecrRepositoryArnWithoutName = props.ecrRepositoryArn.replaceAll("/.*$", "/");
+        //var ecrRepositoryArnWithoutName = props.ecrRepositoryArn.replaceAll("/.*$", "/");
         var repositoryAttributes = RepositoryAttributes.builder()
-                .repositoryArn(ecrRepositoryArnWithoutName + props.ecrRepositoryName)
-                .repositoryName("") // props.ecrRepositoryName)
+                .repositoryArn(props.ecrRepositoryArn)
+                .repositoryName(props.ecrRepositoryName)
                 .build();
         IRepository repository =
                 Repository.fromRepositoryAttributes(this, props.functionName + "EcrRepo", repositoryAttributes);

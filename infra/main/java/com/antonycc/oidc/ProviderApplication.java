@@ -210,10 +210,82 @@ public class ProviderApplication {
 
             app.synth();
 
-            CfnOutputProps cfnOutputProps = CfnOutputProps.builder()
-                    .exportName("BaseUrl")
+            CfnOutputProps.builder()
+                   .exportName("EnvName")
+                    .value(this.application.envName)
+                    .build();
+            CfnOutputProps.builder()
+                    .exportName("DeploymentName")
+                    .value(this.application.deploymentName)
+                    .build();
+            CfnOutputProps.builder()
+                .exportName("HostedZoneName")
+                    .value(this.application.hostedZoneName)
+                    .build();
+            CfnOutputProps.builder()
+                    .exportName("HostedZoneId")
+                    .value(this.application.hostedZoneId)
+                    .build();
+            CfnOutputProps.builder()
+                .exportName("DomainName")
+                .value(this.application.domainName)
+                .build();
+            CfnOutputProps.builder()
+                .exportName("DashedDomainName")
+                .value(this.application.dashedDomainName)
+                .build();
+            CfnOutputProps.builder()
+                   .exportName("BaseUrl")
                     .value(this.application.baseUrl)
                     .build();
+            CfnOutputProps.builder()
+                .exportName("ResourceNamePrefix")
+                    .value(this.application.resourceNamePrefix)
+                    .build();
+            CfnOutputProps.builder()
+                    .exportName("CompressedResourceNamePrefix")
+                    .value(this.application.compressedResourceNamePrefix)
+                    .build();
+            CfnOutputProps.builder()
+                .exportName("BaseImageTag")
+                .value(this.application.baseImageTag)
+                .build();
+            CfnOutputProps.builder()
+                .exportName("CertificateArn")
+                .value(this.application.certificateArn)
+                .build();
+            CfnOutputProps.builder()
+                    .exportName("EcrRepositoryName")
+                    .value(this.application.devStack.ecrRepository.getRepositoryName())
+                    .build();
+            CfnOutputProps.builder()
+                    .exportName("EcrRepositoryArn")
+                    .value(this.application.devStack.ecrRepository.getRepositoryArn())
+                    .build();
+            CfnOutputProps.builder()
+                .exportName("ObservabilityStackName")
+                .value(this.application.observabilityStack.getStackName())
+                .build();
+            CfnOutputProps.builder()
+                .exportName("DevStackName")
+                .value(this.application.devStack.getStackName())
+                .build();
+            CfnOutputProps.builder()
+                .exportName("AppStackName")
+                .value(this.application.appStack.getStackName())
+                .build();
+            CfnOutputProps.builder()
+                .exportName("WebStackName")
+                .value(this.application.webStack.getStackName())
+                .build();
+            CfnOutputProps.builder()
+                .exportName("EdgeStackName")
+                .value(this.application.edgeStack.getStackName())
+                .build();
+            CfnOutputProps.builder()
+                .exportName("OpsStackName")
+                .value(this.application.opsStack.getStackName())
+                .build();
 
             return this.application;
         }

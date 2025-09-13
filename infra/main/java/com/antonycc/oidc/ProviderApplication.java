@@ -177,7 +177,6 @@ public class ProviderApplication {
                     .tokenEndpointFunctionArn(this.application.appStack.tokenEndpoint.function.getFunctionArn())
                     .userinfoEndpointFunctionArn(
                         this.application.appStack.userinfoEndpoint.function.getFunctionArn())
-                    .webOriginBehaviorOptions(this.application.webStack.webOriginBehaviorOptions)
                     .additionalOriginsBehaviourMappings(this.application.appStack.additionalOriginsBehaviourMappings)
                     .build());
             this.application.edgeStack.addDependency(this.application.observabilityStack);

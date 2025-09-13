@@ -24,7 +24,6 @@ public class EdgeStackProps implements StackProps {
     public final String authorizeEndpointFunctionArn;
     public final String tokenEndpointFunctionArn;
     public final String userinfoEndpointFunctionArn;
-    public final BehaviorOptions webOriginBehaviorOptions;
     public final Map<String, BehaviorOptions> additionalOriginsBehaviourMappings;
 
     private EdgeStackProps(Builder builder) {
@@ -45,7 +44,6 @@ public class EdgeStackProps implements StackProps {
         this.authorizeEndpointFunctionArn = builder.authorizeEndpointFunctionArn;
         this.tokenEndpointFunctionArn = builder.tokenEndpointFunctionArn;
         this.userinfoEndpointFunctionArn = builder.userinfoEndpointFunctionArn;
-        this.webOriginBehaviorOptions = builder.webOriginBehaviorOptions;
         this.additionalOriginsBehaviourMappings = builder.additionalOriginsBehaviourMappings;
     }
 
@@ -76,7 +74,6 @@ public class EdgeStackProps implements StackProps {
         private String authorizeEndpointFunctionArn;
         private String tokenEndpointFunctionArn;
         private String userinfoEndpointFunctionArn;
-        private BehaviorOptions webOriginBehaviorOptions;
         private Map<String, BehaviorOptions> additionalOriginsBehaviourMappings;
 
         public Builder env(Environment env) {
@@ -166,11 +163,6 @@ public class EdgeStackProps implements StackProps {
 
         public Builder additionalOriginsBehaviourMappings(Map<String, BehaviorOptions> additionalOriginsBehaviourMappings) {
             this.additionalOriginsBehaviourMappings = additionalOriginsBehaviourMappings;
-            return this;
-        }
-
-        public Builder webOriginBehaviorOptions(BehaviorOptions webOriginBehaviorOptions) {
-            this.webOriginBehaviorOptions = webOriginBehaviorOptions;
             return this;
         }
 

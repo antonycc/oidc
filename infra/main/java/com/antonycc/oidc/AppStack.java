@@ -2,19 +2,11 @@ package com.antonycc.oidc;
 
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
-import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.Tags;
 import software.amazon.awscdk.services.cloudfront.AllowedMethods;
 import software.amazon.awscdk.services.cloudfront.BehaviorOptions;
-import software.amazon.awscdk.services.cloudfront.CachePolicy;
-import software.amazon.awscdk.services.cloudfront.IOrigin;
-import software.amazon.awscdk.services.cloudfront.OriginRequestPolicy;
-import software.amazon.awscdk.services.cloudfront.ResponseHeadersPolicy;
-import software.amazon.awscdk.services.cloudfront.ViewerProtocolPolicy;
-import software.amazon.awscdk.services.cloudfront.origins.S3BucketOrigin;
-import software.amazon.awscdk.services.cloudfront.origins.S3BucketOriginWithOACProps;
 import software.amazon.awscdk.services.dynamodb.Attribute;
 import software.amazon.awscdk.services.dynamodb.AttributeType;
 import software.amazon.awscdk.services.dynamodb.BillingMode;
@@ -78,25 +70,6 @@ public class AppStack extends Stack {
                         .bucketType(S3OriginBucketType.WELL_KNOWN)
                         .build());
         this.wellKnownBucket = this.wellKnownOriginBucket.bucket;
-        CachePolicy cachePolicy = CachePolicy.Builder.create(this, props.resourceNamePrefix + "-ShortTTL")
-            .cachePolicyName(props.resourceNamePrefix + "-short-ttl")
-            .defaultTtl(Duration.seconds(60))
-            .minTtl(Duration.seconds(0))
-            .maxTtl(Duration.minutes(5))
-            .enableAcceptEncodingBrotli(true)
-            .enableAcceptEncodingGzip(true)
-            .build();
-        IOrigin wellKnownBucketOrigin = S3BucketOrigin.withOriginAccessControl(wellKnownBucket, S3BucketOriginWithOACProps.builder().build());
-        BehaviorOptions wellKnownOriginBehaviorOptions = BehaviorOptions.builder()
-            .origin(wellKnownBucketOrigin)
-            .cachePolicy(cachePolicy)
-            .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
-            .originRequestPolicy(OriginRequestPolicy.CORS_S3_ORIGIN)
-            .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
-            .responseHeadersPolicy(
-                ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS_WITH_PREFLIGHT_AND_SECURITY_HEADERS)
-            .build();
-        this.additionalOriginsBehaviourMappings.put("/.well-known/*", wellKnownOriginBehaviorOptions);
 
         // DynamoDB tables
 

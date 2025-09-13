@@ -67,9 +67,9 @@ public class EdgeStack extends Stack {
 
         // Use Resources from the passed props
         this.baseUrl = props.baseUrl;
-        IBucket logsBucket = Bucket.fromBucketName(this, "LogsBucket", props.logsBucketArn);
-        IBucket webBucket = Bucket.fromBucketName(this, "WebBucket", props.webBucketArn);
-        IBucket wellKnownBucket = Bucket.fromBucketName(this, "WellKnownBucket", props.wellKnownBucketArn);
+        IBucket logsBucket = Bucket.fromBucketArn(this, "LogsBucket", props.logsBucketArn);
+        IBucket webBucket = Bucket.fromBucketArn(this, "WebBucket", props.webBucketArn);
+        IBucket wellKnownBucket = Bucket.fromBucketArn(this, "WellKnownBucket", props.wellKnownBucketArn);
         IFunction jwksEndpointFunction = Function.fromFunctionAttributes(
                 this,
                 "JwksEndpointFunction",
@@ -198,9 +198,48 @@ public class EdgeStack extends Stack {
                         .build())
                 .build();
 
+        // Build CloudFront origins and behaviors locally to avoid cross-stack binding
+        var webBucketOrigin = software.amazon.awscdk.services.cloudfront.origins.S3BucketOrigin.withOriginAccessControl(
+                webBucket, software.amazon.awscdk.services.cloudfront.origins.S3BucketOriginWithOACProps.builder().build());
+        var webBehavior = software.amazon.awscdk.services.cloudfront.BehaviorOptions.builder()
+                .origin(webBucketOrigin)
+                .compress(true)
+                .allowedMethods(software.amazon.awscdk.services.cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
+                .originRequestPolicy(software.amazon.awscdk.services.cloudfront.OriginRequestPolicy.CORS_S3_ORIGIN)
+                .viewerProtocolPolicy(software.amazon.awscdk.services.cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
+                .responseHeadersPolicy(
+                        software.amazon.awscdk.services.cloudfront.ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS_WITH_PREFLIGHT_AND_SECURITY_HEADERS)
+                .build();
+
+        var cachePolicy = software.amazon.awscdk.services.cloudfront.CachePolicy.Builder.create(this, props.resourceNamePrefix + "-ShortTTL")
+                .cachePolicyName(props.resourceNamePrefix + "-short-ttl")
+                .defaultTtl(Duration.seconds(60))
+                .minTtl(Duration.seconds(0))
+                .maxTtl(Duration.minutes(5))
+                .enableAcceptEncodingBrotli(true)
+                .enableAcceptEncodingGzip(true)
+                .build();
+        var wellKnownBucketOrigin = software.amazon.awscdk.services.cloudfront.origins.S3BucketOrigin.withOriginAccessControl(
+                wellKnownBucket, software.amazon.awscdk.services.cloudfront.origins.S3BucketOriginWithOACProps.builder().build());
+        var wellKnownBehaviorOptions = software.amazon.awscdk.services.cloudfront.BehaviorOptions.builder()
+                .origin(wellKnownBucketOrigin)
+                .cachePolicy(cachePolicy)
+                .allowedMethods(software.amazon.awscdk.services.cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
+                .originRequestPolicy(software.amazon.awscdk.services.cloudfront.OriginRequestPolicy.CORS_S3_ORIGIN)
+                .viewerProtocolPolicy(software.amazon.awscdk.services.cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
+                .responseHeadersPolicy(
+                        software.amazon.awscdk.services.cloudfront.ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS_WITH_PREFLIGHT_AND_SECURITY_HEADERS)
+                .build();
+
+        java.util.Map<String, software.amazon.awscdk.services.cloudfront.BehaviorOptions> additionalBehaviors = new java.util.HashMap<>();
+        additionalBehaviors.put("/.well-known/*", wellKnownBehaviorOptions);
+        if (props.additionalOriginsBehaviourMappings != null) {
+            additionalBehaviors.putAll(props.additionalOriginsBehaviourMappings);
+        }
+
         this.distribution = Distribution.Builder.create(this, props.resourceNamePrefix + "-WebDist")
-                .defaultBehavior(props.webOriginBehaviorOptions)
-                .additionalBehaviors(props.additionalOriginsBehaviourMappings)
+                .defaultBehavior(webBehavior)
+                .additionalBehaviors(additionalBehaviors)
                 .domainNames(List.of(domainName))
                 .certificate(cert)
                 .defaultRootObject("index.html")

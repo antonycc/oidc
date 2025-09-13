@@ -379,6 +379,8 @@ jobs:
         run: |
           docker tag 'oidc-endpoint-function:${{ github.sha }}' ${{ needs.deploy-dev.outputs.ecr-repository-uri }}:${{ github.sha }}
           docker tag 'oidc-endpoint-function:${{ github.sha }}' ${{ needs.deploy-dev.outputs.ecr-repository-uri }}:latest
+          docker push ${{ needs.deploy-dev.outputs.ecr-repository-uri }}:${{ github.sha }}
+          docker push ${{ needs.deploy-dev.outputs.ecr-repository-uri }}:latest
     outputs:
         image-tag: ${{ github.sha }}
 

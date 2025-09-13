@@ -15,6 +15,7 @@ import software.amazon.awscdk.services.cloudfront.OriginAccessIdentity;
 import software.amazon.awscdk.services.cloudfront.SSLMethod;
 import software.amazon.awscdk.services.iam.ServicePrincipal;
 import software.amazon.awscdk.services.lambda.Function;
+import software.amazon.awscdk.services.lambda.FunctionAttributes;
 import software.amazon.awscdk.services.lambda.FunctionUrlAuthType;
 import software.amazon.awscdk.services.lambda.IFunction;
 import software.amazon.awscdk.services.lambda.Permission;
@@ -75,10 +76,22 @@ public class WebStack extends Stack {
         // Use Resources from the passed props
         IBucket logsBucket = Bucket.fromBucketName(this, "LogsBucket", props.logsBucketArn);
         IBucket wellKnownBucket = Bucket.fromBucketName(this, "WellKnownBucket", props.wellKnownBucketArn);
-        IFunction jwksEndpointFunction = Function.fromFunctionArn(this, "JwksEndpointFunction", props.jwksEndpointFunctionArn);
-        IFunction authorizeEndpointFunction = Function.fromFunctionArn(this, "AuthorizeEndpointFunction", props.authorizeEndpointFunctionArn);
-        IFunction tokenEndpointFunction = Function.fromFunctionArn(this, "TokenEndpointFunction", props.tokenEndpointFunctionArn);
-        IFunction userinfoEndpointFunction = Function.fromFunctionArn(this, "UserinfoEndpointFunction", props.userinfoEndpointFunctionArn);
+        IFunction jwksEndpointFunction = Function.fromFunctionAttributes(this, "JwksEndpointFunction", FunctionAttributes.builder().
+                functionArn(props.jwksEndpointFunctionArn).
+                sameEnvironment(true).
+                build());
+        IFunction authorizeEndpointFunction = Function.fromFunctionAttributes(this, "AuthorizeEndpointFunction", FunctionAttributes.builder().
+                functionArn(props.authorizeEndpointFunctionArn).
+                sameEnvironment(true).
+                build());
+        IFunction tokenEndpointFunction = Function.fromFunctionAttributes(this, "TokenEndpointFunction", FunctionAttributes.builder().
+                functionArn(props.tokenEndpointFunctionArn).
+                sameEnvironment(true).
+                build());
+        IFunction userinfoEndpointFunction = Function.fromFunctionAttributes(this, "UserinfoEndpointFunction", FunctionAttributes.builder().
+                functionArn(props.userinfoEndpointFunctionArn).
+                sameEnvironment(true).
+                build());
 
         // Hosted zone (must exist)
         IHostedZone zone = HostedZone.fromHostedZoneAttributes(
@@ -111,7 +124,7 @@ public class WebStack extends Stack {
                         .logsPrefix("s3/web/")
                         .oaiComment("Identity created for access to the website origin bucket via the CloudFront"
                                 + " distribution")
-                        .logsBucket(logsBucket)
+                        //.logsBucket(logsBucket)
                         .bucketType(S3OriginBucketType.WEB)
                         .build());
         this.webBucket = this.webOriginBucket.bucket;

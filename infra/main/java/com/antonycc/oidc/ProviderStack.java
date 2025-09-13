@@ -76,7 +76,7 @@ public class ProviderStack extends Stack {
                         .logsPrefix("s3/well-known/")
                         .oaiComment("Identity created for access to the Well Known origin bucket via the CloudFront"
                                 + " distribution")
-                        .logsBucket(logsBucket)
+                        //.logsBucket(logsBucket)
                         .bucketType(S3OriginBucketType.WELL_KNOWN)
                         .build());
         this.wellKnownBucket = this.wellKnownOriginBucket.bucket;

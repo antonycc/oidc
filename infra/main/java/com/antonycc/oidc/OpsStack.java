@@ -17,6 +17,7 @@ import software.amazon.awscdk.services.dynamodb.Operation;
 import software.amazon.awscdk.services.dynamodb.OperationsMetricOptions;
 import software.amazon.awscdk.services.dynamodb.Table;
 import software.amazon.awscdk.services.lambda.Function;
+import software.amazon.awscdk.services.lambda.FunctionAttributes;
 import software.amazon.awscdk.services.lambda.IFunction;
 import software.constructs.Construct;
 
@@ -54,10 +55,22 @@ public class OpsStack extends Stack {
         Tags.of(this).add("MonitoringEnabled", "true");
 
         // Use resources from the passed props
-        IFunction jwksEndpointFunction = Function.fromFunctionArn(this, "JwksEndpointFunction", props.jwksEndpointFunctionArn);
-        IFunction authorizeEndpointFunction = Function.fromFunctionArn(this, "AuthorizeEndpointFunction", props.authorizeEndpointFunctionArn);
-        IFunction tokenEndpointFunction = Function.fromFunctionArn(this, "TokenEndpointFunction", props.tokenEndpointFunctionArn);
-        IFunction userinfoEndpointFunction = Function.fromFunctionArn(this, "UserinfoEndpointFunction", props.userinfoEndpointFunctionArn);
+        IFunction jwksEndpointFunction = Function.fromFunctionAttributes(this, "JwksEndpointFunction", FunctionAttributes.builder().
+            functionArn(props.jwksEndpointFunctionArn).
+            sameEnvironment(true).
+            build());
+        IFunction authorizeEndpointFunction = Function.fromFunctionAttributes(this, "AuthorizeEndpointFunction", FunctionAttributes.builder().
+            functionArn(props.authorizeEndpointFunctionArn).
+            sameEnvironment(true).
+            build());
+        IFunction tokenEndpointFunction = Function.fromFunctionAttributes(this, "TokenEndpointFunction", FunctionAttributes.builder().
+            functionArn(props.tokenEndpointFunctionArn).
+            sameEnvironment(true).
+            build());
+        IFunction userinfoEndpointFunction = Function.fromFunctionAttributes(this, "UserinfoEndpointFunction", FunctionAttributes.builder().
+            functionArn(props.userinfoEndpointFunctionArn).
+            sameEnvironment(true).
+            build());
         ITable usersTable = Table.fromTableArn(this, "UsersTable", props.usersTableArn);
         ITable authCodesTable = Table.fromTableArn(this, "AuthCodesTable", props.authCodesTableArn);
         ITable refreshTokensTable = Table.fromTableArn(this, "RefreshTokensTable", props.refreshTokensTableArn);

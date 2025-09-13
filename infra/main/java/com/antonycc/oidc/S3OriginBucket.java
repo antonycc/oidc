@@ -36,16 +36,18 @@ public class S3OriginBucket extends Construct {
         String resourceNamePrefix = extractResourceNamePrefix(id);
 
         // Create the S3 bucket with common configuration
-        this.bucket = Bucket.Builder.create(this, id + "-Bucket")
+        var bucketBuilder = Bucket.Builder.create(this, id + "-Bucket")
                 .bucketName(resourceNamePrefix + "-" + props.bucketNameSuffix)
                 .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
                 .enforceSsl(true)
                 .encryption(BucketEncryption.S3_MANAGED) // Explicit SSE-S3 encryption (zero cost)
                 .autoDeleteObjects(true)
                 .removalPolicy(RemovalPolicy.DESTROY)
-                .serverAccessLogsBucket(props.logsBucket)
-                .serverAccessLogsPrefix(props.logsPrefix)
-                .build();
+                .serverAccessLogsPrefix(props.logsPrefix);
+        if (props.logsBucket != null) {
+            bucketBuilder.serverAccessLogsBucket(props.logsBucket);
+        }
+        this.bucket = bucketBuilder.build();
 
         // Create the OriginAccessIdentity for CloudFront access
         this.originAccessIdentity = OriginAccessIdentity.Builder.create(this, id + "-OriginAccessIdentity")

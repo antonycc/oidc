@@ -48,7 +48,7 @@
     "formatting:java": "./mvnw spotless:check",
     "formatting:java-fix": "./mvnw spotless:apply",
     "docker:build": "docker build -t oidc-base:latest -f Dockerfile .",
-    "cdk:synth": "npm run build && npx dotenv -e .env.prod -- npx cdk synth ProviderStack-prod --require-approval never --ci true --strict --validation",
+    "cdk:synth": "npm run build && npx dotenv -e .env.prod -- npx cdk synth --all --require-approval never --ci true --strict --validation",
     "cdk": "npm run docker:build && npm run cdk:synth ; npm run clean",
     "test": "npm run test:unit && npm run test:system",
     "test:unit": "vitest run",

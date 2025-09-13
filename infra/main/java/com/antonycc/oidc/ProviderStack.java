@@ -328,8 +328,8 @@ public class ProviderStack extends Stack {
         // Reliability Monitoring: CloudWatch Alarms for Lambda functions
         createLambdaReliabilityAlarms(resourceNamePrefix, compressedResourceNamePrefix);
 
-        // TODO: Re-enable operational dashboard once API structure is corrected
-        // createOperationalDashboard(resourceNamePrefix, compressedResourceNamePrefix);
+        // Operational Dashboard for system health monitoring
+        createOperationalDashboard(resourceNamePrefix, compressedResourceNamePrefix);
 
         var deployPostfix = java.util.UUID.randomUUID().toString().substring(0, 8);
 
@@ -636,6 +636,7 @@ public class ProviderStack extends Stack {
     /**
      * Create AWS WAF WebACL for CloudFront distribution protection.
      * Implements rate limiting and basic security rules to protect against common attacks.
+     * Fixed to use proper rule overrides for managed rule groups.
      */
     private CfnWebACL createWebAclForCloudFront(String resourceNamePrefix, String compressedResourceNamePrefix) {
         return CfnWebACL.Builder.create(this, resourceNamePrefix + "-WebAcl")
@@ -672,10 +673,11 @@ public class ProviderStack extends Stack {
                                         .managedRuleGroupStatement(CfnWebACL.ManagedRuleGroupStatementProperty.builder()
                                                 .name("AWSManagedRulesKnownBadInputsRuleSet")
                                                 .vendorName("AWS")
+                                                .ruleActionOverrides(List.of()) // Empty override list to prevent conflicts
                                                 .build())
                                         .build())
-                                .action(CfnWebACL.RuleActionProperty.builder()
-                                        .block(CfnWebACL.BlockActionProperty.builder().build())
+                                .overrideAction(CfnWebACL.OverrideActionProperty.builder()
+                                        .none(Map.of())
                                         .build())
                                 .visibilityConfig(CfnWebACL.VisibilityConfigProperty.builder()
                                         .cloudWatchMetricsEnabled(true)
@@ -691,10 +693,11 @@ public class ProviderStack extends Stack {
                                         .managedRuleGroupStatement(CfnWebACL.ManagedRuleGroupStatementProperty.builder()
                                                 .name("AWSManagedRulesCommonRuleSet")
                                                 .vendorName("AWS")
+                                                .ruleActionOverrides(List.of()) // Empty override list to prevent conflicts
                                                 .build())
                                         .build())
-                                .action(CfnWebACL.RuleActionProperty.builder()
-                                        .block(CfnWebACL.BlockActionProperty.builder().build())
+                                .overrideAction(CfnWebACL.OverrideActionProperty.builder()
+                                        .none(Map.of())
                                         .build())
                                 .visibilityConfig(CfnWebACL.VisibilityConfigProperty.builder()
                                         .cloudWatchMetricsEnabled(true)
@@ -709,6 +712,70 @@ public class ProviderStack extends Stack {
                         .metricName(compressedResourceNamePrefix + "-waf")
                         .sampledRequestsEnabled(true)
                         .build())
+                .build();
+    }
+
+    /**
+     * Create operational dashboard for system health monitoring.
+     * Provides comprehensive visibility into Lambda performance, CloudFront requests, and system metrics.
+     */
+    private void createOperationalDashboard(String resourceNamePrefix, String compressedResourceNamePrefix) {
+        Dashboard.Builder.create(this, resourceNamePrefix + "-OperationalDashboard")
+                .dashboardName(compressedResourceNamePrefix + "-operations")
+                .widgets(List.of(List.of(
+                        // Lambda invocation metrics
+                        GraphWidget.Builder.create()
+                                .title("Lambda Invocations by Endpoint")
+                                .region(this.getRegion())
+                                .left(List.of(
+                                        this.authorizeEndpoint.function.metricInvocations(),
+                                        this.tokenEndpoint.function.metricInvocations(),
+                                        this.userinfoEndpoint.function.metricInvocations(),
+                                        this.jwksEndpoint.function.metricInvocations()
+                                ))
+                                .width(12)
+                                .height(6)
+                                .build(),
+                        // Lambda error metrics
+                        GraphWidget.Builder.create()
+                                .title("Lambda Errors by Endpoint")
+                                .region(this.getRegion())
+                                .left(List.of(
+                                        this.authorizeEndpoint.function.metricErrors(),
+                                        this.tokenEndpoint.function.metricErrors(),
+                                        this.userinfoEndpoint.function.metricErrors(),
+                                        this.jwksEndpoint.function.metricErrors()
+                                ))
+                                .width(12)
+                                .height(6)
+                                .build(),
+                        // Lambda duration metrics
+                        GraphWidget.Builder.create()
+                                .title("Lambda Duration by Endpoint")
+                                .region(this.getRegion())
+                                .left(List.of(
+                                        this.authorizeEndpoint.function.metricDuration(),
+                                        this.tokenEndpoint.function.metricDuration(),
+                                        this.userinfoEndpoint.function.metricDuration(),
+                                        this.jwksEndpoint.function.metricDuration()
+                                ))
+                                .width(12)
+                                .height(6)
+                                .build(),
+                        // Lambda throttle metrics
+                        GraphWidget.Builder.create()
+                                .title("Lambda Throttles")
+                                .region(this.getRegion())
+                                .left(List.of(
+                                        this.authorizeEndpoint.function.metricThrottles(),
+                                        this.tokenEndpoint.function.metricThrottles(),
+                                        this.userinfoEndpoint.function.metricThrottles(),
+                                        this.jwksEndpoint.function.metricThrottles()
+                                ))
+                                .width(12)
+                                .height(6)
+                                .build()
+                )))
                 .build();
     }
 

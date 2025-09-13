@@ -74,7 +74,7 @@ public class ProviderApplication {
                 // ".auth.oidc.example.com");
             }
             this.application.dashedDomainName =
-                    buildDashedDomainName(this.application.envName, this.application.domainName);
+                    buildDashedDomainName(this.application.envName, this.application.deploymentName, this.application.domainName);
             this.application.baseUrl = "https://" + this.application.domainName;
 
             // Generate predictable resource name prefix based on domain and environment

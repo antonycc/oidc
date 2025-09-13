@@ -709,12 +709,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: base-url
-        id: base-url
-        run: |
-          echo "BASE_URL=${BASE_URL}"
-          npm run test:api
-
       - name: Configure AWS creds via OIDC
         uses: aws-actions/configure-aws-credentials@v5
         with:

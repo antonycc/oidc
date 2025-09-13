@@ -8,7 +8,7 @@ Clear Infrastructure‑as‑Code	The infrastructure is defined in CDK, enabling 
 Structured Logging & Instrumentation	All runtime functions use a custom logger that masks sensitive fields and logs major events. The authorize function logs masked request parameters and errors[2], while the token function logs event fields and errors, ensuring traceability[3]. The custom EndpointFunction construct enables OpenTelemetry instrumentation by setting environment variables (AWS_LAMBDA_EXEC_WRAPPER, OTEL_RESOURCE_ATTRIBUTES etc.) for all Lambda functions[4].
 
 Observability	CloudTrail records S3 and Lambda access, and metric filters create CloudWatch alarms for repeated authentication failures and multiple security events[1]. These alarms can trigger notifications via SNS or email, promoting proactive operational response.
-CI/CD readiness	Separate stacks (DevStack, ProviderStack, ObservabilityStack) indicate readiness for multiple environments. Dockerfiles for Lambda runtimes allow building images during CI and pushing to ECR[5].
+CI/CD readiness	Separate stacks (DevStack, AppStack, ObservabilityStack) indicate readiness for multiple environments. Dockerfiles for Lambda runtimes allow building images during CI and pushing to ECR[5].
 
 Areas for Improvement
 1.	Runbooks and Automated Recovery – The repository defines alarms but does not include runbooks or automated remediation steps (e.g., AWS Systems Manager or Step Functions to mitigate repeated failures). Create runbooks or SSM Automation documents triggered by CloudWatch alarms to automatically disable clients or alert administrators.
@@ -88,7 +88,7 @@ Performance	Right‑size Lambda memory; add caching for .well-known and jwks; op
 Cost Optimization	Evaluate Savings Plans and reserved concurrency; use price class 100/200 for CloudFront; refine log retention; use Spot instances for builds.
 Sustainability	Migrate to Graviton processors; prune data; consider region energy profiles.
 By addressing these recommendations, the OIDC provider can better align with the AWS Well‑Architected Framework and deliver a secure, reliable, and efficient identity service.
- 
+
 [1] GitHub
 https://github.com/antonycc/oidc/blob/main/infra/main/java/com/antonycc/oidc/ObservabilityStack.java
 [2] [7] GitHub
@@ -100,7 +100,7 @@ https://github.com/antonycc/oidc/blob/main/infra/main/java/com/antonycc/oidc/End
 [5] [6] GitHub
 https://github.com/antonycc/oidc/blob/main/infra/main/java/com/antonycc/oidc/DevStack.java
 [9] GitHub
-https://github.com/antonycc/oidc/blob/main/infra/main/java/com/antonycc/oidc/ProviderStack.java
+https://github.com/antonycc/oidc/blob/main/infra/main/java/com/antonycc/oidc/AppStack.java
 [10] GitHub
 https://github.com/antonycc/oidc/blob/main/app/lib/crypto.mjs
 <img width="468" height="621" alt="image" src="https://github.com/user-attachments/assets/628aac46-d448-4162-b59e-c3b969279b52" />

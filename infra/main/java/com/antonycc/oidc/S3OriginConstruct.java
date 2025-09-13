@@ -6,30 +6,29 @@ import software.amazon.awscdk.services.cloudfront.AllowedMethods;
 import software.amazon.awscdk.services.cloudfront.BehaviorOptions;
 import software.amazon.awscdk.services.cloudfront.CachePolicy;
 import software.amazon.awscdk.services.cloudfront.IOrigin;
-import software.amazon.awscdk.services.cloudfront.OriginAccessIdentity;
 import software.amazon.awscdk.services.cloudfront.OriginRequestPolicy;
 import software.amazon.awscdk.services.cloudfront.ResponseHeadersPolicy;
 import software.amazon.awscdk.services.cloudfront.ViewerProtocolPolicy;
 import software.amazon.awscdk.services.cloudfront.origins.S3BucketOrigin;
-import software.amazon.awscdk.services.cloudfront.origins.S3BucketOriginWithOAIProps;
+import software.amazon.awscdk.services.cloudfront.origins.S3BucketOriginWithOACProps;
 import software.amazon.awscdk.services.s3.BlockPublicAccess;
 import software.amazon.awscdk.services.s3.Bucket;
 import software.amazon.awscdk.services.s3.BucketEncryption;
 import software.constructs.Construct;
 
 /**
- * Construct that creates an S3 bucket with OriginAccessIdentity and CloudFront behavior options.
+ * Construct that creates an S3 bucket with CloudFront behavior options and S3 Origin Access Control (OAC).
  * Encapsulates the common configuration for web and well-known buckets including their CloudFront origins.
  */
-public class S3OriginBucket extends Construct {
+public class S3OriginConstruct extends Construct {
     // Exposed created resources/objects
     public final Bucket bucket;
-    public final OriginAccessIdentity originAccessIdentity;
     public final IOrigin origin;
     public final BehaviorOptions behaviorOptions;
-    public final CachePolicy cachePolicy; // Only set for WELL_KNOWN bucket type
+    public final CachePolicy cachePolicy;
+    //public final OriginAccessIdentity originAccessIdentity;
 
-    public S3OriginBucket(final Construct scope, final String id, final S3OriginBucketProps props) {
+    public S3OriginConstruct(final Construct scope, final String id, final S3OriginConstructProps props) {
         super(scope, id);
 
         // Extract resource name prefix from the parent construct ID
@@ -49,20 +48,10 @@ public class S3OriginBucket extends Construct {
         }
         this.bucket = bucketBuilder.build();
 
-        // Create the OriginAccessIdentity for CloudFront access
-        this.originAccessIdentity = OriginAccessIdentity.Builder.create(this, id + "-OriginAccessIdentity")
-                .comment(props.oaiComment)
-                .build();
-
-        // Grant read access to the OAI
-        this.bucket.grantRead(this.originAccessIdentity);
-
-        // Create the S3BucketOrigin
-        this.origin = S3BucketOrigin.withOriginAccessIdentity(
+        // Create the S3BucketOrigin using Origin Access Control (OAC)
+        this.origin = S3BucketOrigin.withOriginAccessControl(
                 this.bucket,
-                S3BucketOriginWithOAIProps.builder()
-                        .originAccessIdentity(this.originAccessIdentity)
-                        .build());
+                S3BucketOriginWithOACProps.builder().build());
 
         // Create cache policy if needed for WELL_KNOWN bucket type
         if (props.bucketType == S3OriginBucketType.WELL_KNOWN) {
@@ -99,7 +88,7 @@ public class S3OriginBucket extends Construct {
 
     /**
      * Extract the resource name prefix from the construct ID by removing the suffix.
-     * This assumes the pattern used in ProviderStack where IDs end with bucket type.
+     * This assumes the pattern used in AppStack where IDs end with bucket type.
      */
     private String extractResourceNamePrefix(String constructId) {
         // Remove common suffixes to get the resource name prefix

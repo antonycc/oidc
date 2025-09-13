@@ -1,8 +1,5 @@
 package com.antonycc.oidc;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.RemovalPolicy;
@@ -13,7 +10,6 @@ import software.amazon.awscdk.customresources.PhysicalResourceId;
 import software.amazon.awscdk.services.cloudfront.AllowedMethods;
 import software.amazon.awscdk.services.cloudfront.BehaviorOptions;
 import software.amazon.awscdk.services.cloudfront.CachePolicy;
-import software.amazon.awscdk.services.cloudfront.OriginAccessIdentity;
 import software.amazon.awscdk.services.dynamodb.Attribute;
 import software.amazon.awscdk.services.dynamodb.AttributeType;
 import software.amazon.awscdk.services.dynamodb.BillingMode;
@@ -24,21 +20,24 @@ import software.amazon.awscdk.services.s3.Bucket;
 import software.amazon.awscdk.services.s3.IBucket;
 import software.constructs.Construct;
 
-public class ProviderStack extends Stack {
-    public final S3OriginBucket wellKnownOriginBucket;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class AppStack extends Stack {
+    public final S3OriginConstruct wellKnownOriginBucket;
     public final Bucket wellKnownBucket;
-    public final OriginAccessIdentity wellKnownOriginAccessIdentity;
     public final CachePolicy shortTtl;
     public final Table usersTable;
     public final Table authCodesTable;
     public final Table refreshTokensTable;
-    public final EndpointFunction authorizeEndpoint;
-    public final EndpointFunction tokenEndpoint;
-    public final EndpointFunction userinfoEndpoint;
-    public final EndpointFunction jwksEndpoint;
+    public final EndpointConstruct authorizeEndpoint;
+    public final EndpointConstruct tokenEndpoint;
+    public final EndpointConstruct userinfoEndpoint;
+    public final EndpointConstruct jwksEndpoint;
     public final Map<String, BehaviorOptions> additionalOriginsBehaviourMappings;
 
-    public ProviderStack(final Construct scope, final String id, final ProviderStackProps props) {
+    public AppStack(final Construct scope, final String id, final AppStackProps props) {
         super(scope, id, props);
 
         // Apply cost allocation tags for all resources in this stack
@@ -48,7 +47,7 @@ public class ProviderStack extends Stack {
         Tags.of(this).add("Owner", "platform-team");
         Tags.of(this).add("Project", "identity-management");
         Tags.of(this).add("DeploymentName", props.deploymentName);
-        Tags.of(this).add("Stack", "ProviderStack");
+        Tags.of(this).add("Stack", "AppStack");
         Tags.of(this).add("ManagedBy", "aws-cdk");
 
         // Enhanced cost optimization tags
@@ -67,19 +66,16 @@ public class ProviderStack extends Stack {
         // Buckets
 
         // Well-known origin bucket
-        this.wellKnownOriginBucket = new S3OriginBucket(
+        this.wellKnownOriginBucket = new S3OriginConstruct(
                 this,
                 props.resourceNamePrefix + "-WellKnownBucket",
-                S3OriginBucketProps.builder()
+                S3OriginConstructProps.builder()
                         .bucketNameSuffix("well-known")
                         .logsPrefix("s3/well-known/")
-                        .oaiComment("Identity created for access to the Well Known origin bucket via the CloudFront"
-                                + " distribution")
                         // .logsBucket(logsBucket)
                         .bucketType(S3OriginBucketType.WELL_KNOWN)
                         .build());
         this.wellKnownBucket = this.wellKnownOriginBucket.bucket;
-        this.wellKnownOriginAccessIdentity = this.wellKnownOriginBucket.originAccessIdentity;
         this.shortTtl = this.wellKnownOriginBucket.cachePolicy;
         BehaviorOptions wellKnownOriginBehaviorOptions = this.wellKnownOriginBucket.behaviorOptions;
         this.additionalOriginsBehaviourMappings.put("/.well-known/*", wellKnownOriginBehaviorOptions);
@@ -134,10 +130,10 @@ public class ProviderStack extends Stack {
         // Lambda functions
 
         // Authorize endpoint via construct
-        this.authorizeEndpoint = new EndpointFunction(
+        this.authorizeEndpoint = new EndpointConstruct(
                 this,
                 props.resourceNamePrefix + "-AuthorizeEndpoint",
-                EndpointFunctionProps.builder()
+                EndpointConstructProps.builder()
                         .functionName(props.compressedResourceNamePrefix + "-authorize")
                         .ecrRepositoryArn(props.ecrRepositoryArn)
                         .ecrRepositoryName(props.ecrRepositoryName)
@@ -155,10 +151,10 @@ public class ProviderStack extends Stack {
         this.authCodesTable.grantReadWriteData(this.authorizeEndpoint.function);
 
         // Token endpoint via construct
-        this.tokenEndpoint = new EndpointFunction(
+        this.tokenEndpoint = new EndpointConstruct(
                 this,
                 props.resourceNamePrefix + "-TokenEndpoint",
-                EndpointFunctionProps.builder()
+                EndpointConstructProps.builder()
                         .functionName(props.compressedResourceNamePrefix + "-token")
                         .ecrRepositoryArn(props.ecrRepositoryArn)
                         .ecrRepositoryName(props.ecrRepositoryName)
@@ -179,10 +175,10 @@ public class ProviderStack extends Stack {
         this.usersTable.grantReadData(this.tokenEndpoint.function);
 
         // UserInfo endpoint via construct
-        this.userinfoEndpoint = new EndpointFunction(
+        this.userinfoEndpoint = new EndpointConstruct(
                 this,
                 props.resourceNamePrefix + "-UserInfoEndpoint",
-                EndpointFunctionProps.builder()
+                EndpointConstructProps.builder()
                         .functionName(props.compressedResourceNamePrefix + "-userinfo")
                         .ecrRepositoryArn(props.ecrRepositoryArn)
                         .ecrRepositoryName(props.ecrRepositoryName)
@@ -197,10 +193,10 @@ public class ProviderStack extends Stack {
         this.usersTable.grantReadData(this.userinfoEndpoint.function);
 
         // JWKS endpoint via construct
-        this.jwksEndpoint = new EndpointFunction(
+        this.jwksEndpoint = new EndpointConstruct(
                 this,
                 props.resourceNamePrefix + "-JwksEndpoint",
-                EndpointFunctionProps.builder()
+                EndpointConstructProps.builder()
                         .functionName(props.compressedResourceNamePrefix + "-jwks")
                         .ecrRepositoryArn(props.ecrRepositoryArn)
                         .ecrRepositoryName(props.ecrRepositoryName)

@@ -14,7 +14,6 @@ import software.amazon.awscdk.Tags;
 import software.amazon.awscdk.services.certificatemanager.Certificate;
 import software.amazon.awscdk.services.cloudfront.BehaviorOptions;
 import software.amazon.awscdk.services.cloudfront.Distribution;
-import software.amazon.awscdk.services.cloudfront.OriginAccessIdentity;
 import software.amazon.awscdk.services.cloudfront.SSLMethod;
 import software.amazon.awscdk.services.iam.ServicePrincipal;
 import software.amazon.awscdk.services.lambda.Function;
@@ -41,9 +40,8 @@ import software.constructs.Construct;
 
 public class WebStack extends Stack {
     public final String baseUrl;
-    public final S3OriginBucket webOriginBucket;
+    public final S3OriginConstruct webOriginBucket;
     public final Bucket webBucket;
-    public final OriginAccessIdentity webOriginAccessIdentity;
     public final Distribution distribution;
     public final BucketDeployment webDeployment;
     public final BucketDeployment wellKnownDeployment;
@@ -127,19 +125,16 @@ public class WebStack extends Stack {
         // Buckets
 
         // Web origin bucket
-        this.webOriginBucket = new S3OriginBucket(
+        this.webOriginBucket = new S3OriginConstruct(
                 this,
                 props.resourceNamePrefix + "-WebBucket",
-                S3OriginBucketProps.builder()
+                S3OriginConstructProps.builder()
                         .bucketNameSuffix("web")
                         .logsPrefix("s3/web/")
-                        .oaiComment("Identity created for access to the website origin bucket via the CloudFront"
-                                + " distribution")
                         // .logsBucket(logsBucket)
                         .bucketType(S3OriginBucketType.WEB)
                         .build());
         this.webBucket = this.webOriginBucket.bucket;
-        this.webOriginAccessIdentity = this.webOriginBucket.originAccessIdentity;
         BehaviorOptions webOriginBehaviorOptions = this.webOriginBucket.behaviorOptions;
 
         // AWS WAF WebACL for CloudFront protection against common attacks and rate limiting
@@ -317,12 +312,6 @@ public class WebStack extends Stack {
                 this,
                 "WebOriginBucketName",
                 CfnOutputProps.builder().value(this.webBucket.getBucketName()).build());
-        new CfnOutput(
-                this,
-                "WebOriginAccessIdentityId",
-                CfnOutputProps.builder()
-                        .value(this.webOriginAccessIdentity.getOriginAccessIdentityId())
-                        .build());
         new CfnOutput(
                 this,
                 "AliasRecord",

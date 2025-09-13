@@ -56,7 +56,7 @@ The OIDC provider demonstrates excellent architectural patterns with a serverles
 
 #### 1. Enhanced DynamoDB Security
 ```java
-// Add to table creation in ProviderStack.java
+// Add to table creation in AppStack.java
 .pointInTimeRecoveryEnabled(true)
 .encryption(TableEncryption.CUSTOMER_MANAGED)
 .encryptionKey(Key.fromAlias(this, "DynamoKey", "alias/oidc-dynamodb-key"))

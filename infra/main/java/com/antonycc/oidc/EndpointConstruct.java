@@ -1,8 +1,5 @@
 package com.antonycc.oidc;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.Fn;
 import software.amazon.awscdk.RemovalPolicy;
@@ -31,7 +28,11 @@ import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.logs.RetentionDays;
 import software.constructs.Construct;
 
-public class EndpointFunction extends Construct {
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class EndpointConstruct extends Construct {
     public final LogGroup logGroup;
     public final Role functionRole;
     public final DockerImageCode dockerImage;
@@ -41,7 +42,7 @@ public class EndpointFunction extends Construct {
     public final BehaviorOptions behaviorOptions;
     public final String pathPattern;
 
-    public EndpointFunction(final Construct scope, final String id, final EndpointFunctionProps props) {
+    public EndpointConstruct(final Construct scope, final String id, final EndpointConstructProps props) {
         super(scope, id);
 
         this.pathPattern = props.pathPattern;
@@ -72,7 +73,7 @@ public class EndpointFunction extends Construct {
         // Add OTEL environment
         var otelEnv = Map.of(
                 "AWS_LAMBDA_EXEC_WRAPPER", "/opt/otel-instrument", // enable auto-instrumentation
-                "OTEL_SERVICE_NAME", "oidc-provider", // group functions in App Signals
+                "OTEL_SERVICE_NAME", "oidc-provider", // group functions in ProviderApplication Signals
                 "OTEL_TRACES_EXPORTER", "otlp", // explicit traces exporter (reduces startup noise)
                 "OTEL_METRICS_EXPORTER", "otlp", // enable metrics export to CloudWatch via Application Signals
                 "OTEL_LOGS_EXPORTER", "otlp", // explicit logs exporter (reduces startup noise)

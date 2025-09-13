@@ -47,7 +47,7 @@ include:
 1. **Infrastructure defined in CDK:** The Java CDK app defines three stacks:
    - ObservabilityStack: S3 logs bucket, CloudTrail and X-Ray group
    - DevStack: ECR repository and publishing role for images
-   - ProviderStack: S3 buckets (Web and WellKnown), CloudFront distribution, Lambda Function URL integrations for `/authorize`, `/token`, `/userinfo` and `/jwks`, and Route53 alias
+   - AppStack: S3 buckets (Web and WellKnown), CloudFront distribution, Lambda Function URL integrations for `/authorize`, `/token`, `/userinfo` and `/jwks`, and Route53 alias
    Buckets block public access, enforce TLS, auto-delete objects and are destroyed with the stack. CloudFront routes static paths to S3 and OIDC paths to Lambda Function URLs with logging and IPv6 enabled.
 2. **Pay‑per‑request resources:** Three DynamoDB tables (Users, AuthCodes and RefreshTokens) use on‑demand billing with TTLs for short‑lived data. Lambda functions run on Node.js 22 with modest memory, short timeouts and seven‑day log retention. Function URLs use NONE auth and are exposed only via CloudFront; the distribution is explicitly permitted to invoke them.
 3. **OIDC flow implementation:**

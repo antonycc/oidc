@@ -25,11 +25,11 @@ class SynthTest {
                         .domainName("oidc.example.com")
                         .build());
 
-        // Create the Provider stack
-        ProviderStack providerStack = new ProviderStack(
+        // Create the App stack
+        AppStack appStack = new AppStack(
                 app,
-                "TestProviderStack",
-                ProviderStackProps.builder()
+                "TestAppStack",
+                AppStackProps.builder()
                         .env(env)
                         .envName("test")
                         .deploymentName("test")

@@ -1,10 +1,11 @@
 package com.antonycc.oidc;
 
-import java.util.List;
-import java.util.Map;
 import software.amazon.awscdk.services.cloudfront.AllowedMethods;
 
-public class EndpointFunctionProps {
+import java.util.List;
+import java.util.Map;
+
+public class EndpointConstructProps {
     public final String functionName; // e.g., "AuthorizeFn"
     public final String ecrRepositoryArn;
     public final String ecrRepositoryName;
@@ -14,7 +15,7 @@ public class EndpointFunctionProps {
     public final AllowedMethods allowedMethods; // e.g., AllowedMethods.ALLOW_GET_HEAD_OPTIONS
     public final Map<String, String> extraEnv; // per-lambda additional environment variables
 
-    private EndpointFunctionProps(Builder b) {
+    private EndpointConstructProps(Builder b) {
         this.functionName = b.functionName;
         this.ecrRepositoryArn = b.ecrRepositoryArn;
         this.ecrRepositoryName = b.ecrRepositoryName;
@@ -79,7 +80,7 @@ public class EndpointFunctionProps {
             return this;
         }
 
-        public EndpointFunctionProps build() {
+        public EndpointConstructProps build() {
             java.util.List<String> missingFields = new java.util.ArrayList<>();
             if (functionName == null) missingFields.add("functionName");
             if (ecrRepositoryArn == null) missingFields.add("ecrRepositoryArn");
@@ -91,7 +92,7 @@ public class EndpointFunctionProps {
             if (!missingFields.isEmpty()) {
                 throw new IllegalArgumentException("Required fields missing: " + String.join(", ", missingFields));
             }
-            return new EndpointFunctionProps(this);
+            return new EndpointConstructProps(this);
         }
     }
 }

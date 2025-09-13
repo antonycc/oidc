@@ -3,7 +3,7 @@ package com.antonycc.oidc;
 import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.StackProps;
 
-public class ProviderStackProps implements StackProps {
+public class AppStackProps implements StackProps {
     public final Environment env;
     public final String envName;
     public final String deploymentName;
@@ -18,7 +18,7 @@ public class ProviderStackProps implements StackProps {
     public final String compressedResourceNamePrefix;
     public final String logsBucketName;
 
-    private ProviderStackProps(Builder builder) {
+    private AppStackProps(Builder builder) {
         this.env = builder.env;
         this.envName = builder.envName;
         this.deploymentName = builder.deploymentName;
@@ -114,17 +114,17 @@ public class ProviderStackProps implements StackProps {
         }
 
         public Builder trailLogGroup(software.amazon.awscdk.services.logs.LogGroup logGroup) {
-            // not used in ProviderStackProps; method provided for compatibility with tests
+            // not used in AppStackProps; method provided for compatibility with tests
             return this;
         }
 
         public Builder auditTrail(software.amazon.awscdk.services.cloudtrail.Trail trail) {
-            // not used in ProviderStackProps; method provided for compatibility with tests
+            // not used in AppStackProps; method provided for compatibility with tests
             return this;
         }
 
         public Builder xrayGroup(software.amazon.awscdk.services.xray.CfnGroup group) {
-            // not used in ProviderStackProps; method provided for compatibility with tests
+            // not used in AppStackProps; method provided for compatibility with tests
             return this;
         }
 
@@ -143,8 +143,8 @@ public class ProviderStackProps implements StackProps {
             return this;
         }
 
-        public ProviderStackProps build() {
-            return new ProviderStackProps(this);
+        public AppStackProps build() {
+            return new AppStackProps(this);
         }
     }
 }

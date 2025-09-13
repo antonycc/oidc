@@ -12,7 +12,7 @@ This repository implements a full OpenID Connect (OIDC) provider running entire
   A Java CDK application defines three stacks:
   - ObservabilityStack (logs bucket, CloudTrail, X-Ray)
   - DevStack (ECR repository and publishing role)
-  - ProviderStack (S3 buckets for web and `/.well-known`, CloudFront distribution, four Node.js (ESM) Lambda functions for `/authorize`, `/token`, `/userinfo`, `/jwks`, and Route53 alias)
+  - AppStack (S3 buckets for web and `/.well-known`, CloudFront distribution, four Node.js (ESM) Lambda functions for `/authorize`, `/token`, `/userinfo`, `/jwks`, and Route53 alias)
   Deployment options (domain names, hosted zone IDs, certificate ARN, etc.) are provided via environment variables; stack outputs include the base URL and table names used by tests.
 
 * **`app/oidc/` – Application logic**

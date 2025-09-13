@@ -1,12 +1,12 @@
 package com.antonycc.oidc;
 
+import software.amazon.awscdk.Environment;
+
 import static com.antonycc.oidc.ResourceNameUtils.buildDashedDomainName;
 import static com.antonycc.oidc.ResourceNameUtils.generateCompressedResourceNamePrefix;
 import static com.antonycc.oidc.ResourceNameUtils.generateResourceNamePrefix;
 
-import software.amazon.awscdk.Environment;
-
-public class App {
+public class ProviderApplication {
     public static void main(final String[] args) {
         var app = new software.amazon.awscdk.App();
 
@@ -75,11 +75,11 @@ public class App {
                         .build());
         devStack.addDependency(observabilityStack);
 
-        // Create the Provider stack (Lambdas, DynamoDB, S3, CloudFront)
-        ProviderStack providerStack = new ProviderStack(
+        // Create the App stack (Lambdas, DynamoDB, S3, CloudFront)
+        AppStack appStack = new AppStack(
                 app,
-                "ProviderStack-" + deploymentName,
-                ProviderStackProps.builder()
+                "AppStack-" + deploymentName,
+                AppStackProps.builder()
                         .env(env)
                         .envName(envName)
                         .deploymentName(deploymentName)
@@ -91,8 +91,8 @@ public class App {
                         .compressedResourceNamePrefix(compressedResourceNamePrefix)
                         .logsBucketName(observabilityStack.logsBucket.getBucketName())
                         .build());
-        providerStack.addDependency(observabilityStack);
-        providerStack.addDependency(devStack);
+        appStack.addDependency(observabilityStack);
+        appStack.addDependency(devStack);
 
         // Create the Web stack (S3, CloudFront, Route53)
         WebStack webStack = new WebStack(
@@ -109,15 +109,15 @@ public class App {
                         .compressedResourceNamePrefix(compressedResourceNamePrefix)
                         .certificateArn(certificateArn)
                         .logsBucketArn(observabilityStack.logsBucket.getBucketArn())
-                        .wellKnownBucketArn(providerStack.wellKnownBucket.getBucketArn())
-                        .jwksEndpointFunctionArn(providerStack.jwksEndpoint.function.getFunctionArn())
-                        .authorizeEndpointFunctionArn(providerStack.authorizeEndpoint.function.getFunctionArn())
-                        .tokenEndpointFunctionArn(providerStack.tokenEndpoint.function.getFunctionArn())
-                        .userinfoEndpointFunctionArn(providerStack.userinfoEndpoint.function.getFunctionArn())
+                        .wellKnownBucketArn(appStack.wellKnownBucket.getBucketArn())
+                        .jwksEndpointFunctionArn(appStack.jwksEndpoint.function.getFunctionArn())
+                        .authorizeEndpointFunctionArn(appStack.authorizeEndpoint.function.getFunctionArn())
+                        .tokenEndpointFunctionArn(appStack.tokenEndpoint.function.getFunctionArn())
+                        .userinfoEndpointFunctionArn(appStack.userinfoEndpoint.function.getFunctionArn())
                         .build());
         webStack.addDependency(observabilityStack);
         webStack.addDependency(devStack);
-        webStack.addDependency(providerStack);
+        webStack.addDependency(appStack);
 
         // Create the Ops stack (Alarms, etc.)
         OpsStack opsStack = new OpsStack(
@@ -130,18 +130,18 @@ public class App {
                         .domainName(domainName)
                         .resourceNamePrefix(resourceNamePrefix)
                         .compressedResourceNamePrefix(compressedResourceNamePrefix)
-                        .jwksEndpointFunctionArn(providerStack.jwksEndpoint.function.getFunctionArn())
-                        .authorizeEndpointFunctionArn(providerStack.authorizeEndpoint.function.getFunctionArn())
-                        .tokenEndpointFunctionArn(providerStack.tokenEndpoint.function.getFunctionArn())
-                        .userinfoEndpointFunctionArn(providerStack.userinfoEndpoint.function.getFunctionArn())
-                        .usersTableArn(providerStack.usersTable.getTableArn())
-                        .authCodesTableArn(providerStack.authCodesTable.getTableArn())
-                        .refreshTokensTableArn(providerStack.refreshTokensTable.getTableArn())
+                        .jwksEndpointFunctionArn(appStack.jwksEndpoint.function.getFunctionArn())
+                        .authorizeEndpointFunctionArn(appStack.authorizeEndpoint.function.getFunctionArn())
+                        .tokenEndpointFunctionArn(appStack.tokenEndpoint.function.getFunctionArn())
+                        .userinfoEndpointFunctionArn(appStack.userinfoEndpoint.function.getFunctionArn())
+                        .usersTableArn(appStack.usersTable.getTableArn())
+                        .authCodesTableArn(appStack.authCodesTable.getTableArn())
+                        .refreshTokensTableArn(appStack.refreshTokensTable.getTableArn())
                         .distributionId(webStack.distribution.getDistributionId())
                         .build());
         opsStack.addDependency(observabilityStack);
         opsStack.addDependency(devStack);
-        opsStack.addDependency(providerStack);
+        opsStack.addDependency(appStack);
         opsStack.addDependency(webStack);
 
         app.synth();

@@ -7,7 +7,7 @@ This guide provides step-by-step instructions for implementing the recommended W
 The following critical improvements have been implemented as part of this review:
 
 ### 1. Enhanced DynamoDB Security and Backup
-**Implementation:** Modified `ProviderStack.java` to include:
+**Implementation:** Modified `AppStack.java` to include:
 - AWS managed encryption for all DynamoDB tables
 - Point-in-time recovery enabled for data protection
 - Modern CDK API usage (deprecated `pointInTimeRecovery` → `pointInTimeRecoverySpecification`)
@@ -49,7 +49,7 @@ The following critical improvements have been implemented as part of this review
 
 1. **Create WAF Web ACL:**
 ```java
-// Add to ProviderStack.java imports
+// Add to AppStack.java imports
 import software.amazon.awscdk.services.wafv2.CfnWebACL;
 
 // Add after distribution creation
@@ -135,7 +135,7 @@ this.distribution = Distribution.Builder.create(this, resourceNamePrefix + "-Web
 
 1. **Create Custom Response Headers Policy:**
 ```java
-// Add to S3OriginBucket.java or ProviderStack.java
+// Add to S3OriginConstruct.java or AppStack.java
 ResponseHeadersPolicy securityHeaders = ResponseHeadersPolicy.Builder.create(this, "SecurityHeaders")
     .responseHeadersPolicyName(resourceNamePrefix + "-security-headers")
     .securityHeadersBehavior(ResponseHeadersSecurityHeadersBehavior.builder()
@@ -193,7 +193,7 @@ Dashboard operationalDashboard = Dashboard.Builder.create(this, resourceNamePref
             GraphWidget.Builder.create()
                 .title("Lambda Invocations")
                 .left(List.of(
-                    // Add metrics from ProviderStack Lambda functions
+                    // Add metrics from AppStack Lambda functions
                 ))
                 .build(),
             GraphWidget.Builder.create()
@@ -208,7 +208,7 @@ Dashboard operationalDashboard = Dashboard.Builder.create(this, resourceNamePref
             GraphWidget.Builder.create()
                 .title("DynamoDB Operations")
                 .left(List.of(
-                    // Add DynamoDB metrics from ProviderStack
+                    // Add DynamoDB metrics from AppStack
                 ))
                 .build(),
             SingleValueWidget.Builder.create()

@@ -24,7 +24,7 @@ Build and configuration
 - This repo uses workspaces: ["app/oidc"]. All Node deps are managed at the root.
 
 2) CDK synth (no deploy)
-- The CDK entrypoint is Java (exec-maven-plugin, main class: com.antonycc.oidc.App).
+- The CDK entrypoint is Java (exec-maven-plugin, main class: com.antonycc.oidc.ProviderApplication).
 - Nonstandard Maven source roots are configured in pom.xml:
   - <sourceDirectory>infra/main/java</sourceDirectory>
   - <testSourceDirectory>infra/test/java</testSourceDirectory>
@@ -44,9 +44,9 @@ Build and configuration
   export CERTIFICATE_ARN=arn:aws:acm:...
   export COGNITO_DOMAIN_PREFIX=oidc-dev-xyz
   npx cdk bootstrap
-  npx cdk deploy ProviderStack-${ENV_NAME} --require-approval never --outputs-file cdk.out/cdk-outputs.json
+  npx cdk deploy AppStack-${ENV_NAME} --require-approval never --outputs-file cdk.out/cdk-outputs.json
 - CDK outputs consumed by tests:
-  - From ProviderStack: BaseUrl → Playwright BASE_URL
+  - From AppStack: BaseUrl → Playwright BASE_URL
   - From CognitoStack: CognitoAuthDomain → Playwright COGNITO_DOMAIN
   - From CognitoStack: UserPoolClientId → Playwright COGNITO_CLIENT_ID
 
@@ -66,7 +66,7 @@ A) Unit tests (Vitest)
 
 B) Infra tests (JUnit 5)
 - Location: infra/test/java (note the nonstandard path configured in pom.xml).
-- Example present: SynthTest constructs ProviderStack and CognitoStack with dummy props and calls app.synth().
+- Example present: SynthTest constructs AppStack and CognitoStack with dummy props and calls app.synth().
 - Run all infra tests:
   ./mvnw --errors test
 - Validation: This command passed locally (BUILD SUCCESS).

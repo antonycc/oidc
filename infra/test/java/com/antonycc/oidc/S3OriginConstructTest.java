@@ -50,7 +50,6 @@ class S3OriginConstructTest {
 
         // Verify the construct exposes the expected resources
         assertNotNull(s3OriginConstruct.bucket, "Bucket should be created and exposed");
-        // assertNotNull(s3OriginConstruct.originAccessIdentity, "OAI should be created and exposed");
         assertNotNull(s3OriginConstruct.origin, "Origin should be created and exposed");
         assertNotNull(s3OriginConstruct.behaviorOptions, "BehaviorOptions should be created and exposed");
         assertNull(s3OriginConstruct.cachePolicy, "CachePolicy should be null for WEB bucket type");

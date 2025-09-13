@@ -1,5 +1,8 @@
 package com.antonycc.oidc;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.Fn;
 import software.amazon.awscdk.RemovalPolicy;
@@ -27,10 +30,6 @@ import software.amazon.awscdk.services.lambda.Tracing;
 import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.logs.RetentionDays;
 import software.constructs.Construct;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Construct bundling a Lambda Docker image function exposed via Function URL and a
@@ -71,7 +70,7 @@ public class EndpointFunction extends Construct {
                 .build();
 
         // Build args are constant currently but can be extended later
-        //Map<String, String> buildArgs = Map.of("BUILDKIT_INLINE_CACHE", "1");
+        // Map<String, String> buildArgs = Map.of("BUILDKIT_INLINE_CACHE", "1");
 
         // Environment: allow only extra/differing vars through props; add tracing name by default
         Map<String, String> environment = new HashMap<>();
@@ -93,22 +92,19 @@ public class EndpointFunction extends Construct {
                 );
         environment.putAll(otelEnv);
         var imageCodeProps = EcrImageCodeProps.builder()
-        //var imageCodeProps = AssetImageCodeProps.builder()
-        //    .file(props.dockerfilePath)
-            .cmd(props.handler)
-        //    .buildArgs(buildArgs)
-            .build();
+                // var imageCodeProps = AssetImageCodeProps.builder()
+                //    .file(props.dockerfilePath)
+                .cmd(props.handler)
+                //    .buildArgs(buildArgs)
+                .build();
         var repositoryAttributes = RepositoryAttributes.builder()
-            .repositoryArn(props.ecrRepositoryArn)
-            .repositoryName(props.ecrRepositoryName)
-            .build();
-        IRepository repository = Repository.fromRepositoryAttributes(
-            this,
-            props.functionName + "EcrRepo",
-            repositoryAttributes
-            );
+                .repositoryArn(props.ecrRepositoryArn)
+                .repositoryName(props.ecrRepositoryName)
+                .build();
+        IRepository repository =
+                Repository.fromRepositoryAttributes(this, props.functionName + "EcrRepo", repositoryAttributes);
         this.dockerImage = DockerImageCode.fromEcr(repository, imageCodeProps);
-        //this.dockerImage = DockerImageCode.fromImageAsset(".", imageCodeProps);
+        // this.dockerImage = DockerImageCode.fromImageAsset(".", imageCodeProps);
         this.function = DockerImageFunction.Builder.create(this, props.functionName + "-Lambda")
                 .code(this.dockerImage)
                 .memorySize(256)

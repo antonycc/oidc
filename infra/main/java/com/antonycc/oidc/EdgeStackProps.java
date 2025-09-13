@@ -3,6 +3,7 @@ package com.antonycc.oidc;
 import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.services.cloudfront.BehaviorOptions;
+import software.amazon.awscdk.services.s3.Bucket;
 
 import java.util.Map;
 
@@ -18,8 +19,8 @@ public class EdgeStackProps implements StackProps {
     public final String compressedResourceNamePrefix;
     public final String certificateArn;
     public final String logsBucketArn;
-    public final String webBucketArn;
-    public final String wellKnownBucketArn;
+    public final Bucket webBucket;
+    public final Bucket wellKnownBucket;
     public final String jwksEndpointFunctionArn;
     public final String authorizeEndpointFunctionArn;
     public final String tokenEndpointFunctionArn;
@@ -38,8 +39,8 @@ public class EdgeStackProps implements StackProps {
         this.compressedResourceNamePrefix = builder.compressedResourceNamePrefix;
         this.certificateArn = builder.certificateArn;
         this.logsBucketArn = builder.logsBucketArn;
-        this.webBucketArn = builder.webBucketArn;
-        this.wellKnownBucketArn = builder.wellKnownBucketArn;
+        this.webBucket = builder.webBucket;
+        this.wellKnownBucket = builder.wellKnownBucket;
         this.jwksEndpointFunctionArn = builder.jwksEndpointFunctionArn;
         this.authorizeEndpointFunctionArn = builder.authorizeEndpointFunctionArn;
         this.tokenEndpointFunctionArn = builder.tokenEndpointFunctionArn;
@@ -68,8 +69,8 @@ public class EdgeStackProps implements StackProps {
         private String compressedResourceNamePrefix;
         private String certificateArn;
         private String logsBucketArn;
-        private String webBucketArn;
-        private String wellKnownBucketArn;
+        private Bucket webBucket;
+        private Bucket wellKnownBucket;
         private String jwksEndpointFunctionArn;
         private String authorizeEndpointFunctionArn;
         private String tokenEndpointFunctionArn;
@@ -131,13 +132,13 @@ public class EdgeStackProps implements StackProps {
             return this;
         }
 
-        public Builder webBucketArn(String webBucketArn) {
-            this.webBucketArn = webBucketArn;
+        public Builder webBucket(Bucket webBucket) {
+            this.webBucket = webBucket;
             return this;
         }
 
-        public Builder wellKnownBucketArn(String wellKnownBucketArn) {
-            this.wellKnownBucketArn = wellKnownBucketArn;
+        public Builder wellKnownBucket(Bucket wellKnownBucket) {
+            this.wellKnownBucket = wellKnownBucket;
             return this;
         }
 

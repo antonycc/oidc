@@ -169,8 +169,8 @@ public class ProviderApplication {
                     .compressedResourceNamePrefix(this.application.compressedResourceNamePrefix)
                     .certificateArn(this.application.certificateArn)
                     .logsBucketArn(this.application.observabilityStack.logsBucket.getBucketArn())
-                    .webBucketArn(this.application.webStack.webBucket.getBucketArn())
-                    .wellKnownBucketArn(this.application.appStack.wellKnownBucket.getBucketArn())
+                    .webBucket(this.application.webStack.webBucket)
+                    .wellKnownBucket(this.application.appStack.wellKnownBucket)
                     .jwksEndpointFunctionArn(this.application.appStack.jwksEndpoint.function.getFunctionArn())
                     .authorizeEndpointFunctionArn(
                         this.application.appStack.authorizeEndpoint.function.getFunctionArn())

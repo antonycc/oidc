@@ -264,7 +264,10 @@ jobs:
 
       - name: Diff stacks (CDK)
         run: |
-          npx cdk diff --all --require-approval never --ci true --outputs-file cdk.out/cdk-outputs-all.json
+          npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- \
+            npx cdk diff --all \
+              --ci true \
+          ;
         env:
           ENV_NAME: ${{ needs.names.outputs.environment-name }}
           DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
@@ -299,7 +302,7 @@ jobs:
           cache: 'maven'
 
       - name: Download CDK synthesis artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: cdk-synthesis
           path: cdk.out/
@@ -319,7 +322,12 @@ jobs:
 
       - name: Deploy Observability Stack (CDK)
         run: |
-          npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- npx cdk deploy ObservabilityStack-${{ needs.names.outputs.deployment-name }} --require-approval never --ci true --outputs-file cdk.out/cdk-outputs-observability.json
+          npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- \
+            npx cdk deploy ObservabilityStack-${{ needs.names.outputs.deployment-name }} \
+              --require-approval never \
+              --ci true \
+              --outputs-file cdk.out/cdk-outputs-observability.json \
+          ;
         env:
           ENV_NAME: ${{ needs.names.outputs.environment-name }}
           DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
@@ -353,7 +361,7 @@ jobs:
           cache: 'maven'
 
       - name: Download CDK synthesis artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: cdk-synthesis
           path: cdk.out/
@@ -367,7 +375,12 @@ jobs:
 
       - name: Deploy Dev Stack (CDK)
         run: |
-          npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- npx cdk deploy DevStack-${{ needs.names.outputs.deployment-name }} --require-approval never --ci true --outputs-file cdk.out/cdk-outputs-dev.json
+          npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- \
+            npx cdk deploy DevStack-${{ needs.names.outputs.deployment-name }} \
+              --require-approval never \
+              --ci true \
+              --outputs-file cdk.out/cdk-outputs-dev.json \
+          ;
         env:
           ENV_NAME: ${{ needs.names.outputs.environment-name }}
           DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
@@ -404,10 +417,14 @@ jobs:
       - name: Build base image
         id: build
         run: |
-          docker buildx build \
-            --load \
-            -t 'oidc-endpoint-function:${{ github.sha }}' \
-            -f Dockerfile .
+          npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- \
+            docker buildx build \
+              --load \
+              -t 'oidc-endpoint-function:${{ github.sha }}' \
+              -f Dockerfile .
+        env:
+          ENV_NAME: ${{ needs.names.outputs.environment-name }}
+          DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
 
       - name: Configure AWS creds via OIDC
         uses: aws-actions/configure-aws-credentials@v5
@@ -419,7 +436,8 @@ jobs:
       - name: Login to Amazon ECR
         shell: bash
         run: |
-          aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ needs.deploy-dev.outputs.ecr-repository-uri }}
+          aws ecr get-login-password --region ${{ env.AWS_REGION }} \
+            | docker login --username AWS --password-stdin ${{ needs.deploy-dev.outputs.ecr-repository-uri }}
 
       - name: Tag and push Docker image to ECR
         shell: bash
@@ -477,7 +495,13 @@ jobs:
 
       - name: Deploy App stack (CDK)
         run: |
-          npx cdk deploy AppStack-${{ needs.names.outputs.deployment-name }} --exclusively --require-approval never --ci true --outputs-file cdk.out/cdk-outputs-app.json
+          npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- \
+            npx cdk deploy AppStack-${{ needs.names.outputs.deployment-name }} \
+              --exclusively \
+              --require-approval never \
+              --ci true \
+              --outputs-file cdk.out/cdk-outputs-app.json \
+            ;
         env:
           ENV_NAME: ${{ needs.names.outputs.environment-name }}
           DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
@@ -536,7 +560,13 @@ jobs:
 
       - name: Deploy Web Stack (CDK)
         run: |
-          npx cdk deploy WebStack-${{ needs.names.outputs.deployment-name }} --exclusively --require-approval never --ci true --outputs-file cdk.out/cdk-outputs-web.json
+          npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- \
+            npx cdk deploy WebStack-${{ needs.names.outputs.deployment-name }} \
+              --exclusively \
+              --require-approval never \
+              --ci true \
+              --outputs-file cdk.out/cdk-outputs-web.json \
+            ;
         env:
           ENV_NAME: ${{ needs.names.outputs.environment-name }}
           DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
@@ -586,7 +616,13 @@ jobs:
 
       - name: Deploy Edge Stack (CDK)
         run: |
-          npx cdk deploy EdgeStack-${{ needs.names.outputs.deployment-name }} --exclusively --require-approval never --ci true --outputs-file cdk.out/cdk-outputs-edge.json
+          npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- \
+            npx cdk deploy EdgeStack-${{ needs.names.outputs.deployment-name }} \
+              --exclusively \
+              --require-approval never \
+              --ci true \
+              --outputs-file cdk.out/cdk-outputs-edge.json \
+            ;
         env:
           ENV_NAME: ${{ needs.names.outputs.environment-name }}
           DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
@@ -646,7 +682,13 @@ jobs:
 
       - name: Deploy Ops Stack (CDK)
         run: |
-          npx cdk deploy OpsStack-${{ needs.names.outputs.deployment-name }} --exclusively --require-approval never --ci true --outputs-file cdk.out/cdk-outputs-ops.json
+          npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- \
+            npx cdk deploy OpsStack-${{ needs.names.outputs.deployment-name }} \
+              --exclusively \
+              --require-approval never \
+              --ci true \
+              --outputs-file cdk.out/cdk-outputs-ops.json \
+            ;
         env:
           ENV_NAME: ${{ needs.names.outputs.environment-name }}
           DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}

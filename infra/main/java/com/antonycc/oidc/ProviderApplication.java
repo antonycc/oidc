@@ -55,22 +55,22 @@ public class ProviderApplication {
             this.application = new ProviderApplication();
             this.application.envName = System.getenv().getOrDefault("ENV_NAME", "dev");
             this.application.deploymentName = System.getenv().getOrDefault("DEPLOYMENT_NAME", this.application.envName);
-            this.application.hostedZoneName = System.getenv().getOrDefault("HOSTED_ZONE_NAME", "example.com");
-            this.application.hostedZoneId = System.getenv().getOrDefault("HOSTED_ZONE_ID", "Z000EXAMPLE");
-            this.application.baseImageTag = System.getenv().getOrDefault("BASE_IMAGE_TAG", "latest");
+            this.application.hostedZoneName = System.getenv().getOrDefault("HOSTED_ZONE_NAME", "dev.oidc.antonycc.com");
+            this.application.hostedZoneId = System.getenv().getOrDefault("HOSTED_ZONE_ID", "Z000OIDCDEV");
+            this.application.baseImageTag = System.getenv().getOrDefault("BASE_IMAGE_TAG", "dev-tag");
 
             // Compute domain name based on deployment pattern
             // String authDomainName;
             if ("prod".equals(this.application.deploymentName)) {
-                this.application.domainName = System.getenv().getOrDefault("DOMAIN_NAME", "oidc.example.com");
+                this.application.domainName = System.getenv().getOrDefault("DOMAIN_NAME", "dev.oidc.antonycc.com");
                 // this.authDomainName = System.getenv().getOrDefault("AUTH_DOMAIN_NAME", "auth.oidc.example.com");
             } else if ("ci".equals(this.application.deploymentName)) {
-                this.application.domainName = System.getenv().getOrDefault("DOMAIN_NAME", "ci.oidc.example.com");
+                this.application.domainName = System.getenv().getOrDefault("DOMAIN_NAME", "ci.dev.oidc.antonycc.com");
                 // this.authDomainName = System.getenv().getOrDefault("AUTH_DOMAIN_NAME", "ci.auth.oidc.example.com");
             } else {
                 // For branch deployments like ci-branchname
                 this.application.domainName = System.getenv()
-                        .getOrDefault("DOMAIN_NAME", this.application.deploymentName + ".oidc.example.com");
+                        .getOrDefault("DOMAIN_NAME", this.application.deploymentName + ".dev.oidc.antonycc.com");
                 // this.authDomainName = System.getenv().getOrDefault("AUTH_DOMAIN_NAME", deploymentName +
                 // ".auth.oidc.example.com");
             }

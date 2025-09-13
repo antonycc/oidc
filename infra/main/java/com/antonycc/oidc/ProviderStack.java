@@ -1,5 +1,8 @@
 package com.antonycc.oidc;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.RemovalPolicy;
@@ -20,10 +23,6 @@ import software.amazon.awscdk.services.dynamodb.TableEncryption;
 import software.amazon.awscdk.services.s3.Bucket;
 import software.amazon.awscdk.services.s3.IBucket;
 import software.constructs.Construct;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 public class ProviderStack extends Stack {
     public final S3OriginBucket wellKnownOriginBucket;
@@ -70,13 +69,13 @@ public class ProviderStack extends Stack {
         // Well-known origin bucket
         this.wellKnownOriginBucket = new S3OriginBucket(
                 this,
-            props.resourceNamePrefix + "-WellKnownBucket",
+                props.resourceNamePrefix + "-WellKnownBucket",
                 S3OriginBucketProps.builder()
                         .bucketNameSuffix("well-known")
                         .logsPrefix("s3/well-known/")
                         .oaiComment("Identity created for access to the Well Known origin bucket via the CloudFront"
                                 + " distribution")
-                        //.logsBucket(logsBucket)
+                        // .logsBucket(logsBucket)
                         .bucketType(S3OriginBucketType.WELL_KNOWN)
                         .build());
         this.wellKnownBucket = this.wellKnownOriginBucket.bucket;
@@ -137,7 +136,7 @@ public class ProviderStack extends Stack {
         // Authorize endpoint via construct
         this.authorizeEndpoint = new EndpointFunction(
                 this,
-            props.resourceNamePrefix + "-AuthorizeEndpoint",
+                props.resourceNamePrefix + "-AuthorizeEndpoint",
                 EndpointFunctionProps.builder()
                         .functionName(props.compressedResourceNamePrefix + "-authorize")
                         .ecrRepositoryArn(props.ecrRepositoryArn)
@@ -158,7 +157,7 @@ public class ProviderStack extends Stack {
         // Token endpoint via construct
         this.tokenEndpoint = new EndpointFunction(
                 this,
-            props.resourceNamePrefix + "-TokenEndpoint",
+                props.resourceNamePrefix + "-TokenEndpoint",
                 EndpointFunctionProps.builder()
                         .functionName(props.compressedResourceNamePrefix + "-token")
                         .ecrRepositoryArn(props.ecrRepositoryArn)
@@ -182,7 +181,7 @@ public class ProviderStack extends Stack {
         // UserInfo endpoint via construct
         this.userinfoEndpoint = new EndpointFunction(
                 this,
-            props.resourceNamePrefix + "-UserInfoEndpoint",
+                props.resourceNamePrefix + "-UserInfoEndpoint",
                 EndpointFunctionProps.builder()
                         .functionName(props.compressedResourceNamePrefix + "-userinfo")
                         .ecrRepositoryArn(props.ecrRepositoryArn)
@@ -200,7 +199,7 @@ public class ProviderStack extends Stack {
         // JWKS endpoint via construct
         this.jwksEndpoint = new EndpointFunction(
                 this,
-            props.resourceNamePrefix + "-JwksEndpoint",
+                props.resourceNamePrefix + "-JwksEndpoint",
                 EndpointFunctionProps.builder()
                         .functionName(props.compressedResourceNamePrefix + "-jwks")
                         .ecrRepositoryArn(props.ecrRepositoryArn)

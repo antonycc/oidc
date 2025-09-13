@@ -70,7 +70,7 @@ public class S3OriginBucketProps {
             if (bucketNameSuffix == null) missingFields.add("bucketNameSuffix");
             if (logsPrefix == null) missingFields.add("logsPrefix");
             if (oaiComment == null) missingFields.add("oaiComment");
-            //if (logsBucket == null) missingFields.add("logsBucket");
+            // if (logsBucket == null) missingFields.add("logsBucket");
             if (bucketType == null) missingFields.add("bucketType");
             if (!missingFields.isEmpty()) {
                 throw new IllegalArgumentException("Required fields missing: " + String.join(", ", missingFields));

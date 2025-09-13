@@ -3,8 +3,16 @@
     <words>
       <w>buildkit</w>
       <w>buildx</w>
+      <w>codedeploy</w>
+      <w>descryption</w>
+      <w>dualstack</w>
+      <w>elasticloadbalancing</w>
+      <w>imds</w>
+      <w>imdsv</w>
+      <w>imeout</w>
       <w>instrumentations</w>
       <w>jwks</w>
+      <w>opensearchservice</w>
       <w>otel</w>
       <w>parentbased</w>
       <w>pkce</w>

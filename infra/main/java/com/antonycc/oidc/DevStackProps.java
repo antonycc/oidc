@@ -2,7 +2,7 @@ package com.antonycc.oidc;
 
 import software.amazon.awscdk.StackProps;
 
-public class DevStackProps implements StackProps  {
+public class DevStackProps implements StackProps {
     public final String env;
     public final String domainName;
     public final String dashedDomainName;

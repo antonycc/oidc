@@ -1,5 +1,6 @@
 package com.antonycc.oidc;
 
+import java.util.List;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.RemovalPolicy;
@@ -17,15 +18,12 @@ import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.logs.RetentionDays;
 import software.constructs.Construct;
 
-import java.util.List;
-
 public class DevStack extends Stack {
 
     // Public properties for stack outputs
     public final IRepository ecrRepository;
     public final LogGroup ecrLogGroup;
     public final Role ecrPublishRole;
-
 
     public DevStack(Construct scope, String id, DevStackProps props) {
         super(scope, id, props);
@@ -47,7 +45,7 @@ public class DevStack extends Stack {
                 .build();
 
         // CloudWatch Log Group for ECR operations with 7-day retention
-        String ecrLogGroupName ="/aws/ecr/%s".formatted(props.dashedDomainName);
+        String ecrLogGroupName = "/aws/ecr/%s".formatted(props.dashedDomainName);
         this.ecrLogGroup = LogGroup.Builder.create(this, "EcrLogGroup")
                 .logGroupName(ecrLogGroupName)
                 .retention(RetentionDays.ONE_WEEK) // 7-day retention as requested

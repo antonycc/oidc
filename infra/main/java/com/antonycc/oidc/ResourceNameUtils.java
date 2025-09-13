@@ -66,12 +66,12 @@ public class ResourceNameUtils {
 
     public static String buildDashedDomainName(String env, String domainName) {
         return ResourceNameUtils.convertDotSeparatedToDashSeparated(
-            "%s.%s".formatted(env, domainName), domainNameMappings);
+                "%s.%s".formatted(env, domainName), domainNameMappings);
     }
 
     public static String buildDashedDomainName(String env, String subDomainName, String domainName) {
         return ResourceNameUtils.convertDotSeparatedToDashSeparated(
-            "%s.%s.%s".formatted(env, subDomainName, domainName), domainNameMappings);
+                "%s.%s.%s".formatted(env, subDomainName, domainName), domainNameMappings);
     }
 
     public static final List<AbstractMap.SimpleEntry<Pattern, String>> domainNameMappings = List.of();

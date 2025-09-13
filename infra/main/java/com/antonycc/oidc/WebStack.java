@@ -1,5 +1,8 @@
 package com.antonycc.oidc;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import software.amazon.awscdk.AssetHashType;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
@@ -35,10 +38,6 @@ import software.amazon.awscdk.services.s3.deployment.BucketDeployment;
 import software.amazon.awscdk.services.s3.deployment.Source;
 import software.amazon.awscdk.services.wafv2.CfnWebACL;
 import software.constructs.Construct;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 public class WebStack extends Stack {
     public final String baseUrl;
@@ -76,27 +75,39 @@ public class WebStack extends Stack {
         // Use Resources from the passed props
         IBucket logsBucket = Bucket.fromBucketName(this, "LogsBucket", props.logsBucketArn);
         IBucket wellKnownBucket = Bucket.fromBucketName(this, "WellKnownBucket", props.wellKnownBucketArn);
-        IFunction jwksEndpointFunction = Function.fromFunctionAttributes(this, "JwksEndpointFunction", FunctionAttributes.builder().
-                functionArn(props.jwksEndpointFunctionArn).
-                sameEnvironment(true).
-                build());
-        IFunction authorizeEndpointFunction = Function.fromFunctionAttributes(this, "AuthorizeEndpointFunction", FunctionAttributes.builder().
-                functionArn(props.authorizeEndpointFunctionArn).
-                sameEnvironment(true).
-                build());
-        IFunction tokenEndpointFunction = Function.fromFunctionAttributes(this, "TokenEndpointFunction", FunctionAttributes.builder().
-                functionArn(props.tokenEndpointFunctionArn).
-                sameEnvironment(true).
-                build());
-        IFunction userinfoEndpointFunction = Function.fromFunctionAttributes(this, "UserinfoEndpointFunction", FunctionAttributes.builder().
-                functionArn(props.userinfoEndpointFunctionArn).
-                sameEnvironment(true).
-                build());
+        IFunction jwksEndpointFunction = Function.fromFunctionAttributes(
+                this,
+                "JwksEndpointFunction",
+                FunctionAttributes.builder()
+                        .functionArn(props.jwksEndpointFunctionArn)
+                        .sameEnvironment(true)
+                        .build());
+        IFunction authorizeEndpointFunction = Function.fromFunctionAttributes(
+                this,
+                "AuthorizeEndpointFunction",
+                FunctionAttributes.builder()
+                        .functionArn(props.authorizeEndpointFunctionArn)
+                        .sameEnvironment(true)
+                        .build());
+        IFunction tokenEndpointFunction = Function.fromFunctionAttributes(
+                this,
+                "TokenEndpointFunction",
+                FunctionAttributes.builder()
+                        .functionArn(props.tokenEndpointFunctionArn)
+                        .sameEnvironment(true)
+                        .build());
+        IFunction userinfoEndpointFunction = Function.fromFunctionAttributes(
+                this,
+                "UserinfoEndpointFunction",
+                FunctionAttributes.builder()
+                        .functionArn(props.userinfoEndpointFunctionArn)
+                        .sameEnvironment(true)
+                        .build());
 
         // Hosted zone (must exist)
         IHostedZone zone = HostedZone.fromHostedZoneAttributes(
                 this,
-            props.resourceNamePrefix + "-Zone",
+                props.resourceNamePrefix + "-Zone",
                 HostedZoneAttributes.builder()
                         .hostedZoneId(props.hostedZoneId)
                         .zoneName(props.hostedZoneName)
@@ -118,13 +129,13 @@ public class WebStack extends Stack {
         // Web origin bucket
         this.webOriginBucket = new S3OriginBucket(
                 this,
-            props.resourceNamePrefix + "-WebBucket",
+                props.resourceNamePrefix + "-WebBucket",
                 S3OriginBucketProps.builder()
                         .bucketNameSuffix("web")
                         .logsPrefix("s3/web/")
                         .oaiComment("Identity created for access to the website origin bucket via the CloudFront"
                                 + " distribution")
-                        //.logsBucket(logsBucket)
+                        // .logsBucket(logsBucket)
                         .bucketType(S3OriginBucketType.WEB)
                         .build());
         this.webBucket = this.webOriginBucket.bucket;
@@ -133,79 +144,82 @@ public class WebStack extends Stack {
 
         // AWS WAF WebACL for CloudFront protection against common attacks and rate limiting
         CfnWebACL webAcl = CfnWebACL.Builder.create(this, props.resourceNamePrefix + "-WebAcl")
-            .name(props.compressedResourceNamePrefix + "-waf")
-            .scope("CLOUDFRONT")
-            .defaultAction(CfnWebACL.DefaultActionProperty.builder()
-                .allow(CfnWebACL.AllowActionProperty.builder().build())
-                .build())
-            .rules(List.of(
-                // Rate limiting rule - 2000 requests per 5 minutes per IP
-                CfnWebACL.RuleProperty.builder()
-                    .name("RateLimitRule")
-                    .priority(1)
-                    .statement(CfnWebACL.StatementProperty.builder()
-                        .rateBasedStatement(CfnWebACL.RateBasedStatementProperty.builder()
-                            .limit(2000L) // requests per 5 minutes
-                            .aggregateKeyType("IP")
-                            .build())
+                .name(props.compressedResourceNamePrefix + "-waf")
+                .scope("CLOUDFRONT")
+                .defaultAction(CfnWebACL.DefaultActionProperty.builder()
+                        .allow(CfnWebACL.AllowActionProperty.builder().build())
                         .build())
-                    .action(CfnWebACL.RuleActionProperty.builder()
-                        .block(CfnWebACL.BlockActionProperty.builder().build())
-                        .build())
-                    .visibilityConfig(CfnWebACL.VisibilityConfigProperty.builder()
+                .rules(List.of(
+                        // Rate limiting rule - 2000 requests per 5 minutes per IP
+                        CfnWebACL.RuleProperty.builder()
+                                .name("RateLimitRule")
+                                .priority(1)
+                                .statement(CfnWebACL.StatementProperty.builder()
+                                        .rateBasedStatement(CfnWebACL.RateBasedStatementProperty.builder()
+                                                .limit(2000L) // requests per 5 minutes
+                                                .aggregateKeyType("IP")
+                                                .build())
+                                        .build())
+                                .action(CfnWebACL.RuleActionProperty.builder()
+                                        .block(CfnWebACL.BlockActionProperty.builder()
+                                                .build())
+                                        .build())
+                                .visibilityConfig(CfnWebACL.VisibilityConfigProperty.builder()
+                                        .cloudWatchMetricsEnabled(true)
+                                        .metricName("RateLimitRule")
+                                        .sampledRequestsEnabled(true)
+                                        .build())
+                                .build(),
+                        // AWS managed rule for known bad inputs
+                        CfnWebACL.RuleProperty.builder()
+                                .name("AWSManagedRulesKnownBadInputsRuleSet")
+                                .priority(2)
+                                .statement(CfnWebACL.StatementProperty.builder()
+                                        .managedRuleGroupStatement(CfnWebACL.ManagedRuleGroupStatementProperty.builder()
+                                                .name("AWSManagedRulesKnownBadInputsRuleSet")
+                                                .vendorName("AWS")
+                                                .ruleActionOverrides(
+                                                        List.of()) // Empty override list to prevent conflicts
+                                                .build())
+                                        .build())
+                                .overrideAction(CfnWebACL.OverrideActionProperty.builder()
+                                        .none(Map.of())
+                                        .build())
+                                .visibilityConfig(CfnWebACL.VisibilityConfigProperty.builder()
+                                        .cloudWatchMetricsEnabled(true)
+                                        .metricName("AWSManagedRulesKnownBadInputsRuleSet")
+                                        .sampledRequestsEnabled(true)
+                                        .build())
+                                .build(),
+                        // AWS managed rule for common rule set (SQL injection, XSS, etc.)
+                        CfnWebACL.RuleProperty.builder()
+                                .name("AWSManagedRulesCommonRuleSet")
+                                .priority(3)
+                                .statement(CfnWebACL.StatementProperty.builder()
+                                        .managedRuleGroupStatement(CfnWebACL.ManagedRuleGroupStatementProperty.builder()
+                                                .name("AWSManagedRulesCommonRuleSet")
+                                                .vendorName("AWS")
+                                                .ruleActionOverrides(
+                                                        List.of()) // Empty override list to prevent conflicts
+                                                .build())
+                                        .build())
+                                .overrideAction(CfnWebACL.OverrideActionProperty.builder()
+                                        .none(Map.of())
+                                        .build())
+                                .visibilityConfig(CfnWebACL.VisibilityConfigProperty.builder()
+                                        .cloudWatchMetricsEnabled(true)
+                                        .metricName("AWSManagedRulesCommonRuleSet")
+                                        .sampledRequestsEnabled(true)
+                                        .build())
+                                .build()))
+                .description(
+                        "WAF WebACL for OIDC provider CloudFront distribution - provides rate limiting and protection against common attacks")
+                .visibilityConfig(CfnWebACL.VisibilityConfigProperty.builder()
                         .cloudWatchMetricsEnabled(true)
-                        .metricName("RateLimitRule")
+                        .metricName(props.compressedResourceNamePrefix + "-waf")
                         .sampledRequestsEnabled(true)
                         .build())
-                    .build(),
-                // AWS managed rule for known bad inputs
-                CfnWebACL.RuleProperty.builder()
-                    .name("AWSManagedRulesKnownBadInputsRuleSet")
-                    .priority(2)
-                    .statement(CfnWebACL.StatementProperty.builder()
-                        .managedRuleGroupStatement(CfnWebACL.ManagedRuleGroupStatementProperty.builder()
-                            .name("AWSManagedRulesKnownBadInputsRuleSet")
-                            .vendorName("AWS")
-                            .ruleActionOverrides(List.of()) // Empty override list to prevent conflicts
-                            .build())
-                        .build())
-                    .overrideAction(CfnWebACL.OverrideActionProperty.builder()
-                        .none(Map.of())
-                        .build())
-                    .visibilityConfig(CfnWebACL.VisibilityConfigProperty.builder()
-                        .cloudWatchMetricsEnabled(true)
-                        .metricName("AWSManagedRulesKnownBadInputsRuleSet")
-                        .sampledRequestsEnabled(true)
-                        .build())
-                    .build(),
-                // AWS managed rule for common rule set (SQL injection, XSS, etc.)
-                CfnWebACL.RuleProperty.builder()
-                    .name("AWSManagedRulesCommonRuleSet")
-                    .priority(3)
-                    .statement(CfnWebACL.StatementProperty.builder()
-                        .managedRuleGroupStatement(CfnWebACL.ManagedRuleGroupStatementProperty.builder()
-                            .name("AWSManagedRulesCommonRuleSet")
-                            .vendorName("AWS")
-                            .ruleActionOverrides(List.of()) // Empty override list to prevent conflicts
-                            .build())
-                        .build())
-                    .overrideAction(CfnWebACL.OverrideActionProperty.builder()
-                        .none(Map.of())
-                        .build())
-                    .visibilityConfig(CfnWebACL.VisibilityConfigProperty.builder()
-                        .cloudWatchMetricsEnabled(true)
-                        .metricName("AWSManagedRulesCommonRuleSet")
-                        .sampledRequestsEnabled(true)
-                        .build())
-                    .build()
-            ))
-            .description("WAF WebACL for OIDC provider CloudFront distribution - provides rate limiting and protection against common attacks")
-            .visibilityConfig(CfnWebACL.VisibilityConfigProperty.builder()
-                .cloudWatchMetricsEnabled(true)
-                .metricName(props.compressedResourceNamePrefix + "-waf")
-                .sampledRequestsEnabled(true)
-                .build())
-            .build();
+                .build();
 
         // CloudFront with two S3 origins and FunctionUrl origins for OIDC endpoints
         this.distribution = Distribution.Builder.create(this, props.resourceNamePrefix + "-WebDist")
@@ -230,13 +244,13 @@ public class WebStack extends Stack {
                 .sourceArn(this.distribution.getDistributionArn())
                 .build();
         authorizeEndpointFunction.addPermission(
-            props.compressedResourceNamePrefix + "-cf-auth", invokeFunctionUrlPermission);
+                props.compressedResourceNamePrefix + "-cf-auth", invokeFunctionUrlPermission);
         tokenEndpointFunction.addPermission(
-            props.compressedResourceNamePrefix + "-cf-token", invokeFunctionUrlPermission);
+                props.compressedResourceNamePrefix + "-cf-token", invokeFunctionUrlPermission);
         userinfoEndpointFunction.addPermission(
-            props.compressedResourceNamePrefix + "-cf-userinfo", invokeFunctionUrlPermission);
+                props.compressedResourceNamePrefix + "-cf-userinfo", invokeFunctionUrlPermission);
         jwksEndpointFunction.addPermission(
-            props.compressedResourceNamePrefix + "-cf-jwks", invokeFunctionUrlPermission);
+                props.compressedResourceNamePrefix + "-cf-jwks", invokeFunctionUrlPermission);
 
         var deployPostfix = java.util.UUID.randomUUID().toString().substring(0, 8);
 
@@ -249,7 +263,8 @@ public class WebStack extends Stack {
                 .retention(RetentionDays.ONE_DAY)
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
-        this.webDeployment = BucketDeployment.Builder.create(this, props.resourceNamePrefix + "-DocRootToWebOriginDeployment")
+        this.webDeployment = BucketDeployment.Builder.create(
+                        this, props.resourceNamePrefix + "-DocRootToWebOriginDeployment")
                 .sources(List.of(webDocRootSource))
                 .destinationBucket(this.webBucket)
                 .distribution(this.distribution)
@@ -288,7 +303,7 @@ public class WebStack extends Stack {
         // A record
         this.aliasRecord = new ARecord(
                 this,
-            props.resourceNamePrefix + "-AliasRecord",
+                props.resourceNamePrefix + "-AliasRecord",
                 ARecordProps.builder()
                         .recordName(recordName)
                         .zone(zone)
@@ -297,9 +312,7 @@ public class WebStack extends Stack {
 
         // Outputs
         new CfnOutput(
-                this,
-                "BaseUrl",
-                CfnOutputProps.builder().value(this.baseUrl).build());
+                this, "BaseUrl", CfnOutputProps.builder().value(this.baseUrl).build());
         new CfnOutput(
                 this,
                 "WebOriginBucketName",
@@ -307,17 +320,19 @@ public class WebStack extends Stack {
         new CfnOutput(
                 this,
                 "WebOriginAccessIdentityId",
-                CfnOutputProps.builder().value(this.webOriginAccessIdentity.getOriginAccessIdentityId()).build());
-        new CfnOutput(
-                this,
-                "AliasRecord",
                 CfnOutputProps.builder()
-                        .value(this.aliasRecord.getDomainName())
+                        .value(this.webOriginAccessIdentity.getOriginAccessIdentityId())
                         .build());
         new CfnOutput(
                 this,
+                "AliasRecord",
+                CfnOutputProps.builder().value(this.aliasRecord.getDomainName()).build());
+        new CfnOutput(
+                this,
                 "WebDistributionDomainName",
-                CfnOutputProps.builder().value(this.distribution.getDomainName()).build());
+                CfnOutputProps.builder()
+                        .value(this.distribution.getDomainName())
+                        .build());
         new CfnOutput(
                 this,
                 "DistributionId",

@@ -20,6 +20,7 @@ import software.amazon.awscdk.services.cloudfront.ResponseHeadersPolicy;
 import software.amazon.awscdk.services.cloudfront.SSLMethod;
 import software.amazon.awscdk.services.cloudfront.ViewerProtocolPolicy;
 import software.amazon.awscdk.services.cloudfront.origins.S3BucketOrigin;
+import software.amazon.awscdk.services.cloudfront.origins.S3BucketOriginWithOACProps;
 import software.amazon.awscdk.services.iam.ServicePrincipal;
 import software.amazon.awscdk.services.lambda.Function;
 import software.amazon.awscdk.services.lambda.FunctionAttributes;
@@ -206,9 +207,8 @@ public class EdgeStack extends Stack {
                 .build();
 
         // Build CloudFront origins and behaviors locally to avoid cross-stack binding
-        // var webBucketOrigin = S3BucketOrigin.withOriginAccessControl(
-        //    props.webBucket, S3BucketOriginWithOACProps.builder().build());
-        var webBucketOrigin = S3BucketOrigin.withBucketDefaults(webBucketImported);
+        var webBucketOrigin = S3BucketOrigin.withOriginAccessControl(
+            webBucketImported, S3BucketOriginWithOACProps.builder().build());
         var webBehavior = BehaviorOptions.builder()
                 .origin(webBucketOrigin)
                 .compress(true)
@@ -226,9 +226,8 @@ public class EdgeStack extends Stack {
                 .enableAcceptEncodingBrotli(true)
                 .enableAcceptEncodingGzip(true)
                 .build();
-        // var wellKnownBucketOrigin = S3BucketOrigin.withOriginAccessControl(
-        //    wellKnownBucketImported, S3BucketOriginWithOACProps.builder().build());
-        var wellKnownBucketOrigin = S3BucketOrigin.withBucketDefaults(wellKnownBucketImported);
+        var wellKnownBucketOrigin = S3BucketOrigin.withOriginAccessControl(
+            wellKnownBucketImported, S3BucketOriginWithOACProps.builder().build());
         var wellKnownBehaviorOptions = BehaviorOptions.builder()
                 .origin(wellKnownBucketOrigin)
                 .cachePolicy(cachePolicy)
@@ -259,22 +258,8 @@ public class EdgeStack extends Stack {
                 .webAclId(webAcl.getAttrArn())
                 .build();
 
-        // Explicit bucket policies for imported buckets to allow access from CloudFront OAC
-        // props.webBucket.addToResourcePolicy(PolicyStatement.Builder.create()
-        //        .sid("AllowCloudFrontReadWeb")
-        //        .actions(List.of("s3:GetObject"))
-        //        .principals(List.of(new ServicePrincipal("cloudfront.amazonaws.com")))
-        //        .resources(List.of(props.webBucket.arnForObjects("*")))
-        //        .conditions(Map.of("StringEquals", Map.of("AWS:SourceArn", this.distribution.getDistributionArn())))
-        //        .build());
-
-        // props.wellKnownBucket.addToResourcePolicy(PolicyStatement.Builder.create()
-        //        .sid("AllowCloudFrontReadWellKnown")
-        //        .actions(List.of("s3:GetObject"))
-        //        .principals(List.of(new ServicePrincipal("cloudfront.amazonaws.com")))
-        //        .resources(List.of(props.wellKnownBucket.arnForObjects(".well-known/*")))
-        //        .conditions(Map.of("StringEquals", Map.of("AWS:SourceArn", this.distribution.getDistributionArn())))
-        //        .build());
+        // Note: Origin Access Control (OAC) automatically creates the necessary bucket policies
+        // to allow CloudFront access to the S3 buckets, so no manual policies are needed
 
         // Grant CloudFront access to the origin lambdas with compressed names
         Permission invokeFunctionUrlPermission = Permission.builder()

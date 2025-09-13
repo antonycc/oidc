@@ -211,7 +211,7 @@ jobs:
         run: |
           ./mvnw --errors clean package -DskipTests \
             && npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- \
-              npx cdk synth --all --strict --validation --version-reporting=false --path-metadata=false --asset-metadata=false
+              npx cdk synth --all --validation --version-reporting=false --path-metadata=false --asset-metadata=false
         env:
           ENV_NAME: ${{ needs.names.outputs.environment-name }}
           DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}

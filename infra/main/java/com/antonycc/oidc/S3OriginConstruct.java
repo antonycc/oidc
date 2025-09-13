@@ -29,7 +29,6 @@ public class S3OriginConstruct extends Construct {
     public final IOrigin origin;
     public final BehaviorOptions behaviorOptions;
     public final CachePolicy cachePolicy;
-    // public final OriginAccessIdentity originAccessIdentity;
 
     public S3OriginConstruct(final Construct scope, final String id, final S3OriginConstructProps props) {
         super(scope, id);

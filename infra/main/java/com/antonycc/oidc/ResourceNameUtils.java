@@ -58,8 +58,12 @@ public class ResourceNameUtils {
                 sb.append(part.charAt(0));
             }
         }
-        sb.append('-').append(deploymentName);
-        return sb.toString();
+        var derivedResourceName = sb.append('-').append(deploymentName).toString();
+        var truncatedResourceName = derivedResourceName.length() > 20
+                ? derivedResourceName.substring(0, 20)
+                : derivedResourceName;
+
+        return truncatedResourceName;
     }
 
     public static String buildDashedDomainName(String env, String domainName) {

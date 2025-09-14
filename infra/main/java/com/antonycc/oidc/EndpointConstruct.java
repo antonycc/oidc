@@ -32,6 +32,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.antonycc.oidc.ResourceNameUtils.generateIamCompatibleName;
+
 public class EndpointConstruct extends Construct {
     public final LogGroup logGroup;
     public final Role functionRole;
@@ -55,8 +57,9 @@ public class EndpointConstruct extends Construct {
                 .build();
 
         // IAM role for the Lambda function with deterministic name
+        var roleName = generateIamCompatibleName(props.functionName, "-service-role");
         this.functionRole = Role.Builder.create(this, props.functionName + "-ServiceRole")
-                .roleName(props.functionName + "-service-role")
+                .roleName(roleName)
                 .assumedBy(new ServicePrincipal("lambda.amazonaws.com"))
                 .managedPolicies(List.of(
                         ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSLambdaBasicExecutionRole"),

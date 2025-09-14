@@ -1,10 +1,5 @@
 package com.antonycc.oidc;
 
-import static com.antonycc.oidc.ResourceNameUtils.generateIamCompatibleName;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.Duration;
@@ -12,7 +7,6 @@ import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.Tags;
 import software.amazon.awscdk.services.events.Rule;
-import software.amazon.awscdk.services.events.RuleProps;
 import software.amazon.awscdk.services.events.RuleTargetInput;
 import software.amazon.awscdk.services.events.Schedule;
 import software.amazon.awscdk.services.events.targets.LambdaFunction;
@@ -28,6 +22,12 @@ import software.amazon.awscdk.services.lambda.Tracing;
 import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.logs.RetentionDays;
 import software.constructs.Construct;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static com.antonycc.oidc.ResourceNameUtils.generateIamCompatibleName;
 
 public class SelfDestructStack extends Stack {
     public final LogGroup logGroup;
@@ -72,7 +72,7 @@ public class SelfDestructStack extends Stack {
                 .managedPolicies(List.of(
                         ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSLambdaBasicExecutionRole"),
                         ManagedPolicy.fromAwsManagedPolicyName("AWSXRayDaemonWriteAccess")))
-                .inlinePolicies(Map.of("SelfDestructPolicy", 
+                .inlinePolicies(Map.of("SelfDestructPolicy",
                         software.amazon.awscdk.services.iam.PolicyDocument.Builder.create()
                                 .statements(List.of(
                                         // CloudFormation permissions to delete stacks
@@ -119,7 +119,7 @@ public class SelfDestructStack extends Stack {
         // Lambda function for self-destruction
         this.selfDestructFunction = Function.Builder.create(this, props.resourceNamePrefix + "-SelfDestructFunction")
                 .functionName(functionName)
-                .runtime(Runtime.NODEJS_20_X)
+                .runtime(Runtime.NODEJS_22_X)
                 .handler("index.handler")
                 .code(Code.fromInline(generateSelfDestructCode()))
                 .timeout(Duration.minutes(15)) // Allow time for stack deletions
@@ -176,7 +176,7 @@ public class SelfDestructStack extends Stack {
 
                 exports.handler = async (event) => {
                     console.log('Starting self-destruct sequence...');
-                    
+
                     // Stack deletion order (reverse of creation dependency order)
                     const stacksToDelete = [
                         process.env.OPS_STACK_NAME,
@@ -187,15 +187,15 @@ public class SelfDestructStack extends Stack {
                         process.env.OBSERVABILITY_STACK_NAME,
                         process.env.SELF_DESTRUCT_STACK_NAME // Delete self last
                     ].filter(name => name); // Filter out any undefined stack names
-                    
+
                     console.log('Stacks to delete in order:', stacksToDelete);
-                    
+
                     const results = [];
-                    
+
                     for (const stackName of stacksToDelete) {
                         try {
                             console.log(`Checking if stack ${stackName} exists...`);
-                            
+
                             // Check if stack exists
                             try {
                                 await cloudformation.send(new DescribeStacksCommand({ StackName: stackName }));
@@ -207,26 +207,26 @@ public class SelfDestructStack extends Stack {
                                 }
                                 throw err;
                             }
-                            
+
                             console.log(`Deleting stack: ${stackName}`);
                             await cloudformation.send(new DeleteStackCommand({ StackName: stackName }));
-                            
+
                             results.push({ stackName, status: 'deletion_initiated' });
                             console.log(`Deletion initiated for stack: ${stackName}`);
-                            
+
                             // Wait between deletions to avoid conflicts
                             if (stackName !== process.env.SELF_DESTRUCT_STACK_NAME) {
                                 await new Promise(resolve => setTimeout(resolve, 30000)); // 30 second delay
                             }
-                            
+
                         } catch (error) {
                             console.error(`Error deleting stack ${stackName}:`, error);
                             results.push({ stackName, status: 'error', error: error.message });
                         }
                     }
-                    
+
                     console.log('Self-destruct sequence completed');
-                    
+
                     return {
                         statusCode: 200,
                         body: JSON.stringify({

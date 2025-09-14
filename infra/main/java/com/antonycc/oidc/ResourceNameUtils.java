@@ -59,8 +59,8 @@ public class ResourceNameUtils {
             }
         }
         var derivedResourceName = sb.append('-').append(deploymentName).toString();
-        var truncatedResourceName = derivedResourceName.length() > 20
-                ? derivedResourceName.substring(0, 20)
+        var truncatedResourceName = derivedResourceName.length() > 16
+                ? derivedResourceName.substring(0, 16)
                 : derivedResourceName;
 
         return truncatedResourceName;

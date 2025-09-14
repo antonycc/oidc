@@ -31,7 +31,27 @@
           <fieldset>
             <legend>Credentials</legend>
             <label>Username <input type="text" name="username" required minlength="1" /></label>
-            <label>Password <input type="password" name="password" required minlength="1" /></label>
+            <label
+              >Password
+              <div style="display: flex; gap: 5px; align-items: center">
+                <input type="password" name="password" required minlength="1" style="flex: 1" />
+                <button
+                  type="button"
+                  id="toggle-password-btn"
+                  style="
+                    padding: 4px 8px;
+                    font-size: 12px;
+                    background: #f0f0f0;
+                    border: 1px solid #ccc;
+                    border-radius: 4px;
+                    cursor: pointer;
+                  "
+                  title="Show/hide password"
+                >
+                  👁
+                </button>
+              </div>
+            </label>
           </fieldset>
           <fieldset>
             <legend>OIDC Parameters</legend>
@@ -51,6 +71,42 @@
           </fieldset>
           <button type="submit">Sign in</button>
         </form>
+        <div id="demo-credentials" style="margin-top: 20px">
+          <div class="form-card" style="padding: 15px; max-width: 400px">
+            <h3 style="margin: 0 0 10px 0; font-size: 14px">Demo Credentials</h3>
+            <pre
+              id="demo-display"
+              style="
+                font-family: monospace;
+                font-size: 11px;
+                background: #f5f5f5;
+                padding: 8px;
+                border-radius: 4px;
+                margin: 0 0 10px 0;
+                white-space: pre-wrap;
+                word-break: break-all;
+              "
+            >
+Loading...</pre
+            >
+            <button
+              id="demo-fill-btn"
+              type="button"
+              style="
+                width: 100%;
+                padding: 8px;
+                font-size: 12px;
+                background: #007cba;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+              "
+            >
+              Fill Form
+            </button>
+          </div>
+        </div>
         <p class="muted">Form will POST to: <code id="formActionDisplay"></code></p>
         <div id="error" class="error" style="display: none"></div>
       </div>
@@ -200,6 +256,98 @@
         nonceParam && nonceInput ? nonceInput.value : null,
         codeChallengeParam && codeChallengeInput ? codeChallengeInput.value : null,
       );
+
+      // Password visibility toggle functionality
+      const togglePasswordBtn = document.getElementById("toggle-password-btn");
+      const passwordInput = document.querySelector('input[name="password"]');
+
+      if (togglePasswordBtn && passwordInput) {
+        togglePasswordBtn.addEventListener("click", function () {
+          if (passwordInput.type === "password") {
+            passwordInput.type = "text";
+            togglePasswordBtn.textContent = "🙈";
+            togglePasswordBtn.title = "Hide password";
+          } else {
+            passwordInput.type = "password";
+            togglePasswordBtn.textContent = "👁";
+            togglePasswordBtn.title = "Show password";
+          }
+        });
+      }
+
+      // Demo credentials functionality
+      let demoCredentials = null;
+
+      // Fetch demo credentials from .env.demo file
+      async function loadDemoCredentials() {
+        try {
+          const response = await fetch("./.env.demo");
+          if (response.ok) {
+            const text = await response.text();
+            const credentials = {};
+
+            // Parse environment variable format
+            text.split("\n").forEach((line) => {
+              const eqIndex = line.indexOf("=");
+              if (eqIndex > 0) {
+                const key = line.slice(0, eqIndex).trim();
+                const value = line.slice(eqIndex + 1).trim();
+                if (key && value) {
+                  credentials[key] = value;
+                }
+              }
+            });
+
+            if (credentials.TEST_USERNAME && credentials.TEST_PASSWORD) {
+              demoCredentials = credentials;
+              displayDemoCredentials();
+            }
+          }
+        } catch (error) {
+          console.log("Demo credentials not available:", error.message);
+        }
+      }
+
+      // Display demo credentials in the UI
+      function displayDemoCredentials() {
+        const demoPanel = document.getElementById("demo-credentials");
+        const demoDisplay = document.getElementById("demo-display");
+        const fillButton = document.getElementById("demo-fill-btn");
+
+        if (demoCredentials && demoDisplay) {
+          demoDisplay.textContent = `TEST_USERNAME=${demoCredentials.TEST_USERNAME}\nTEST_PASSWORD=${demoCredentials.TEST_PASSWORD}`;
+
+          if (fillButton) {
+            fillButton.disabled = false;
+            fillButton.style.background = "#007cba";
+            fillButton.style.cursor = "pointer";
+            fillButton.addEventListener("click", fillDemoCredentials);
+          }
+        } else if (demoDisplay) {
+          demoDisplay.textContent = "Demo credentials not available";
+
+          if (fillButton) {
+            fillButton.disabled = true;
+            fillButton.style.background = "#ccc";
+            fillButton.style.cursor = "not-allowed";
+          }
+        }
+      }
+
+      // Fill form with demo credentials
+      function fillDemoCredentials() {
+        if (demoCredentials) {
+          const usernameInput = form.querySelector('input[name="username"]');
+          const passwordInput = form.querySelector('input[name="password"]');
+
+          if (usernameInput) usernameInput.value = demoCredentials.TEST_USERNAME;
+          if (passwordInput) passwordInput.value = demoCredentials.TEST_PASSWORD;
+        }
+      }
+
+      // Load demo credentials on page load
+      displayDemoCredentials(); // Show initial state
+      loadDemoCredentials();
 
       form.addEventListener("submit", async (e) => {
         e.preventDefault();

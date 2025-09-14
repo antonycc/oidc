@@ -25,9 +25,11 @@ import encoding from "k6/encoding";
 
 // Environment configuration matching api.live.test.ts
 const BASE_URL = __ENV.BASE_URL || "https://oidc.antonycc.com";
-const TEST_USERNAME = __ENV.TEST_USERNAME || "test-user";
-const TEST_PASSWORD = __ENV.TEST_PASSWORD || "";
 const DURATION = __ENV.DURATION || "30s";
+
+// Demo credentials will be fetched from the website in setup function
+let TEST_USERNAME = __ENV.TEST_USERNAME || "";
+let TEST_PASSWORD = __ENV.TEST_PASSWORD || "";
 
 // OIDC flow parameters matching api.live.test.ts
 const CLIENT_ID = "self-client";
@@ -91,14 +93,71 @@ function parseParam(url, name) {
 }
 
 /*
+ * Setup function to fetch demo credentials from the deployed website
+ * This runs once before all test iterations
+ */
+export function setup() {
+  // Only fetch from website if credentials not provided via environment
+  if (!TEST_USERNAME || !TEST_PASSWORD) {
+    console.log(`[setup] Fetching demo credentials from ${BASE_URL}/.env.demo`);
+
+    try {
+      const response = http.get(`${BASE_URL}/.env.demo`);
+
+      if (response.status !== 200) {
+        console.error(`[setup] Failed to fetch demo credentials: ${response.status} ${response.status_text}`);
+        return { username: "test-user", password: "" }; // Fallback to defaults
+      }
+
+      const envContent = response.body;
+      const credentials = {};
+
+      // Parse the .env content
+      for (const line of envContent.split("\n")) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) continue;
+
+        const [key, ...valueParts] = trimmed.split("=");
+        const value = valueParts.join("="); // Handle values with = in them
+
+        if (key === "TEST_USERNAME" || key === "TEST_PASSWORD") {
+          credentials[key] = value;
+        }
+      }
+
+      if (credentials.TEST_USERNAME && credentials.TEST_PASSWORD) {
+        console.log(`[setup] Successfully fetched demo credentials: username=${credentials.TEST_USERNAME}`);
+        return {
+          username: credentials.TEST_USERNAME,
+          password: credentials.TEST_PASSWORD,
+        };
+      } else {
+        console.error(`[setup] Invalid demo credentials format. Got: ${JSON.stringify(credentials)}`);
+        return { username: "test-user", password: "" };
+      }
+    } catch (error) {
+      console.error(`[setup] Error fetching demo credentials: ${error}`);
+      return { username: "test-user", password: "" };
+    }
+  } else {
+    console.log("[setup] Using credentials from environment variables");
+    return { username: TEST_USERNAME, password: TEST_PASSWORD };
+  }
+}
+
+/*
  * Main test function that performs the complete OIDC flow
  * This matches the flow in tests/api.live.test.ts exactly
  */
-export default function () {
-  if (!TEST_PASSWORD) {
+export default function (data) {
+  // Use credentials from setup function
+  const username = data?.username || TEST_USERNAME || "test-user";
+  const password = data?.password || TEST_PASSWORD || "";
+
+  if (!password) {
     // Do not hard-fail the iteration if password is missing. Proceed so HTTP requests are still made
     // and failures are reflected in k6 metrics. This also helps local dry runs.
-    console.warn("[load_test] TEST_PASSWORD not set; proceeding may cause authorize to fail.");
+    console.warn("[load_test] Password not available; proceeding may cause authorize to fail.");
   }
 
   const redirect_uri = `${BASE_URL}/post-auth.html`;
@@ -117,11 +176,11 @@ export default function () {
     `&nonce=${encodeURIComponent(nonce)}` +
     `&code_challenge=${encodeURIComponent(code_challenge)}` +
     `&code_challenge_method=${CODE_CHALLENGE_METHOD}` +
-    `&username=${encodeURIComponent(TEST_USERNAME)}` +
-    `&password=${encodeURIComponent(TEST_PASSWORD)}`;
+    `&username=${encodeURIComponent(username)}` +
+    `&password=${encodeURIComponent(password)}`;
 
   // Step 1: POST to /authorize to get authorization code
-  const authorizeBody = `username=${encodeURIComponent(TEST_USERNAME)}&password=${encodeURIComponent(TEST_PASSWORD)}`;
+  const authorizeBody = `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
   const authorizeRes = http.post(authorizeUrl, authorizeBody, {
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",

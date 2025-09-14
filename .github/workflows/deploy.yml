@@ -983,6 +983,7 @@ jobs:
     needs:
       - names
       - deploy-edge
+      - test-parameters
       - api-test
       - web-test
       - load-test
@@ -1066,16 +1067,11 @@ jobs:
 
       - name: Output deployment URLs
         run: |
-          echo "## Deployment Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "🚀 **Service Base URL**: ${{ needs.test-parameters.outputs.base-url }}" >> $GITHUB_STEP_SUMMARY
-          echo "📊 [Load Test Report](${{ steps.deployment.outputs.page_url }}artifacts/load-test/load-test-report.html)" >> $GITHUB_STEP_SUMMARY
+          echo "📊 **Load Test Report**: ${{ steps.deployment.outputs.page_url }}artifacts/load-test/load-test-report.html" >> $GITHUB_STEP_SUMMARY
+          echo "📁 **GitHub Pages**: ${{ steps.deployment.outputs.page_url }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📊 **Test Artifacts**: ${{ steps.deployment.outputs.page_url }}artifacts/" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "service_base_url=${{ needs.test-parameters.outputs.base-url }}" >> $GITHUB_OUTPUT
-          echo "github_pages_url=${{ steps.deployment.outputs.page_url }}" >> $GITHUB_OUTPUT
-          echo "artifacts_url=${{ steps.deployment.outputs.page_url }}artifacts/" >> $GITHUB_OUTPUT
 
     outputs:
       service-base-url: ${{ needs.test-parameters.outputs.base-url }}

@@ -225,9 +225,13 @@
             
             // Parse environment variable format
             text.split('\n').forEach(line => {
-              const [key, value] = line.split('=');
-              if (key && value) {
-                credentials[key.trim()] = value.trim();
+              const eqIndex = line.indexOf('=');
+              if (eqIndex > 0) {
+                const key = line.slice(0, eqIndex).trim();
+                const value = line.slice(eqIndex + 1).trim();
+                if (key && value) {
+                  credentials[key] = value;
+                }
               }
             });
             

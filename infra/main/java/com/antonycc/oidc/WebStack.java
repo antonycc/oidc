@@ -92,7 +92,7 @@ public class WebStack extends Stack {
                 this,
                 "WebOriginAccessIdentity",
                 CfnOutputProps.builder()
-                        .value(this.originAccessIdentity.getOriginAccessIdentityName())
+                        .value(this.originAccessIdentity.getOriginAccessIdentityId())
                         .build());
         new CfnOutput(
                 this,

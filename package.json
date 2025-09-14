@@ -40,7 +40,7 @@
   "scripts": {
     "build": "./mvnw clean package",
     "update-to-minor": "npx npm-check-updates --upgrade --enginesNode --target minor --verbose --install always",
-    "update-to-greatest": "npx npm-check-updates --upgrade --enginesNode --target greatest --verbose --install always --reject 'alpha'",
+    "update-to-greatest": "npx npm-check-updates --upgrade --enginesNode --target greatest --verbose --install always",
     "formatting": "prettier --check . && ./mvnw spotless:check",
     "formatting-fix": "prettier --write . && ./mvnw spotless:apply",
     "formatting:js": "prettier --check .",

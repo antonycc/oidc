@@ -44,17 +44,10 @@ jobs:
       - name: Node test
         run: npm ci && npm test
 
-      - name: Setup k6 with dashboard extension
-        run: |
-          # Download pre-built k6 binary with xk6-dashboard extension
-          curl -L https://github.com/grafana/xk6-dashboard/releases/download/v0.7.12/xk6-dashboard_v0.7.12_linux_amd64.tar.gz -o xk6-dashboard.tar.gz
-          tar -xzf xk6-dashboard.tar.gz
-          chmod +x xk6-dashboard_v0.7.12_linux_amd64/k6
-          # Create a symlink for easy access
-          ln -s xk6-dashboard_v0.7.12_linux_amd64/k6 k6
-          ./k6 version
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v1
 
-      - name: Execute k6 load test with dashboard
+      - name: Execute k6 load test
         env:
           BASE_URL: ${{ github.event.inputs.base_url || 'https://oidc.antonycc.com' }}
           TEST_USERNAME: ${{ github.event.inputs.test_username || 'test-user' }}
@@ -62,17 +55,11 @@ jobs:
         run: |
           echo "BASE_URL: $BASE_URL"
           echo "TEST_USERNAME: $TEST_USERNAME"
-          # Run k6 with dashboard export, events recording, and summary export for maximum information
-          ./k6 run tests/load.live.test.js \
-            --out 'dashboard=export=load-test-report.html&port=-1&record=load-test-events.json&period=1s' \
-            --summary-export=load-test-summary.json
+          k6 run tests/load.live.test.js --summary-export=summary.json
 
-      - name: Upload k6 artifacts
+      - name: Upload k6 summary
         uses: actions/upload-artifact@v4
         with:
-          name: k6-load-test-artifacts
-          path: |
-            load-test-summary.json
-            load-test-report.html
-            load-test-events.json
+          name: k6-summary
+          path: summary.json
           if-no-files-found: ignore

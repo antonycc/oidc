@@ -269,13 +269,12 @@ export const options = {
       timeUnit: "1s",
       preAllocatedVUs: 10,
       maxVUs: 20,
-      stages:
-        [
-          { duration: "10s", target: 3 }, // Steady state
-          { duration: DURATION, target: 10 }, // Peak
-          { duration: "10s", target: 3 }, // Steady state
-          { duration: "10s", target: 0 }, // Cool down to 0 RPS
-        ],
+      stages: [
+        { duration: "10s", target: 3 }, // Steady state
+        { duration: DURATION, target: 10 }, // Peak
+        { duration: "10s", target: 3 }, // Steady state
+        { duration: "10s", target: 0 }, // Cool down to 0 RPS
+      ],
     },
   },
   thresholds: {

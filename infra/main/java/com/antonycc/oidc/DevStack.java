@@ -1,5 +1,8 @@
 package com.antonycc.oidc;
 
+import static com.antonycc.oidc.ResourceNameUtils.generateIamCompatibleName;
+
+import java.util.List;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.RemovalPolicy;
@@ -16,10 +19,6 @@ import software.amazon.awscdk.services.iam.ServicePrincipal;
 import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.logs.RetentionDays;
 import software.constructs.Construct;
-
-import java.util.List;
-
-import static com.antonycc.oidc.ResourceNameUtils.generateIamCompatibleName;
 
 public class DevStack extends Stack {
 
@@ -62,7 +61,7 @@ public class DevStack extends Stack {
                 .roleName(ecrPublishRoleName)
                 .assumedBy(new ServicePrincipal("lambda.amazonaws.com"))
                 .inlinePolicies(java.util.Map.of(
-                    props.resourceNamePrefix + "-EcrPublishPolicy",
+                        props.resourceNamePrefix + "-EcrPublishPolicy",
                         PolicyDocument.Builder.create()
                                 .statements(List.of(
                                         // ECR repository permissions
@@ -110,7 +109,7 @@ public class DevStack extends Stack {
                 .value(this.ecrRepository.getRepositoryArn())
                 .description("ARN of the ECR repository")
                 .build();
-        CfnOutput.Builder.create(this,  "EcrRepositoryName")
+        CfnOutput.Builder.create(this, "EcrRepositoryName")
                 .value(this.ecrRepository.getRepositoryName())
                 .description("Name of the ECR repository")
                 .build();
@@ -119,7 +118,7 @@ public class DevStack extends Stack {
                 .description("URI of the ECR repository")
                 .build();
 
-        CfnOutput.Builder.create(this,  "EcrLogGroupArn")
+        CfnOutput.Builder.create(this, "EcrLogGroupArn")
                 .value(this.ecrLogGroup.getLogGroupArn())
                 .description("ARN of the ECR CloudWatch Log Group")
                 .build();

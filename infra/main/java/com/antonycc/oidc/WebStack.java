@@ -49,39 +49,39 @@ public class WebStack extends Stack {
         // Bucket
 
         this.webBucket = Bucket.Builder.create(this, props.resourceNamePrefix + "-WebBucket")
-            .bucketName(props.resourceNamePrefix + "-" + "web")
-            .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
-            .enforceSsl(true)
-            .encryption(BucketEncryption.S3_MANAGED) // Explicit SSE-S3 encryption (zero cost)
-            .autoDeleteObjects(true)
-            .removalPolicy(RemovalPolicy.DESTROY)
-            .serverAccessLogsPrefix("s3/web/")
-            .build();
+                .bucketName(props.resourceNamePrefix + "-" + "web")
+                .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
+                .enforceSsl(true)
+                .encryption(BucketEncryption.S3_MANAGED) // Explicit SSE-S3 encryption (zero cost)
+                .autoDeleteObjects(true)
+                .removalPolicy(RemovalPolicy.DESTROY)
+                .serverAccessLogsPrefix("s3/web/")
+                .build();
 
         // Create the OriginAccessIdentity for CloudFront access
-        this.originAccessIdentity = OriginAccessIdentity.Builder.create(this, props.resourceNamePrefix + "-OriginAccessIdentity")
-            //.comment(props.oaiComment)
-            .build();
+        this.originAccessIdentity = OriginAccessIdentity.Builder.create(
+                        this, props.resourceNamePrefix + "-OriginAccessIdentity")
+                // .comment(props.oaiComment)
+                .build();
 
         // Grant read access to the OAI
         this.webBucket.grantRead(this.originAccessIdentity);
 
         // Create the S3BucketOrigin
         this.origin = S3BucketOrigin.withOriginAccessIdentity(
-            this.webBucket,
-            S3BucketOriginWithOAIProps.builder()
-                .originAccessIdentity(this.originAccessIdentity)
-                .build());
+                this.webBucket,
+                S3BucketOriginWithOAIProps.builder()
+                        .originAccessIdentity(this.originAccessIdentity)
+                        .build());
 
         this.behaviorOptions = BehaviorOptions.builder()
-            .origin(this.origin)
-            .compress(true)
-            .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
-            .originRequestPolicy(OriginRequestPolicy.CORS_S3_ORIGIN)
-            .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
-            .responseHeadersPolicy(
-                ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS_WITH_PREFLIGHT_AND_SECURITY_HEADERS)
-            .build();
+                .origin(this.origin)
+                .compress(true)
+                .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
+                .originRequestPolicy(OriginRequestPolicy.CORS_S3_ORIGIN)
+                .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
+                .responseHeadersPolicy(ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS_WITH_PREFLIGHT_AND_SECURITY_HEADERS)
+                .build();
 
         // Outputs
         new CfnOutput(
@@ -91,7 +91,9 @@ public class WebStack extends Stack {
         new CfnOutput(
                 this,
                 "WebOriginAccessIdentity",
-                CfnOutputProps.builder().value(this.originAccessIdentity.getOriginAccessIdentityName()).build());
+                CfnOutputProps.builder()
+                        .value(this.originAccessIdentity.getOriginAccessIdentityId())
+                        .build());
         new CfnOutput(
                 this,
                 "WebOriginId",

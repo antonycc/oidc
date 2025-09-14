@@ -1,5 +1,7 @@
 package com.antonycc.oidc;
 
+import java.util.List;
+import java.util.Map;
 import software.amazon.awscdk.AssetHashType;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
@@ -34,9 +36,6 @@ import software.amazon.awscdk.services.s3.deployment.Source;
 import software.amazon.awscdk.services.wafv2.CfnWebACL;
 import software.constructs.Construct;
 
-import java.util.List;
-import java.util.Map;
-
 public class EdgeStack extends Stack {
     public final Distribution distribution;
     public final BucketDeployment webDeployment;
@@ -68,33 +67,35 @@ public class EdgeStack extends Stack {
         // Use Resources from the passed props
         this.baseUrl = props.baseUrl;
         IBucket logsBucket = Bucket.fromBucketArn(this, props.resourceNamePrefix + "-LogsBucket", props.logsBucketArn);
-        //IBucket webBucketImported = Bucket.fromBucketArn(this, props.resourceNamePrefix + "-WebBucket", props.webBucket.getBucketArn());
-        //IBucket wellKnownBucketImported =
-        //        Bucket.fromBucketArn(this, props.resourceNamePrefix + "-WellKnownBucket", props.wellKnownBucket.getBucketArn());
+        // IBucket webBucketImported = Bucket.fromBucketArn(this, props.resourceNamePrefix + "-WebBucket",
+        // props.webBucket.getBucketArn());
+        // IBucket wellKnownBucketImported =
+        //        Bucket.fromBucketArn(this, props.resourceNamePrefix + "-WellKnownBucket",
+        // props.wellKnownBucket.getBucketArn());
         IFunction jwksEndpointFunction = Function.fromFunctionAttributes(
                 this,
-            props.resourceNamePrefix + "-JwksEndpointFunction",
+                props.resourceNamePrefix + "-JwksEndpointFunction",
                 FunctionAttributes.builder()
                         .functionArn(props.jwksEndpointFunctionArn)
                         .sameEnvironment(true)
                         .build());
         IFunction authorizeEndpointFunction = Function.fromFunctionAttributes(
                 this,
-            props.resourceNamePrefix + "-AuthorizeEndpointFunction",
+                props.resourceNamePrefix + "-AuthorizeEndpointFunction",
                 FunctionAttributes.builder()
                         .functionArn(props.authorizeEndpointFunctionArn)
                         .sameEnvironment(true)
                         .build());
         IFunction tokenEndpointFunction = Function.fromFunctionAttributes(
                 this,
-            props.resourceNamePrefix + "-TokenEndpointFunction",
+                props.resourceNamePrefix + "-TokenEndpointFunction",
                 FunctionAttributes.builder()
                         .functionArn(props.tokenEndpointFunctionArn)
                         .sameEnvironment(true)
                         .build());
         IFunction userinfoEndpointFunction = Function.fromFunctionAttributes(
                 this,
-            props.resourceNamePrefix + "-UserinfoEndpointFunction",
+                props.resourceNamePrefix + "-UserinfoEndpointFunction",
                 FunctionAttributes.builder()
                         .functionArn(props.userinfoEndpointFunctionArn)
                         .sameEnvironment(true)
@@ -202,17 +203,18 @@ public class EdgeStack extends Stack {
         // Build CloudFront origins and behaviors locally to avoid cross-stack binding
         // var webBucketOrigin = S3BucketOrigin.withOriginAccessControl(
         //    props.webBucket, S3BucketOriginWithOACProps.builder().build());
-        //var webBucketOrigin = S3BucketOrigin.withBucketDefaults(webBucketImported);
-        //var webBehavior = BehaviorOptions.builder()
+        // var webBucketOrigin = S3BucketOrigin.withBucketDefaults(webBucketImported);
+        // var webBehavior = BehaviorOptions.builder()
         //        .origin(webBucketOrigin)
         //        .compress(true)
         //        .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
         //        .originRequestPolicy(OriginRequestPolicy.CORS_S3_ORIGIN)
         //        .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
-        //        .responseHeadersPolicy(ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS_WITH_PREFLIGHT_AND_SECURITY_HEADERS)
+        //
+        // .responseHeadersPolicy(ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS_WITH_PREFLIGHT_AND_SECURITY_HEADERS)
         //        .build();
 
-        //var cachePolicy = CachePolicy.Builder.create(this, props.resourceNamePrefix + "-ShortTTL")
+        // var cachePolicy = CachePolicy.Builder.create(this, props.resourceNamePrefix + "-ShortTTL")
         //        .cachePolicyName(props.resourceNamePrefix + "-short-ttl")
         //        .defaultTtl(Duration.seconds(60))
         //        .minTtl(Duration.seconds(0))
@@ -222,22 +224,23 @@ public class EdgeStack extends Stack {
         //        .build();
         // var wellKnownBucketOrigin = S3BucketOrigin.withOriginAccessControl(
         //    wellKnownBucketImported, S3BucketOriginWithOACProps.builder().build());
-        //var wellKnownBucketOrigin = S3BucketOrigin.withBucketDefaults(wellKnownBucketImported);
-        //var wellKnownBehaviorOptions = BehaviorOptions.builder()
+        // var wellKnownBucketOrigin = S3BucketOrigin.withBucketDefaults(wellKnownBucketImported);
+        // var wellKnownBehaviorOptions = BehaviorOptions.builder()
         //        .origin(wellKnownBucketOrigin)
         //        .cachePolicy(cachePolicy)
         //        .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
         //        .originRequestPolicy(OriginRequestPolicy.CORS_S3_ORIGIN)
         //        .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
-        //        .responseHeadersPolicy(ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS_WITH_PREFLIGHT_AND_SECURITY_HEADERS)
+        //
+        // .responseHeadersPolicy(ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS_WITH_PREFLIGHT_AND_SECURITY_HEADERS)
         //        .build();
 
-        //java.util.Map<String, software.amazon.awscdk.services.cloudfront.BehaviorOptions> additionalBehaviors =
+        // java.util.Map<String, software.amazon.awscdk.services.cloudfront.BehaviorOptions> additionalBehaviors =
         //        new java.util.HashMap<>();
-        //additionalBehaviors.put("/.well-known/*", props.wellKnownBehaviorOptions);
-        //if (props.additionalOriginsBehaviourMappings != null) {
+        // additionalBehaviors.put("/.well-known/*", props.wellKnownBehaviorOptions);
+        // if (props.additionalOriginsBehaviourMappings != null) {
         //    additionalBehaviors.putAll(props.additionalOriginsBehaviourMappings);
-        //}
+        // }
 
         this.distribution = Distribution.Builder.create(this, props.resourceNamePrefix + "-WebDist")
                 .defaultBehavior(props.webBehaviorOptions)

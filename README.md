@@ -470,3 +470,161 @@ Create a role in your account that can assume the production role:
 }
 ```
 
+---
+
+## Troubleshooting
+
+### Development Environment Issues
+
+**Problem: Node.js version errors**
+```bash
+Error: This package requires Node.js >= 22
+```
+**Solution:**
+```bash
+# Install Node.js 22 via nvm (recommended)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
+export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+nvm install 22 && nvm use 22
+```
+
+**Problem: Java compilation errors**
+```bash
+Error: JAVA_HOME is not set or points to wrong version
+```
+**Solution:**
+```bash
+# Install Java 21 and set JAVA_HOME
+sudo apt update && sudo apt install -y openjdk-21-jdk
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+sudo update-alternatives --config java  # Select Java 21
+```
+
+**Problem: CDK synthesis hangs or times out**
+**Solution:**
+```bash
+# Ensure Java 21 is active and JAVA_HOME is set
+java -version  # Should show openjdk 21.x.x
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+# CDK synth typically takes 8-10 seconds, allow 120+ seconds timeout
+npx cdk synth --all
+```
+
+**Problem: Formatting check failures**
+```bash
+Error: Code formatting does not match project standards
+```
+**Solution:**
+```bash
+# Fix all formatting issues automatically
+npm run formatting-fix
+# Or check specific areas
+npm run formatting:js-fix    # JavaScript/TypeScript
+npm run formatting:java-fix  # Java (CDK infrastructure)
+```
+
+### Deployment Issues
+
+**Problem: AWS authentication failures**
+```bash
+Error: Unable to assume role or access denied
+```
+**Solution:**
+1. Verify GitHub OIDC provider exists in your AWS account
+2. Check `DEPLOY_ROLE_ARN` repository variable is set correctly
+3. Ensure IAM role trust policy includes your repository
+4. Verify permissions include CDK, CloudFormation, S3, Lambda, DynamoDB, Route53
+
+**Problem: Certificate not found errors**
+```bash
+Error: Certificate arn:aws:acm:us-east-1:xxx not found
+```
+**Solution:**
+1. Certificate must be in `us-east-1` region (CloudFront requirement)
+2. Certificate must be validated and issued (not pending)
+3. Verify `AWS_CERTIFICATE_ARN` environment variable is correct
+
+**Problem: Domain/Route53 issues**
+```bash
+Error: Hosted zone not found or invalid domain
+```
+**Solution:**
+1. Ensure Route53 hosted zone exists for your domain
+2. Verify `AWS_HOSTED_ZONE_ID` and `AWS_HOSTED_ZONE_NAME` are correct
+3. Check domain name matches certificate and environment configuration
+
+### Testing and Development
+
+**Problem: Playwright tests failing**
+```bash
+Error: Browser not found or tests timeout
+```
+**Solution:**
+```bash
+# Install Playwright browsers (only needed once per machine)
+npx playwright install --with-deps
+# Set proper environment variables for testing
+cp .env.ci .env
+# Adjust BASE_URL in .env to match your deployment
+```
+
+**Problem: Unit tests failing with module errors**
+```bash
+Error: Cannot resolve module or import errors
+```
+**Solution:**
+```bash
+# Reinstall dependencies with exact versions
+rm -rf node_modules package-lock.json
+npm ci
+# Ensure you're using Node.js 22
+node --version  # Should be v22.x.x
+```
+
+**Problem: DynamoDB table not found in tests**
+```bash
+Error: ResourceNotFoundException: Table not found
+```
+**Solution:**
+- Unit tests use in-memory mocks (no real AWS resources needed)
+- Integration tests require deployed environment
+- Check test configuration and mock setup in test files
+
+### Monitoring and Observability
+
+**Viewing Application Logs:**
+```bash
+# View Lambda function logs
+aws logs tail /aws/lambda/AppStack-{deployment}-authorize --follow
+
+# View CloudFormation stack events
+aws cloudformation describe-stack-events --stack-name AppStack-{deployment}
+
+# View DynamoDB metrics
+aws cloudwatch get-metric-statistics --namespace AWS/DynamoDB \
+  --metric-name ConsumedReadCapacityUnits --dimensions Name=TableName,Value=oidc-{domain}-{env}-users
+```
+
+**Common Error Patterns in Logs:**
+- `client_not_found`: Check client configuration in `app/lib/clients.mjs`
+- `invalid_redirect_uri`: Verify redirect URI is registered for the client
+- `pkce_verification_failed`: Ensure PKCE challenge/verifier pair is correct
+- `authorization_code_expired`: Code TTL is 3 minutes, check client timing
+
+### Performance Troubleshooting
+
+**Cold Start Issues:**
+- Lambda cold starts are normal (typically 1-3 seconds)
+- Playwright tests have 90-second timeout to accommodate this
+- Consider provisioned concurrency for production high-traffic scenarios
+
+**Token Validation Timeouts:**
+- JWKS keys are cached for 1 hour
+- Token validation requires DynamoDB access
+- Check CloudWatch metrics for DynamoDB throttling
+
+For additional help, check:
+- **GitHub Issues**: Search existing issues and solutions
+- **CloudWatch Logs**: Real-time application behavior and errors
+- **AWS X-Ray**: Distributed tracing for request flow analysis
+

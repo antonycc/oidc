@@ -1,16 +1,37 @@
-// Client registry for OIDC provider
-// In production, this could be stored in DynamoDB or another data store
+/**
+ * Client Registry for OIDC Provider
+ *
+ * This module manages OAuth2/OIDC client configurations. In production environments,
+ * client data could be stored in DynamoDB or another persistent data store.
+ *
+ * Each client configuration includes:
+ * - redirectUris: Allowed callback URLs for the authorization code flow
+ * - grantTypes: Supported OAuth2 grant types (currently only authorization_code)
+ * - scopes: Available scopes the client can request
+ * - pkceRequired: Whether PKCE (Proof Key for Code Exchange) is mandatory
+ * - clientSecret: For confidential clients (null for public clients)
+ */
 
 import { log } from "./utils.mjs";
 
-// Get the base URL for self-client redirects (for direct OP login flow)
+/**
+ * Get the base URL for self-client redirects (used in direct OP login flow)
+ * @returns {string} Base URL from environment or localhost fallback
+ */
 const getSelfClientBaseUrl = () => {
   return process.env.BASE_URL || "http://localhost:8080";
 };
 
-// Load this from a yml file in the project root
+/**
+ * Client configuration registry
+ * Dynamic properties use getters to resolve environment-specific URLs at runtime
+ */
 export const clients = {
   "submit-diyaccounting-co-uk": {
+    /**
+     * Dynamic redirect URIs for the DIY Accounting application
+     * Includes local development, CI, and production environments
+     */
     get redirectUris() {
       return [
         "http://localhost:3000/auth/loginWithAntonyccCallback.html",
@@ -23,11 +44,15 @@ export const clients = {
     },
     grantTypes: ["authorization_code"],
     scopes: ["openid", "email", "profile"],
-    pkceRequired: false,
-    clientSecret: null,
+    pkceRequired: false, // Legacy client, PKCE not enforced
+    clientSecret: null, // Public client
   },
   "self-client": {
-    // Client for direct login form testing - allows any redirect URI to the same origin
+    /**
+     * Self-testing client for direct login form validation
+     * Dynamically allows redirect URIs to the same origin as the OIDC provider
+     * Used for testing and demonstration purposes
+     */
     get redirectUris() {
       // Get base URL from environment, fallback to localhost for development
       const baseUrl = process.env.BASE_URL || process.env.ISSUER || "http://localhost:3000";
@@ -36,9 +61,8 @@ export const clients = {
     },
     grantTypes: ["authorization_code"],
     scopes: ["openid", "email", "profile"],
-    pkceRequired: true,
-    // No client secret for public client used in testing
-    clientSecret: null,
+    pkceRequired: true, // Modern security best practice
+    clientSecret: null, // Public client for web applications
   },
 };
 

@@ -721,6 +721,7 @@ jobs:
       - names
       - deploy-app
       - deploy-edge
+      - deploy-web
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
     env:
@@ -757,6 +758,27 @@ jobs:
 
       - name: Provision test user
         run: npm run users:provision '${{ env.USERS_TABLE }}' '${{ steps.uuid.outputs.TEST_USERNAME }}' '${{ steps.uuid.outputs.TEST_PASSWORD }}'
+
+      - name: Download CDK synthesis artifacts
+        uses: actions/download-artifact@v5
+        with:
+          name: cdk-synthesis
+          path: cdk.out/
+
+      - name: Write demo credentials to .env.demo file
+        run: |
+          cat > .env.demo << EOF
+          TEST_USERNAME=${{ steps.uuid.outputs.TEST_USERNAME }}
+          TEST_PASSWORD=${{ steps.uuid.outputs.TEST_PASSWORD }}
+          EOF
+          echo "Created .env.demo file with test credentials"
+          cat .env.demo
+
+      - name: Copy .env.demo to web origin S3 bucket
+        run: |
+          WEB_BUCKET=$(jq -r '.["${{ needs.names.outputs.deployment-name }}-WebStack"].WebOriginBucketName' cdk.out/cdk-outputs-web.json)
+          echo "Copying .env.demo to S3 bucket: ${WEB_BUCKET}"
+          aws s3 cp .env.demo s3://${WEB_BUCKET}/.env.demo
 
     outputs:
       base-url: ${{ needs.deploy-edge.outputs.base-url || ( needs.names.outputs.deployment-name == 'prod' && 'https://oidc.antonycc.com' || format('https://{0}.oidc.antonycc.com', needs.names.outputs.deployment-name) ) }}
@@ -844,8 +866,6 @@ jobs:
           npm run test:web --project=chromium
         env:
           BASE_URL: ${{ needs.calculate-test-parameters.outputs.base-url }}
-          TEST_USERNAME: ${{ needs.calculate-test-parameters.outputs.test-username }}
-          TEST_PASSWORD: ${{ needs.calculate-test-parameters.outputs.test-password }}
 
       - name: Upload artifacts
         if: ${{ !cancelled() }}

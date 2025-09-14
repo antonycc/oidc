@@ -19,6 +19,8 @@ import software.constructs.Construct;
 
 import java.util.List;
 
+import static com.antonycc.oidc.ResourceNameUtils.generateIamCompatibleName;
+
 public class DevStack extends Stack {
 
     // Public properties for stack outputs
@@ -54,8 +56,9 @@ public class DevStack extends Stack {
                 .build();
 
         // IAM Role for ECR publishing with comprehensive permissions
+        String ecrPublishRoleName = generateIamCompatibleName(props.dashedDomainName, "ecr-publish-role");
         this.ecrPublishRole = Role.Builder.create(this, props.resourceNamePrefix + "-EcrPublishRole")
-                .roleName("%s-ecr-publish-role".formatted(props.dashedDomainName))
+                .roleName(ecrPublishRoleName)
                 .assumedBy(new ServicePrincipal("lambda.amazonaws.com"))
                 .inlinePolicies(java.util.Map.of(
                     props.resourceNamePrefix + "-EcrPublishPolicy",

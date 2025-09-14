@@ -73,17 +73,19 @@ public class ProviderApplication {
                 this.application.domainName = getConfig("DOMAIN_NAME", "dev.oidc.antonycc.com");
                 // this.authDomainName = System.getenv().getOrDefault("AUTH_DOMAIN_NAME", "auth.oidc.example.com");
             } else if ("ci".equals(this.application.deploymentName)) {
-                this.application.domainName = getConfig("DOMAIN_NAME", "ci.dev.oidc.antonycc.com");
+                this.application.domainName = getConfig("DOMAIN_NAME", "dev.oidc.antonycc.com");
                 // this.authDomainName = System.getenv().getOrDefault("AUTH_DOMAIN_NAME", "ci.auth.oidc.example.com");
             } else {
                 // For branch deployments like ci-branchname
                 this.application.domainName =
-                        getConfig("DOMAIN_NAME", this.application.deploymentName + ".dev.oidc.antonycc.com");
+                        //getConfig("DOMAIN_NAME", this.application.deploymentName + "-dev.oidc.antonycc.com");
+                        this.application.deploymentName + "-" + getConfig("DOMAIN_NAME", "dev.oidc.antonycc.com");
                 // this.authDomainName = System.getenv().getOrDefault("AUTH_DOMAIN_NAME", deploymentName +
                 // ".auth.oidc.example.com");
             }
             this.application.dashedDomainName = buildDashedDomainName(
                     this.application.envName, this.application.deploymentName, this.application.domainName);
+                    //this.application.envName, this.application.domainName);
             this.application.baseUrl = "https://" + this.application.domainName;
 
             // Generate predictable resource name prefix based on domain and environment

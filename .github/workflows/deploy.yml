@@ -714,14 +714,14 @@ jobs:
           ENV_NAME: ${{ needs.names.outputs.environment-name }}
           DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
 
-  calculate-test-parameters:
+  demo-credentials:
     if: ${{ !cancelled() && inputs.skipDeploy == 'true' || needs.deploy-edge.result == 'success' }}
-    name: 'calculate test parameters'
+    name: 'demo credentials'
     needs:
       - names
       - deploy-app
-      - deploy-edge
       - deploy-web
+      - deploy-edge
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
     env:
@@ -785,6 +785,24 @@ jobs:
       test-username: ${{ steps.uuid.outputs.TEST_USERNAME }}
       test-password: ${{ steps.uuid.outputs.TEST_PASSWORD }}
 
+  calculate-test-parameters:
+    if: ${{ !cancelled() && inputs.skipDeploy == 'true' || needs.deploy-edge.result == 'success' }}
+    name: 'calculate test parameters'
+    needs:
+      - names
+      - deploy-edge
+      - demo-credentials
+    runs-on: ubuntu-24.04
+    environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+    outputs:
+      base-url: ${{ needs.deploy-edge.outputs.base-url || ( needs.names.outputs.deployment-name == 'prod' && 'https://oidc.antonycc.com' || format('https://{0}.oidc.antonycc.com', needs.names.outputs.deployment-name) ) }}
+      test-username: ${{ needs.demo-credentials.outputs.test-username }}
+      test-password: ${{ needs.demo-credentials.outputs.test-password }}
+
   api-test:
     if: ${{ !cancelled() && inputs.skipDeploy == 'true' || needs.deploy-edge.result == 'success' }}
     name: 'api test'
@@ -792,7 +810,7 @@ jobs:
       - names
       - build-cdk
       - deploy-edge
-      - calculate-test-parameters
+      - demo-credentials
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
     steps:
@@ -819,9 +837,7 @@ jobs:
           echo "BASE_URL=${BASE_URL}"
           npm run test:api
         env:
-          BASE_URL: ${{ needs.calculate-test-parameters.outputs.base-url }}
-          TEST_USERNAME: ${{ needs.calculate-test-parameters.outputs.test-username }}
-          TEST_PASSWORD: ${{ needs.calculate-test-parameters.outputs.test-password }}
+          BASE_URL: ${{ needs.demo-credentials.outputs.base-url }}
 
       - name: Upload artifacts
         if: ${{ !cancelled() }}
@@ -839,7 +855,7 @@ jobs:
       - names
       - build-cdk
       - deploy-edge
-      - calculate-test-parameters
+      - demo-credentials
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
     steps:
@@ -865,7 +881,7 @@ jobs:
         run: |
           npm run test:web --project=chromium
         env:
-          BASE_URL: ${{ needs.calculate-test-parameters.outputs.base-url }}
+          BASE_URL: ${{ needs.demo-credentials.outputs.base-url }}
 
       - name: Upload artifacts
         if: ${{ !cancelled() }}
@@ -883,7 +899,7 @@ jobs:
       - names
       - build-cdk
       - deploy-edge
-      - calculate-test-parameters
+      - demo-credentials
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
     steps:
@@ -920,9 +936,9 @@ jobs:
             --out 'dashboard=export=load-test-report.html&port=-1&record=load-test-events.json&period=1s' \
             --summary-export=load-test-summary.json
         env:
-          BASE_URL: ${{ needs.calculate-test-parameters.outputs.base-url }}
-          TEST_USERNAME: ${{ needs.calculate-test-parameters.outputs.test-username }}
-          TEST_PASSWORD: ${{ needs.calculate-test-parameters.outputs.test-password }}
+          BASE_URL: ${{ needs.demo-credentials.outputs.base-url }}
+          TEST_USERNAME: ${{ needs.demo-credentials.outputs.test-username }}
+          TEST_PASSWORD: ${{ needs.demo-credentials.outputs.test-password }}
           DURATION: ${{ inputs.loadTestDuration }}
 
       - name: Upload artifacts
@@ -941,7 +957,7 @@ jobs:
     needs:
       - names
       - deploy-edge
-      - calculate-test-parameters
+      - demo-credentials
       - api-test
       - web-test
       - load-test
@@ -1006,7 +1022,7 @@ jobs:
               <div class="container">
                   <h1>Test Artifacts</h1>
                   <p>Generated from deployment: <strong>${{ needs.names.outputs.deployment-name }}</strong></p>
-                  <p>Service Base URL: <a href="${{ needs.calculate-test-parameters.outputs.base-url }}" target="_blank">${{ needs.calculate-test-parameters.outputs.base-url }}</a></p>
+                  <p>Service Base URL: <a href="${{ needs.demo-credentials.outputs.base-url }}" target="_blank">${{ needs.demo-credentials.outputs.base-url }}</a></p>
 
                   <h2>Available Artifacts</h2>
                   <ul>
@@ -1049,7 +1065,7 @@ jobs:
         run: |
           echo "## Deployment Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "🚀 **Service Base URL**: ${{ needs.calculate-test-parameters.outputs.base-url }}" >> $GITHUB_STEP_SUMMARY
+          echo "🚀 **Service Base URL**: ${{ needs.demo-credentials.outputs.base-url }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "📊 **Test Artifacts**: ${{ steps.deployment.outputs.page_url }}artifacts/" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -1061,11 +1077,11 @@ jobs:
           echo "- [OpenID Configuration](${{ steps.deployment.outputs.page_url }}well-known/openid-configuration)" >> $GITHUB_STEP_SUMMARY
 
           # Also output as workflow outputs for potential use by other workflows
-          echo "service_base_url=${{ needs.calculate-test-parameters.outputs.base-url }}" >> $GITHUB_OUTPUT
+          echo "service_base_url=${{ needs.demo-credentials.outputs.base-url }}" >> $GITHUB_OUTPUT
           echo "github_pages_url=${{ steps.deployment.outputs.page_url }}" >> $GITHUB_OUTPUT
           echo "artifacts_url=${{ steps.deployment.outputs.page_url }}artifacts/" >> $GITHUB_OUTPUT
 
     outputs:
-      service-base-url: ${{ needs.calculate-test-parameters.outputs.base-url }}
+      service-base-url: ${{ needs.demo-credentials.outputs.base-url }}
       github-pages-url: ${{ steps.deployment.outputs.page_url }}
       artifacts-url: ${{ steps.deployment.outputs.page_url }}artifacts/

@@ -1,5 +1,6 @@
 import { expect, request, test } from "@playwright/test";
 import * as crypto from "node:crypto";
+import { fetchDemoCredentials } from "./demo-credentials.js";
 
 // use dotenv variables for sensitive info
 import * as dotenv from "dotenv";
@@ -41,11 +42,15 @@ function parseParam(url: string, name: string): string | null {
 test("live API: authorize -> token -> userinfo", async ({ page }) => {
   const DOMAIN_NAME = process.env.DOMAIN_NAME || "oidc.antonycc.com";
   const BASE_URL = process.env.BASE_URL || `https://${DOMAIN_NAME}`;
-  const TEST_USERNAME = process.env.TEST_USERNAME || "test-user";
-  const TEST_PASSWORD = process.env.TEST_PASSWORD || "";
 
   expect.soft(BASE_URL).toBeTruthy();
-  expect.soft(TEST_PASSWORD, "TEST_PASSWORD must be provided via env/.env").toBeTruthy();
+
+  // Fetch credentials from the deployed website
+  const credentials = await fetchDemoCredentials(BASE_URL);
+  const TEST_USERNAME = credentials.TEST_USERNAME;
+  const TEST_PASSWORD = credentials.TEST_PASSWORD;
+
+  expect.soft(TEST_PASSWORD, "TEST_PASSWORD must be available from demo credentials").toBeTruthy();
 
   const redirect_uri = new URL("/post-auth.html", BASE_URL).toString();
   const state = randomString(32);

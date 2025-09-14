@@ -43,6 +43,7 @@ on:
 permissions:
   id-token: write
   contents: read
+  pages: write
 
 env:
   JAVA_VERSION: '21'
@@ -908,3 +909,138 @@ jobs:
             load-test-summary.json
             load-test-report.html
             load-test-events.json
+
+  publish-artifacts:
+    name: 'publish artifacts to github pages'
+    if: ${{ !cancelled() && inputs.skipDeploy == 'true' || needs.deploy-edge.result == 'success' }}
+    needs:
+      - names
+      - deploy-edge
+      - calculate-test-parameters
+      - api-test
+      - web-test
+      - load-test
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Node dependencies
+        run: npm ci
+
+      - name: Download all test artifacts
+        uses: actions/download-artifact@v5
+        with:
+          path: artifacts/
+        continue-on-error: true
+
+      - name: Create GitHub Pages content
+        run: |
+          mkdir -p gh-pages
+
+          # Copy web assets to root
+          cp -r web/* gh-pages/
+          cp -r well-known gh-pages/
+
+          # Create artifacts directory structure
+          mkdir -p gh-pages/artifacts
+
+          # Copy test artifacts
+          if [ -d "artifacts/api-test-artifacts" ]; then
+            cp -r artifacts/api-test-artifacts gh-pages/artifacts/api-test/
+          fi
+          if [ -d "artifacts/web-test-artifacts" ]; then
+            cp -r artifacts/web-test-artifacts gh-pages/artifacts/web-test/
+          fi
+          if [ -d "artifacts/load-test-artifacts" ]; then
+            cp -r artifacts/load-test-artifacts gh-pages/artifacts/load-test/
+          fi
+
+          # Create index page for artifacts
+          cat > gh-pages/artifacts/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>Test Artifacts - OIDC Provider</title>
+              <link rel="stylesheet" href="../oidc.css">
+          </head>
+          <body>
+              <div class="container">
+                  <h1>Test Artifacts</h1>
+                  <p>Generated from deployment: <strong>${{ needs.names.outputs.deployment-name }}</strong></p>
+                  <p>Service Base URL: <a href="${{ needs.calculate-test-parameters.outputs.base-url }}" target="_blank">${{ needs.calculate-test-parameters.outputs.base-url }}</a></p>
+
+                  <h2>Available Artifacts</h2>
+                  <ul>
+                      <li><a href="api-test/">API Test Results</a></li>
+                      <li><a href="web-test/">Web Test Results</a></li>
+                      <li><a href="load-test/">Load Test Results</a></li>
+                  </ul>
+
+                  <h2>Quick Links</h2>
+                  <ul>
+                      <li><a href="api-test/playwright-report/">API Test Report</a></li>
+                      <li><a href="web-test/playwright-report/">Web Test Report</a></li>
+                      <li><a href="load-test/load-test-report.html">Load Test Report</a></li>
+                  </ul>
+
+                  <h2>Web Application</h2>
+                  <ul>
+                      <li><a href="../">Main Application</a></li>
+                      <li><a href="../swagger.html">API Documentation</a></li>
+                      <li><a href="../well-known/openid-configuration">OpenID Configuration</a></li>
+                  </ul>
+              </div>
+          </body>
+          </html>
+          EOF
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload to GitHub Pages
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: gh-pages
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Output deployment URLs
+        run: |
+          echo "## Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🚀 **Service Base URL**: ${{ needs.calculate-test-parameters.outputs.base-url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📊 **Test Artifacts**: ${{ steps.deployment.outputs.page_url }}artifacts/" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Quick Links" >> $GITHUB_STEP_SUMMARY
+          echo "- [API Test Report](${{ steps.deployment.outputs.page_url }}artifacts/api-test/playwright-report/)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Web Test Report](${{ steps.deployment.outputs.page_url }}artifacts/web-test/playwright-report/)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Load Test Report](${{ steps.deployment.outputs.page_url }}artifacts/load-test/load-test-report.html)" >> $GITHUB_STEP_SUMMARY
+          echo "- [API Documentation](${{ steps.deployment.outputs.page_url }}swagger.html)" >> $GITHUB_STEP_SUMMARY
+          echo "- [OpenID Configuration](${{ steps.deployment.outputs.page_url }}well-known/openid-configuration)" >> $GITHUB_STEP_SUMMARY
+
+          # Also output as workflow outputs for potential use by other workflows
+          echo "service_base_url=${{ needs.calculate-test-parameters.outputs.base-url }}" >> $GITHUB_OUTPUT
+          echo "github_pages_url=${{ steps.deployment.outputs.page_url }}" >> $GITHUB_OUTPUT
+          echo "artifacts_url=${{ steps.deployment.outputs.page_url }}artifacts/" >> $GITHUB_OUTPUT
+
+    outputs:
+      service-base-url: ${{ needs.calculate-test-parameters.outputs.base-url }}
+      github-pages-url: ${{ steps.deployment.outputs.page_url }}
+      artifacts-url: ${{ steps.deployment.outputs.page_url }}artifacts/

@@ -93,7 +93,7 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.2.0</version>
                 <configuration>
-                    <mainClass>com.antonycc.oidc.App</mainClass>
+                    <mainClass>com.antonycc.oidc.ProviderApplication</mainClass>
                 </configuration>
             </plugin>
             <plugin>

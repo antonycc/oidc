@@ -1,8 +1,5 @@
 package com.antonycc.oidc;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.Fn;
 import software.amazon.awscdk.RemovalPolicy;
@@ -31,12 +28,11 @@ import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.logs.RetentionDays;
 import software.constructs.Construct;
 
-/**
- * Construct bundling a Lambda Docker image function exposed via Function URL and a
- * CloudFront HttpOrigin + BehaviorOptions. Only per-endpoint differences are configurable.
- */
-public class EndpointFunction extends Construct {
-    // Exposed created resources/objects
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class EndpointConstruct extends Construct {
     public final LogGroup logGroup;
     public final Role functionRole;
     public final DockerImageCode dockerImage;
@@ -46,7 +42,7 @@ public class EndpointFunction extends Construct {
     public final BehaviorOptions behaviorOptions;
     public final String pathPattern;
 
-    public EndpointFunction(final Construct scope, final String id, final EndpointFunctionProps props) {
+    public EndpointConstruct(final Construct scope, final String id, final EndpointConstructProps props) {
         super(scope, id);
 
         this.pathPattern = props.pathPattern;
@@ -69,9 +65,6 @@ public class EndpointFunction extends Construct {
                                 "CloudWatchLambdaApplicationSignalsExecutionRolePolicy")))
                 .build();
 
-        // Build args are constant currently but can be extended later
-        // Map<String, String> buildArgs = Map.of("BUILDKIT_INLINE_CACHE", "1");
-
         // Environment: allow only extra/differing vars through props; add tracing name by default
         Map<String, String> environment = new HashMap<>();
         if (props.extraEnv != null) environment.putAll(props.extraEnv);
@@ -80,7 +73,7 @@ public class EndpointFunction extends Construct {
         // Add OTEL environment
         var otelEnv = Map.of(
                 "AWS_LAMBDA_EXEC_WRAPPER", "/opt/otel-instrument", // enable auto-instrumentation
-                "OTEL_SERVICE_NAME", "oidc-provider", // group functions in App Signals
+                "OTEL_SERVICE_NAME", "oidc-provider", // group functions in Application Signals
                 "OTEL_TRACES_EXPORTER", "otlp", // explicit traces exporter (reduces startup noise)
                 "OTEL_METRICS_EXPORTER", "otlp", // enable metrics export to CloudWatch via Application Signals
                 "OTEL_LOGS_EXPORTER", "otlp", // explicit logs exporter (reduces startup noise)
@@ -92,19 +85,17 @@ public class EndpointFunction extends Construct {
                 );
         environment.putAll(otelEnv);
         var imageCodeProps = EcrImageCodeProps.builder()
-                // var imageCodeProps = AssetImageCodeProps.builder()
-                //    .file(props.dockerfilePath)
+                .tagOrDigest(props.baseImageTag) // e.g. "latest" or specific digest for immutability
                 .cmd(props.handler)
-                //    .buildArgs(buildArgs)
                 .build();
+        // var ecrRepositoryArnWithoutName = props.ecrRepositoryArn.replaceAll("/.*$", "/");
         var repositoryAttributes = RepositoryAttributes.builder()
                 .repositoryArn(props.ecrRepositoryArn)
                 .repositoryName(props.ecrRepositoryName)
                 .build();
         IRepository repository =
-                Repository.fromRepositoryAttributes(this, props.functionName + "EcrRepo", repositoryAttributes);
+                Repository.fromRepositoryAttributes(this, props.functionName + "-EcrRepo", repositoryAttributes);
         this.dockerImage = DockerImageCode.fromEcr(repository, imageCodeProps);
-        // this.dockerImage = DockerImageCode.fromImageAsset(".", imageCodeProps);
         this.function = DockerImageFunction.Builder.create(this, props.functionName + "-Lambda")
                 .code(this.dockerImage)
                 .memorySize(256)

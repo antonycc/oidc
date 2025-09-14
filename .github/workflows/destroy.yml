@@ -106,5 +106,5 @@ jobs:
 
       - name: Destroy ephemeral OIDC stack
         if: ${{ env.DEPLOYMENT_NAME != 'prod' }}
-        run: npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk destroy ProviderStack-${DEPLOYMENT_NAME} --exclusively --force
+        run: npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk destroy AppStack-${DEPLOYMENT_NAME} --exclusively --force
 

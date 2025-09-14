@@ -1,20 +1,15 @@
 package com.antonycc.oidc;
 
-import java.util.List;
-import java.util.Map;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
+import software.amazon.awscdk.Tags;
 import software.amazon.awscdk.services.cloudtrail.Trail;
 import software.amazon.awscdk.services.cloudwatch.Alarm;
 import software.amazon.awscdk.services.cloudwatch.ComparisonOperator;
-import software.amazon.awscdk.services.cloudwatch.Dashboard;
-import software.amazon.awscdk.services.cloudwatch.GraphWidget;
-import software.amazon.awscdk.services.cloudwatch.LogQueryWidget;
 import software.amazon.awscdk.services.cloudwatch.Metric;
-import software.amazon.awscdk.services.cloudwatch.SingleValueWidget;
 import software.amazon.awscdk.services.cloudwatch.TreatMissingData;
 import software.amazon.awscdk.services.iam.Effect;
 import software.amazon.awscdk.services.iam.PolicyStatement;
@@ -29,8 +24,10 @@ import software.amazon.awscdk.services.s3.BucketAccessControl;
 import software.amazon.awscdk.services.s3.BucketEncryption;
 import software.amazon.awscdk.services.s3.ObjectOwnership;
 import software.amazon.awscdk.services.xray.CfnGroup;
-import software.amazon.awscdk.Tags;
 import software.constructs.Construct;
+
+import java.util.List;
+import java.util.Map;
 
 public class ObservabilityStack extends Stack {
     public final Bucket logsBucket;
@@ -48,13 +45,9 @@ public class ObservabilityStack extends Stack {
         // Apply cost allocation tags for all resources in this stack
         applyCostAllocationTags(props);
 
-        // Generate predictable resource name prefix based on domain and environment
-        String resourceNamePrefix = generateResourceNamePrefix(props.domainName, props.envName);
-        String compressedResourceNamePrefix = generateCompressedResourceNamePrefix(props.domainName, props.envName);
-
         // Log bucket for CloudFront and S3 access logs
-        this.logsBucket = Bucket.Builder.create(this, resourceNamePrefix + "-LogsBucket")
-                .bucketName(resourceNamePrefix + "-logs")
+        this.logsBucket = Bucket.Builder.create(this, props.resourceNamePrefix + "-LogsBucket")
+                .bucketName(props.resourceNamePrefix + "-logs")
                 .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
                 .enforceSsl(true)
                 .encryption(BucketEncryption.S3_MANAGED) // Explicit SSE-S3 encryption (zero cost)
@@ -81,20 +74,20 @@ public class ObservabilityStack extends Stack {
                 .build());
 
         // CloudTrail - capture management events and deliver to S3 and CloudWatch Logs
-        this.trailLogGroup = LogGroup.Builder.create(this, resourceNamePrefix + "-CloudTrailLogGroup")
-                .logGroupName("/aws/cloudtrail/" + resourceNamePrefix)
+        this.trailLogGroup = LogGroup.Builder.create(this, props.resourceNamePrefix + "-CloudTrailLogGroup")
+                .logGroupName("/aws/cloudtrail/" + props.resourceNamePrefix)
                 .retention(RetentionDays.ONE_DAY) // Reduced from ONE_WEEK for cost optimization
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
-        this.auditTrail = Trail.Builder.create(this, resourceNamePrefix + "-AuditTrail")
-                .trailName(resourceNamePrefix + "-audit-trail")
+        this.auditTrail = Trail.Builder.create(this, props.resourceNamePrefix + "-AuditTrail")
+                .trailName(props.resourceNamePrefix + "-audit-trail")
                 .bucket(this.logsBucket)
                 .cloudWatchLogGroup(this.trailLogGroup)
                 .build();
 
         // X-Ray Group for Lambda traces
-        this.xrayGroup = CfnGroup.Builder.create(this, resourceNamePrefix + "-XRayGroup")
-                .groupName(compressedResourceNamePrefix + "-lambda-traces")
+        this.xrayGroup = CfnGroup.Builder.create(this, props.resourceNamePrefix + "-XRayGroup")
+                .groupName(props.compressedResourceNamePrefix + "-lambda-traces")
                 .filterExpression("service(\"lambda\")")
                 .insightsConfiguration(CfnGroup.InsightsConfigurationProperty.builder()
                         .insightsEnabled(true)
@@ -103,7 +96,7 @@ public class ObservabilityStack extends Stack {
 
         // Security Monitoring: Metric Filters and Alarms for authentication failures
         this.authFailureMetricFilter = MetricFilter.Builder.create(
-                        this, resourceNamePrefix + "-AuthFailureMetricFilter")
+                        this, props.resourceNamePrefix + "-AuthFailureMetricFilter")
                 .logGroup(this.trailLogGroup)
                 .metricNamespace("OIDC/Security")
                 .metricName("AuthenticationFailures")
@@ -111,7 +104,7 @@ public class ObservabilityStack extends Stack {
                 .metricValue("1")
                 .build();
 
-        this.authFailureAlarm = Alarm.Builder.create(this, resourceNamePrefix + "-AuthFailureAlarm")
+        this.authFailureAlarm = Alarm.Builder.create(this, props.resourceNamePrefix + "-AuthFailureAlarm")
                 .metric(Metric.Builder.create()
                         .namespace("OIDC/Security")
                         .metricName("AuthenticationFailures")
@@ -127,7 +120,7 @@ public class ObservabilityStack extends Stack {
 
         // Security Monitoring: Metric Filter for general security events
         this.securityEventMetricFilter = MetricFilter.Builder.create(
-                        this, resourceNamePrefix + "-SecurityEventMetricFilter")
+                        this, props.resourceNamePrefix + "-SecurityEventMetricFilter")
                 .logGroup(this.trailLogGroup)
                 .metricNamespace("OIDC/Security")
                 .metricName("SecurityEvents")
@@ -135,7 +128,7 @@ public class ObservabilityStack extends Stack {
                 .metricValue("1")
                 .build();
 
-        this.securityEventAlarm = Alarm.Builder.create(this, resourceNamePrefix + "-SecurityEventAlarm")
+        this.securityEventAlarm = Alarm.Builder.create(this, props.resourceNamePrefix + "-SecurityEventAlarm")
                 .metric(Metric.Builder.create()
                         .namespace("OIDC/Security")
                         .metricName("SecurityEvents")
@@ -152,7 +145,7 @@ public class ObservabilityStack extends Stack {
         // Outputs for the created observability resources
         new CfnOutput(
                 this,
-                "LogsBucketArn",
+             "LogsBucketArn",
                 CfnOutputProps.builder().value(this.logsBucket.getBucketArn()).build());
         new CfnOutput(
                 this,
@@ -191,58 +184,5 @@ public class ObservabilityStack extends Stack {
         Tags.of(this).add("Project", "identity-management");
         Tags.of(this).add("Stack", "ObservabilityStack");
         Tags.of(this).add("ManagedBy", "aws-cdk");
-    }
-
-    /**
-     * Generate a predictable resource name prefix based on domain name and environment.
-     * Converts domain like "oidc.example.com" to "oidc-example-com" and adds environment.
-     */
-    private static String generateResourceNamePrefix(String domainName, String envName) {
-        String dashedDomainName = domainName.replace('.', '-');
-        return dashedDomainName + "-" + envName;
-    }
-
-    /**
-     * Generate a shortened predictable resource name prefix based on domain and environment.
-     * Steps:
-     * 1. Replace dots with dashes.
-     * 2. Split on dashes.
-     * 3. Keep segment "oidc" intact; compress all other non-empty segments to their first letter.
-     * 4. Append '-' + environment name (environment kept whole).
-     *
-     * Examples:
-     *   domain=oidc.example.com, env=dev  -> oidc-e-c-dev
-     *   domain=login.auth.service.example.com, env=prod -> l-a-s-e-c-prod
-     *
-     * @param domainName fully qualified domain name (e.g. "oidc.example.com")
-     * @param envName environment name (e.g. "dev")
-     * @return compressed resource name prefix
-     */
-    private static String generateCompressedResourceNamePrefix(String domainName, String envName) {
-        if (domainName == null || domainName.isBlank()) {
-            throw new IllegalArgumentException("domainName must be non-empty");
-        }
-        if (envName == null || envName.isBlank()) {
-            throw new IllegalArgumentException("envName must be non-empty");
-        }
-
-        String dashed = domainName.replace('.', '-').toLowerCase();
-        String[] parts = dashed.split("-+");
-        StringBuilder sb = new StringBuilder();
-        for (String part : parts) {
-            if (part.isEmpty()) {
-                continue;
-            }
-            if (sb.length() > 0) {
-                sb.append('-');
-            }
-            if ("oidc".equals(part)) {
-                sb.append("oidc");
-            } else {
-                sb.append(part.charAt(0));
-            }
-        }
-        sb.append('-').append(envName);
-        return sb.toString();
     }
 }

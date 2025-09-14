@@ -8,16 +8,20 @@ on:
     inputs:
       skipDeploy:
         description: 'Run tests only (no deploy)'
+        type: choice
+        options:
+            - 'true'
+            - 'false'
         required: false
         default: 'false'
-      deploymentName:
-        description: 'Deployment name (ci for shared CI, or custom name)'
-        required: false
-        default: ''
       loadTestDuration:
         description: 'Duration for load test (e.g. 30s, 10m, 1h)'
         required: false
         default: '30s'
+      deploymentName:
+        description: 'Deployment name (ci for shared CI, or custom name)'
+        required: false
+        default: ''
 
   push:
     branches:
@@ -186,6 +190,7 @@ jobs:
 
   build-cdk:
     name: 'build cdk'
+    if: ${{ inputs.skipDeploy != 'true' }}
     needs:
       - names
     runs-on: ubuntu-24.04
@@ -229,6 +234,7 @@ jobs:
 
   diff-cdk:
     name: 'diff cdk'
+    if: ${{ inputs.skipDeploy != 'true' }}
     needs:
       - names
       - npm-test
@@ -712,7 +718,6 @@ jobs:
     name: 'calculate test parameters'
     needs:
       - names
-      - build-cdk
       - deploy-app
       - deploy-edge
     runs-on: ubuntu-24.04

@@ -44,6 +44,7 @@ public class DevStack extends Stack {
                                 .tagStatus(TagStatus.UNTAGGED)
                                 .maxImageAge(Duration.days(1))
                                 .build()))
+                .emptyOnDelete(true)
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
 

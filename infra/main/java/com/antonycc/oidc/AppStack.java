@@ -75,48 +75,48 @@ public class AppStack extends Stack {
 
         // Well-known origin bucket
         this.wellKnownBucket = Bucket.Builder.create(this, props.resourceNamePrefix + "-WellKnownBucket")
-            .bucketName(props.resourceNamePrefix + "-" + "well-known")
-            .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
-            .enforceSsl(true)
-            .encryption(BucketEncryption.S3_MANAGED) // Explicit SSE-S3 encryption (zero cost)
-            .autoDeleteObjects(true)
-            .removalPolicy(RemovalPolicy.DESTROY)
-            .serverAccessLogsPrefix("s3/well-known/")
-            .build();
+                .bucketName(props.resourceNamePrefix + "-" + "well-known")
+                .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
+                .enforceSsl(true)
+                .encryption(BucketEncryption.S3_MANAGED) // Explicit SSE-S3 encryption (zero cost)
+                .autoDeleteObjects(true)
+                .removalPolicy(RemovalPolicy.DESTROY)
+                .serverAccessLogsPrefix("s3/well-known/")
+                .build();
 
         this.wellKnownCachePolicy = CachePolicy.Builder.create(this, props.resourceNamePrefix + "-ShortTTL")
-            .cachePolicyName(props.resourceNamePrefix + "-short-ttl")
-            .defaultTtl(Duration.seconds(60))
-            .minTtl(Duration.seconds(0))
-            .maxTtl(Duration.minutes(5))
-            .enableAcceptEncodingBrotli(true)
-            .enableAcceptEncodingGzip(true)
-            .build();
+                .cachePolicyName(props.resourceNamePrefix + "-short-ttl")
+                .defaultTtl(Duration.seconds(60))
+                .minTtl(Duration.seconds(0))
+                .maxTtl(Duration.minutes(5))
+                .enableAcceptEncodingBrotli(true)
+                .enableAcceptEncodingGzip(true)
+                .build();
 
         // Create the OriginAccessIdentity for CloudFront access
-        this.wellKnownOriginAccessIdentity = OriginAccessIdentity.Builder.create(this, props.resourceNamePrefix + "-OriginAccessIdentity")
-            //.comment(props.oaiComment)
-            .build();
+        this.wellKnownOriginAccessIdentity = OriginAccessIdentity.Builder.create(
+                        this, props.resourceNamePrefix + "-OriginAccessIdentity")
+                // .comment(props.oaiComment)
+                .build();
 
         // Grant read access to the OAI
         this.wellKnownBucket.grantRead(this.wellKnownOriginAccessIdentity);
 
         // Create the S3BucketOrigin
         this.wellKnownOrigin = S3BucketOrigin.withOriginAccessIdentity(
-            this.wellKnownBucket,
-            S3BucketOriginWithOAIProps.builder()
-                .originAccessIdentity(this.wellKnownOriginAccessIdentity)
-                .build());
+                this.wellKnownBucket,
+                S3BucketOriginWithOAIProps.builder()
+                        .originAccessIdentity(this.wellKnownOriginAccessIdentity)
+                        .build());
 
         this.wellKnownBehaviorOptions = BehaviorOptions.builder()
-            .origin(this.wellKnownOrigin)
-            .cachePolicy(this.wellKnownCachePolicy)
-            .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
-            .originRequestPolicy(OriginRequestPolicy.CORS_S3_ORIGIN)
-            .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
-            .responseHeadersPolicy(
-                ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS_WITH_PREFLIGHT_AND_SECURITY_HEADERS)
-            .build();
+                .origin(this.wellKnownOrigin)
+                .cachePolicy(this.wellKnownCachePolicy)
+                .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
+                .originRequestPolicy(OriginRequestPolicy.CORS_S3_ORIGIN)
+                .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
+                .responseHeadersPolicy(ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS_WITH_PREFLIGHT_AND_SECURITY_HEADERS)
+                .build();
 
         this.additionalOriginsBehaviourMappings.put("/.well-known/*", this.wellKnownBehaviorOptions);
 
@@ -255,25 +255,33 @@ public class AppStack extends Stack {
 
         // Outputs
         new CfnOutput(
-            this,
-            "WellKnownBucketBucketName",
-            CfnOutputProps.builder().value(this.wellKnownBucket.getBucketName()).build());
+                this,
+                "WellKnownBucketBucketName",
+                CfnOutputProps.builder()
+                        .value(this.wellKnownBucket.getBucketName())
+                        .build());
         new CfnOutput(
-            this,
-            "WellKnownAccessIdentity",
-            CfnOutputProps.builder().value(this.wellKnownOriginAccessIdentity.getOriginAccessIdentityName()).build());
+                this,
+                "WellKnownAccessIdentity",
+                CfnOutputProps.builder()
+                        .value(this.wellKnownOriginAccessIdentity.getOriginAccessIdentityName())
+                        .build());
         new CfnOutput(
-            this,
-            "WellKnownId",
-            CfnOutputProps.builder().value(this.wellKnownOrigin.toString()).build());
+                this,
+                "WellKnownId",
+                CfnOutputProps.builder().value(this.wellKnownOrigin.toString()).build());
         new CfnOutput(
-            this,
-            "WellKnownCachePolicy",
-            CfnOutputProps.builder().value(this.wellKnownCachePolicy.getCachePolicyId()).build());
+                this,
+                "WellKnownCachePolicy",
+                CfnOutputProps.builder()
+                        .value(this.wellKnownCachePolicy.getCachePolicyId())
+                        .build());
         new CfnOutput(
-            this,
-            "WellKnownBehaviorOptions",
-            CfnOutputProps.builder().value(this.wellKnownBehaviorOptions.toString()).build());
+                this,
+                "WellKnownBehaviorOptions",
+                CfnOutputProps.builder()
+                        .value(this.wellKnownBehaviorOptions.toString())
+                        .build());
         new CfnOutput(
                 this,
                 "AuthorizeFunctionName",

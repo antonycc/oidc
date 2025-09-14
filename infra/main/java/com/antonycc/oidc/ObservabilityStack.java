@@ -145,7 +145,7 @@ public class ObservabilityStack extends Stack {
         // Outputs for the created observability resources
         new CfnOutput(
                 this,
-             "LogsBucketArn",
+                "LogsBucketArn",
                 CfnOutputProps.builder().value(this.logsBucket.getBucketArn()).build());
         new CfnOutput(
                 this,

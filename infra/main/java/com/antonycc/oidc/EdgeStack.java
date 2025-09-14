@@ -68,33 +68,30 @@ public class EdgeStack extends Stack {
         // Use Resources from the passed props
         this.baseUrl = props.baseUrl;
         IBucket logsBucket = Bucket.fromBucketArn(this, props.resourceNamePrefix + "-LogsBucket", props.logsBucketArn);
-        //IBucket webBucketImported = Bucket.fromBucketArn(this, props.resourceNamePrefix + "-WebBucket", props.webBucket.getBucketArn());
-        //IBucket wellKnownBucketImported =
-        //        Bucket.fromBucketArn(this, props.resourceNamePrefix + "-WellKnownBucket", props.wellKnownBucket.getBucketArn());
         IFunction jwksEndpointFunction = Function.fromFunctionAttributes(
                 this,
-            props.resourceNamePrefix + "-JwksEndpointFunction",
+                props.resourceNamePrefix + "-JwksEndpointFunction",
                 FunctionAttributes.builder()
                         .functionArn(props.jwksEndpointFunctionArn)
                         .sameEnvironment(true)
                         .build());
         IFunction authorizeEndpointFunction = Function.fromFunctionAttributes(
                 this,
-            props.resourceNamePrefix + "-AuthorizeEndpointFunction",
+                props.resourceNamePrefix + "-AuthorizeEndpointFunction",
                 FunctionAttributes.builder()
                         .functionArn(props.authorizeEndpointFunctionArn)
                         .sameEnvironment(true)
                         .build());
         IFunction tokenEndpointFunction = Function.fromFunctionAttributes(
                 this,
-            props.resourceNamePrefix + "-TokenEndpointFunction",
+                props.resourceNamePrefix + "-TokenEndpointFunction",
                 FunctionAttributes.builder()
                         .functionArn(props.tokenEndpointFunctionArn)
                         .sameEnvironment(true)
                         .build());
         IFunction userinfoEndpointFunction = Function.fromFunctionAttributes(
                 this,
-            props.resourceNamePrefix + "-UserinfoEndpointFunction",
+                props.resourceNamePrefix + "-UserinfoEndpointFunction",
                 FunctionAttributes.builder()
                         .functionArn(props.userinfoEndpointFunctionArn)
                         .sameEnvironment(true)
@@ -199,46 +196,6 @@ public class EdgeStack extends Stack {
                         .build())
                 .build();
 
-        // Build CloudFront origins and behaviors locally to avoid cross-stack binding
-        // var webBucketOrigin = S3BucketOrigin.withOriginAccessControl(
-        //    props.webBucket, S3BucketOriginWithOACProps.builder().build());
-        //var webBucketOrigin = S3BucketOrigin.withBucketDefaults(webBucketImported);
-        //var webBehavior = BehaviorOptions.builder()
-        //        .origin(webBucketOrigin)
-        //        .compress(true)
-        //        .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
-        //        .originRequestPolicy(OriginRequestPolicy.CORS_S3_ORIGIN)
-        //        .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
-        //        .responseHeadersPolicy(ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS_WITH_PREFLIGHT_AND_SECURITY_HEADERS)
-        //        .build();
-
-        //var cachePolicy = CachePolicy.Builder.create(this, props.resourceNamePrefix + "-ShortTTL")
-        //        .cachePolicyName(props.resourceNamePrefix + "-short-ttl")
-        //        .defaultTtl(Duration.seconds(60))
-        //        .minTtl(Duration.seconds(0))
-        //        .maxTtl(Duration.minutes(5))
-        //        .enableAcceptEncodingBrotli(true)
-        //        .enableAcceptEncodingGzip(true)
-        //        .build();
-        // var wellKnownBucketOrigin = S3BucketOrigin.withOriginAccessControl(
-        //    wellKnownBucketImported, S3BucketOriginWithOACProps.builder().build());
-        //var wellKnownBucketOrigin = S3BucketOrigin.withBucketDefaults(wellKnownBucketImported);
-        //var wellKnownBehaviorOptions = BehaviorOptions.builder()
-        //        .origin(wellKnownBucketOrigin)
-        //        .cachePolicy(cachePolicy)
-        //        .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
-        //        .originRequestPolicy(OriginRequestPolicy.CORS_S3_ORIGIN)
-        //        .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
-        //        .responseHeadersPolicy(ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS_WITH_PREFLIGHT_AND_SECURITY_HEADERS)
-        //        .build();
-
-        //java.util.Map<String, software.amazon.awscdk.services.cloudfront.BehaviorOptions> additionalBehaviors =
-        //        new java.util.HashMap<>();
-        //additionalBehaviors.put("/.well-known/*", props.wellKnownBehaviorOptions);
-        //if (props.additionalOriginsBehaviourMappings != null) {
-        //    additionalBehaviors.putAll(props.additionalOriginsBehaviourMappings);
-        //}
-
         this.distribution = Distribution.Builder.create(this, props.resourceNamePrefix + "-WebDist")
                 .defaultBehavior(props.webBehaviorOptions)
                 .additionalBehaviors(props.additionalOriginsBehaviourMappings)
@@ -252,23 +209,6 @@ public class EdgeStack extends Stack {
                 .sslSupportMethod(SSLMethod.SNI)
                 .webAclId(webAcl.getAttrArn())
                 .build();
-
-        // Explicit bucket policies for imported buckets to allow access from CloudFront OAC
-        // props.webBucket.addToResourcePolicy(PolicyStatement.Builder.create()
-        //        .sid("AllowCloudFrontReadWeb")
-        //        .actions(List.of("s3:GetObject"))
-        //        .principals(List.of(new ServicePrincipal("cloudfront.amazonaws.com")))
-        //        .resources(List.of(props.webBucket.arnForObjects("*")))
-        //        .conditions(Map.of("StringEquals", Map.of("AWS:SourceArn", this.distribution.getDistributionArn())))
-        //        .build());
-
-        // props.wellKnownBucket.addToResourcePolicy(PolicyStatement.Builder.create()
-        //        .sid("AllowCloudFrontReadWellKnown")
-        //        .actions(List.of("s3:GetObject"))
-        //        .principals(List.of(new ServicePrincipal("cloudfront.amazonaws.com")))
-        //        .resources(List.of(props.wellKnownBucket.arnForObjects(".well-known/*")))
-        //        .conditions(Map.of("StringEquals", Map.of("AWS:SourceArn", this.distribution.getDistributionArn())))
-        //        .build());
 
         // Grant CloudFront access to the origin lambdas with compressed names
         Permission invokeFunctionUrlPermission = Permission.builder()

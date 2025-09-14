@@ -1,11 +1,10 @@
 package com.antonycc.oidc;
 
+import java.util.Map;
 import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.services.cloudfront.BehaviorOptions;
 import software.amazon.awscdk.services.s3.Bucket;
-
-import java.util.Map;
 
 public class EdgeStackProps implements StackProps {
     public final Environment env;

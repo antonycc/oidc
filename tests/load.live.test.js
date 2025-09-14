@@ -27,8 +27,7 @@ import encoding from "k6/encoding";
 const BASE_URL = __ENV.BASE_URL || "https://oidc.antonycc.com";
 const TEST_USERNAME = __ENV.TEST_USERNAME || "test-user";
 const TEST_PASSWORD = __ENV.TEST_PASSWORD || "";
-const DURATION = __ENV.DURATION || "120s";
-const PROFILE = __ENV.PROFILE || "peek";
+const DURATION = __ENV.DURATION || "30s";
 
 // OIDC flow parameters matching api.live.test.ts
 const CLIENT_ID = "self-client";
@@ -271,17 +270,12 @@ export const options = {
       preAllocatedVUs: 10,
       maxVUs: 20,
       stages:
-        PROFILE === "flat"
-          ? [
-              { duration: DURATION, target: 3 }, // Steady state
-            ]
-          : [
-              // Default "peek" profile with ramp-up and ramp-down
-              { duration: "10s", target: 3 }, // Steady state
-              { duration: DURATION, target: 10 }, // Peak
-              { duration: "10s", target: 3 }, // Steady state
-              { duration: "10s", target: 0 }, // Cool down to 0 RPS
-            ],
+        [
+          { duration: "10s", target: 3 }, // Steady state
+          { duration: DURATION, target: 10 }, // Peak
+          { duration: "10s", target: 3 }, // Steady state
+          { duration: "10s", target: 0 }, // Cool down to 0 RPS
+        ],
     },
   },
   thresholds: {

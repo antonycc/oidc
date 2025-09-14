@@ -33,7 +33,12 @@
               <fieldset>
                 <legend>Credentials</legend>
                 <label>Username <input type="text" name="username" required minlength="1" /></label>
-                <label>Password <input type="password" name="password" required minlength="1" /></label>
+                <label>Password 
+                  <div style="display: flex; gap: 5px; align-items: center;">
+                    <input type="password" name="password" required minlength="1" style="flex: 1;" />
+                    <button type="button" id="toggle-password-btn" style="padding: 4px 8px; font-size: 12px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;" title="Show/hide password">👁</button>
+                  </div>
+                </label>
               </fieldset>
               <fieldset>
                 <legend>OIDC Parameters</legend>
@@ -54,7 +59,7 @@
               <button type="submit">Sign in</button>
             </form>
           </div>
-          <div id="demo-credentials" style="flex: 0 0 250px; display: none">
+          <div id="demo-credentials" style="flex: 0 0 250px">
             <div class="form-card" style="padding: 15px">
               <h3 style="margin: 0 0 10px 0; font-size: 14px">Demo Credentials</h3>
               <pre
@@ -69,7 +74,7 @@
                   white-space: pre-wrap;
                   word-break: break-all;
                 "
-              ></pre>
+              >Loading...</pre>
               <button
                 id="demo-fill-btn"
                 type="button"
@@ -239,6 +244,24 @@
         codeChallengeParam && codeChallengeInput ? codeChallengeInput.value : null,
       );
 
+      // Password visibility toggle functionality
+      const togglePasswordBtn = document.getElementById('toggle-password-btn');
+      const passwordInput = document.querySelector('input[name="password"]');
+      
+      if (togglePasswordBtn && passwordInput) {
+        togglePasswordBtn.addEventListener('click', function() {
+          if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            togglePasswordBtn.textContent = '🙈';
+            togglePasswordBtn.title = 'Hide password';
+          } else {
+            passwordInput.type = 'password';
+            togglePasswordBtn.textContent = '👁';
+            togglePasswordBtn.title = 'Show password';
+          }
+        });
+      }
+
       // Demo credentials functionality
       let demoCredentials = null;
 
@@ -278,12 +301,22 @@
         const demoDisplay = document.getElementById("demo-display");
         const fillButton = document.getElementById("demo-fill-btn");
 
-        if (demoCredentials && demoPanel && demoDisplay) {
+        if (demoCredentials && demoDisplay) {
           demoDisplay.textContent = `TEST_USERNAME=${demoCredentials.TEST_USERNAME}\nTEST_PASSWORD=${demoCredentials.TEST_PASSWORD}`;
-          demoPanel.style.display = "block";
-
+          
           if (fillButton) {
+            fillButton.disabled = false;
+            fillButton.style.background = "#007cba";
+            fillButton.style.cursor = "pointer";
             fillButton.addEventListener("click", fillDemoCredentials);
+          }
+        } else if (demoDisplay) {
+          demoDisplay.textContent = "Demo credentials not available";
+          
+          if (fillButton) {
+            fillButton.disabled = true;
+            fillButton.style.background = "#ccc";
+            fillButton.style.cursor = "not-allowed";
           }
         }
       }
@@ -300,6 +333,7 @@
       }
 
       // Load demo credentials on page load
+      displayDemoCredentials(); // Show initial state
       loadDemoCredentials();
 
       form.addEventListener("submit", async (e) => {

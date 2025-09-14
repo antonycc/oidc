@@ -178,7 +178,9 @@ public class ProviderApplication {
                             .certificateArn(this.application.certificateArn)
                             .logsBucketArn(this.application.observabilityStack.logsBucket.getBucketArn())
                             .webBucket(this.application.webStack.webBucket)
+                            .webBehaviorOptions(this.application.webStack.behaviorOptions)
                             .wellKnownBucket(this.application.appStack.wellKnownBucket)
+                            .wellKnownBehaviorOptions(this.application.appStack.wellKnownBehaviorOptions)
                             .jwksEndpointFunctionArn(this.application.appStack.jwksEndpoint.function.getFunctionArn())
                             .authorizeEndpointFunctionArn(
                                     this.application.appStack.authorizeEndpoint.function.getFunctionArn())

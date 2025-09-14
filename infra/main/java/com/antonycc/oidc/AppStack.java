@@ -2,11 +2,20 @@ package com.antonycc.oidc;
 
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
+import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.Tags;
 import software.amazon.awscdk.services.cloudfront.AllowedMethods;
 import software.amazon.awscdk.services.cloudfront.BehaviorOptions;
+import software.amazon.awscdk.services.cloudfront.CachePolicy;
+import software.amazon.awscdk.services.cloudfront.IOrigin;
+import software.amazon.awscdk.services.cloudfront.OriginAccessIdentity;
+import software.amazon.awscdk.services.cloudfront.OriginRequestPolicy;
+import software.amazon.awscdk.services.cloudfront.ResponseHeadersPolicy;
+import software.amazon.awscdk.services.cloudfront.ViewerProtocolPolicy;
+import software.amazon.awscdk.services.cloudfront.origins.S3BucketOrigin;
+import software.amazon.awscdk.services.cloudfront.origins.S3BucketOriginWithOAIProps;
 import software.amazon.awscdk.services.dynamodb.Attribute;
 import software.amazon.awscdk.services.dynamodb.AttributeType;
 import software.amazon.awscdk.services.dynamodb.BillingMode;
@@ -32,6 +41,10 @@ public class AppStack extends Stack {
     public final EndpointConstruct userinfoEndpoint;
     public final EndpointConstruct jwksEndpoint;
     public final Map<String, BehaviorOptions> additionalOriginsBehaviourMappings;
+    public final OriginAccessIdentity wellKnownOriginAccessIdentity;
+    public final IOrigin wellKnownOrigin;
+    public final BehaviorOptions wellKnownBehaviorOptions;
+    public final CachePolicy wellKnownCachePolicy;
 
     public AppStack(final Construct scope, final String id, final AppStackProps props) {
         super(scope, id, props);
@@ -70,6 +83,42 @@ public class AppStack extends Stack {
             .removalPolicy(RemovalPolicy.DESTROY)
             .serverAccessLogsPrefix("s3/well-known/")
             .build();
+
+        this.wellKnownCachePolicy = CachePolicy.Builder.create(this, props.resourceNamePrefix + "-ShortTTL")
+            .cachePolicyName(props.resourceNamePrefix + "-short-ttl")
+            .defaultTtl(Duration.seconds(60))
+            .minTtl(Duration.seconds(0))
+            .maxTtl(Duration.minutes(5))
+            .enableAcceptEncodingBrotli(true)
+            .enableAcceptEncodingGzip(true)
+            .build();
+
+        // Create the OriginAccessIdentity for CloudFront access
+        this.wellKnownOriginAccessIdentity = OriginAccessIdentity.Builder.create(this, props.resourceNamePrefix + "-OriginAccessIdentity")
+            //.comment(props.oaiComment)
+            .build();
+
+        // Grant read access to the OAI
+        this.wellKnownBucket.grantRead(this.wellKnownOriginAccessIdentity);
+
+        // Create the S3BucketOrigin
+        this.wellKnownOrigin = S3BucketOrigin.withOriginAccessIdentity(
+            this.wellKnownBucket,
+            S3BucketOriginWithOAIProps.builder()
+                .originAccessIdentity(this.wellKnownOriginAccessIdentity)
+                .build());
+
+        this.wellKnownBehaviorOptions = BehaviorOptions.builder()
+            .origin(this.wellKnownOrigin)
+            .cachePolicy(this.wellKnownCachePolicy)
+            .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
+            .originRequestPolicy(OriginRequestPolicy.CORS_S3_ORIGIN)
+            .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
+            .responseHeadersPolicy(
+                ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS_WITH_PREFLIGHT_AND_SECURITY_HEADERS)
+            .build();
+
+        this.additionalOriginsBehaviourMappings.put("/.well-known/*", this.wellKnownBehaviorOptions);
 
         // DynamoDB tables
 
@@ -206,11 +255,25 @@ public class AppStack extends Stack {
 
         // Outputs
         new CfnOutput(
-                this,
-                "WellKnownBucketName",
-                CfnOutputProps.builder()
-                        .value(this.wellKnownBucket.getBucketName())
-                        .build());
+            this,
+            "WellKnownBucketBucketName",
+            CfnOutputProps.builder().value(this.wellKnownBucket.getBucketName()).build());
+        new CfnOutput(
+            this,
+            "WellKnownAccessIdentity",
+            CfnOutputProps.builder().value(this.wellKnownOriginAccessIdentity.getOriginAccessIdentityName()).build());
+        new CfnOutput(
+            this,
+            "WellKnownId",
+            CfnOutputProps.builder().value(this.wellKnownOrigin.toString()).build());
+        new CfnOutput(
+            this,
+            "WellKnownCachePolicy",
+            CfnOutputProps.builder().value(this.wellKnownCachePolicy.getCachePolicyId()).build());
+        new CfnOutput(
+            this,
+            "WellKnownBehaviorOptions",
+            CfnOutputProps.builder().value(this.wellKnownBehaviorOptions.toString()).build());
         new CfnOutput(
                 this,
                 "AuthorizeFunctionName",

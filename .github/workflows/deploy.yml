@@ -1,4 +1,4 @@
-name: deploy ${{ github.ref_name }}
+name: deploy
 concurrency:
   group: deploy-${{ github.ref_name }}
   cancel-in-progress: false

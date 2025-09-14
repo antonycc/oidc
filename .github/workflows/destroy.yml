@@ -1,4 +1,4 @@
-name: destroy ${{ github.event_name == 'delete' && github.event.ref || github.ref_name }}
+name: destroy
 concurrency:
   group: deploy-${{ github.event_name == 'delete' && github.event.ref || github.ref_name }}
   #group: "deploy-${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}"

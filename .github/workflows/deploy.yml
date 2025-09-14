@@ -22,6 +22,10 @@ on:
         description: 'Deployment name (ci for shared CI, or custom name)'
         required: false
         default: ''
+      selfDestructDelayHours:
+        description: 'Hours before self-destruct triggers for non-prod environments'
+        required: false
+        default: '1'
 
   push:
     branches:
@@ -225,6 +229,7 @@ jobs:
         env:
           ENV_NAME: ${{ needs.names.outputs.environment-name }}
           DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
+          SELF_DESTRUCT_DELAY_HOURS: ${{ inputs.selfDestructDelayHours || '1' }}
 
       - name: Upload CDK synthesis artifacts
         uses: actions/upload-artifact@v4
@@ -396,6 +401,7 @@ jobs:
         env:
           ENV_NAME: ${{ needs.names.outputs.environment-name }}
           DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
+          SELF_DESTRUCT_DELAY_HOURS: ${{ inputs.selfDestructDelayHours || '1' }}
 
   deploy-dev:
     name: 'deploy dev'

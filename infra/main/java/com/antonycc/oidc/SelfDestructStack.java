@@ -11,6 +11,11 @@ import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.Tags;
+import software.amazon.awscdk.services.events.Rule;
+import software.amazon.awscdk.services.events.RuleProps;
+import software.amazon.awscdk.services.events.RuleTargetInput;
+import software.amazon.awscdk.services.events.Schedule;
+import software.amazon.awscdk.services.events.targets.LambdaFunction;
 import software.amazon.awscdk.services.iam.Effect;
 import software.amazon.awscdk.services.iam.ManagedPolicy;
 import software.amazon.awscdk.services.iam.PolicyStatement;
@@ -28,6 +33,7 @@ public class SelfDestructStack extends Stack {
     public final LogGroup logGroup;
     public final Role functionRole;
     public final Function selfDestructFunction;
+    public final Rule selfDestructSchedule;
 
     public SelfDestructStack(final Construct scope, final String id, final SelfDestructStackProps props) {
         super(scope, id, props);
@@ -124,15 +130,39 @@ public class SelfDestructStack extends Stack {
                 .logGroup(this.logGroup)
                 .build();
 
+        // Create EventBridge rule to trigger self-destruct after specified delay
+        int delayHours = Integer.parseInt(props.selfDestructDelayHours);
+        this.selfDestructSchedule = Rule.Builder.create(this, props.resourceNamePrefix + "-SelfDestructSchedule")
+                .ruleName(props.resourceNamePrefix + "-self-destruct-schedule")
+                .description("Automatically triggers self-destruct after " + delayHours + " hours")
+                .schedule(Schedule.rate(Duration.hours(delayHours)))
+                .targets(List.of(LambdaFunction.Builder.create(this.selfDestructFunction)
+                        .event(RuleTargetInput.fromObject(
+                                Map.of("source", "eventbridge-schedule",
+                                       "deploymentName", props.deploymentName,
+                                       "delayHours", delayHours)))
+                        .build()))
+                .build();
+
         // Output the function ARN for manual invocation
         new CfnOutput(this, "SelfDestructFunctionArn", CfnOutputProps.builder()
                 .value(this.selfDestructFunction.getFunctionArn())
                 .description("ARN of the self-destruct Lambda function")
                 .build());
 
+        new CfnOutput(this, "SelfDestructScheduleArn", CfnOutputProps.builder()
+                .value(this.selfDestructSchedule.getRuleArn())
+                .description("ARN of the EventBridge rule for scheduled self-destruct")
+                .build());
+
+        new CfnOutput(this, "SelfDestructScheduleInfo", CfnOutputProps.builder()
+                .value("Self-destruct will trigger automatically after " + delayHours + " hours")
+                .description("Automatic self-destruct schedule information")
+                .build());
+
         new CfnOutput(this, "SelfDestructInstructions", CfnOutputProps.builder()
                 .value("aws lambda invoke --function-name " + functionName + " /tmp/response.json")
-                .description("Command to trigger self-destruction of all stacks")
+                .description("Command to trigger immediate manual self-destruction")
                 .build());
     }
 

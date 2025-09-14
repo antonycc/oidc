@@ -15,6 +15,7 @@ public class SelfDestructStackProps implements StackProps {
     public final String webStackName;
     public final String edgeStackName;
     public final String opsStackName;
+    public final String selfDestructDelayHours;
 
     private SelfDestructStackProps(Builder builder) {
         this.env = builder.env;
@@ -28,6 +29,7 @@ public class SelfDestructStackProps implements StackProps {
         this.webStackName = builder.webStackName;
         this.edgeStackName = builder.edgeStackName;
         this.opsStackName = builder.opsStackName;
+        this.selfDestructDelayHours = builder.selfDestructDelayHours;
     }
 
     @Override
@@ -51,6 +53,7 @@ public class SelfDestructStackProps implements StackProps {
         private String webStackName;
         private String edgeStackName;
         private String opsStackName;
+        private String selfDestructDelayHours;
 
         public Builder env(Environment env) {
             this.env = env;
@@ -104,6 +107,11 @@ public class SelfDestructStackProps implements StackProps {
 
         public Builder opsStackName(String opsStackName) {
             this.opsStackName = opsStackName;
+            return this;
+        }
+
+        public Builder selfDestructDelayHours(String selfDestructDelayHours) {
+            this.selfDestructDelayHours = selfDestructDelayHours;
             return this;
         }
 

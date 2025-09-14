@@ -240,6 +240,7 @@ public class ProviderApplication {
                                 .webStackName(this.application.webStack.getStackName())
                                 .edgeStackName(this.application.edgeStack.getStackName())
                                 .opsStackName(this.application.opsStack.getStackName())
+                                .selfDestructDelayHours(getConfig("SELF_DESTRUCT_DELAY_HOURS", "1"))
                                 .build());
                 // SelfDestructStack has no dependencies - it should be able to delete everything
             }

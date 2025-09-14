@@ -191,7 +191,7 @@ if (error.error === 'invalid_request') {
 - **Cause**: Authentication failed or user denied access
 - **HTTP Status**: 400
 - **Solution**: Check username/password credentials, ensure user exists
-- **Test credentials**: `test-user` / (check deployment logs for password)
+- **Test credentials**: `<test-username>` / `<test-password>` (Provision these securely; do not use real credentials in documentation. See your credential management process.)
 
 #### invalid_grant
 - **Cause**: Authorization code invalid, expired, or already used

@@ -896,7 +896,7 @@ jobs:
 
       - name: Run k6 load test with dashboard
         run: |
-          k6 run tests/load.live.test.js --summary-export=load-test-summary.json
+          # k6 run tests/load.live.test.js --summary-export=load-test-summary.json
           # Run k6 with dashboard export, events recording, and summary export for maximum information
           ./k6 run tests/load.live.test.js \
             --out 'dashboard=export=load-test-report.html&port=-1&record=load-test-events.json&period=1s' \

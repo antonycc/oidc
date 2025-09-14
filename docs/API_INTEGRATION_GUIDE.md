@@ -411,8 +411,8 @@ const testConfig = {
 
 // Test credentials (for testing only)
 const testCredentials = {
-  username: 'test-user',
-  password: 'check-deployment-logs'
+  username: 'your-test-username',
+  password: 'your-test-password'
 };
 ```
 

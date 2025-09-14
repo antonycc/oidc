@@ -327,7 +327,7 @@ jobs:
       - name: Deploy Observability Stack (CDK)
         run: |
           npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- \
-            npx cdk deploy ObservabilityStack-${{ needs.names.outputs.deployment-name }} \
+            npx cdk deploy ${{ needs.names.outputs.deployment-name }}-ObservabilityStack \
               --require-approval never \
               --ci true \
               --outputs-file cdk.out/cdk-outputs-observability.json \
@@ -380,7 +380,7 @@ jobs:
       - name: Deploy Dev Stack (CDK)
         run: |
           npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- \
-            npx cdk deploy DevStack-${{ needs.names.outputs.deployment-name }} \
+            npx cdk deploy ${{ needs.names.outputs.deployment-name }}-DevStack \
               --require-approval never \
               --ci true \
               --outputs-file cdk.out/cdk-outputs-dev.json \
@@ -393,7 +393,7 @@ jobs:
         id: dev-outputs
         shell: bash
         run: |
-          ECR_REPOSITORY_URI=$(jq -r '.["DevStack-${{ needs.names.outputs.deployment-name }}"].EcrRepositoryUri' cdk.out/cdk-outputs-dev.json)
+          ECR_REPOSITORY_URI=$(jq -r '.["${{ needs.names.outputs.deployment-name }}-DevStack"].EcrRepositoryUri' cdk.out/cdk-outputs-dev.json)
           echo "ECR_REPOSITORY_URI=$ECR_REPOSITORY_URI"
           echo "ECR_REPOSITORY_URI=$ECR_REPOSITORY_URI" >> $GITHUB_OUTPUT
     outputs:
@@ -509,7 +509,7 @@ jobs:
       - name: Deploy App stack (CDK)
         run: |
           npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- \
-            npx cdk deploy AppStack-${{ needs.names.outputs.deployment-name }} \
+            npx cdk deploy ${{ needs.names.outputs.deployment-name }}-AppStack \
               --exclusively \
               --require-approval never \
               --ci true \
@@ -523,7 +523,7 @@ jobs:
       - name: Resolve stack outputs
         id: app-outputs
         run: |
-          USERS_TABLE=$(jq -r '.["AppStack-${{ needs.names.outputs.deployment-name }}"].UsersTableName' cdk.out/cdk-outputs-app.json)
+          USERS_TABLE=$(jq -r '.["${{ needs.names.outputs.deployment-name }}-AppStack"].UsersTableName' cdk.out/cdk-outputs-app.json)
           echo "USERS_TABLE=$USERS_TABLE"
           echo "USERS_TABLE=$USERS_TABLE" >> $GITHUB_OUTPUT
         shell: bash
@@ -574,7 +574,7 @@ jobs:
       - name: Deploy Web Stack (CDK)
         run: |
           npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- \
-            npx cdk deploy WebStack-${{ needs.names.outputs.deployment-name }} \
+            npx cdk deploy ${{ needs.names.outputs.deployment-name }}-WebStack \
               --exclusively \
               --require-approval never \
               --ci true \
@@ -630,7 +630,7 @@ jobs:
       - name: Deploy Edge Stack (CDK)
         run: |
           npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- \
-            npx cdk deploy EdgeStack-${{ needs.names.outputs.deployment-name }} \
+            npx cdk deploy ${{ needs.names.outputs.deployment-name }}-EdgeStack \
               --exclusively \
               --require-approval never \
               --ci true \
@@ -643,7 +643,7 @@ jobs:
       - name: Resolve stack outputs
         id: edge-outputs
         run: |
-          BASE_URL=$(jq -r '.["WebStack-${{ needs.names.outputs.deployment-name }}"].BaseUrl' cdk.out/cdk-outputs-edge.json)
+          BASE_URL=$(jq -r '.["${{ needs.names.outputs.deployment-name }}-EdgeStack"].BaseUrl' cdk.out/cdk-outputs-edge.json)
           echo "BASE_URL=$BASE_URL"
           echo "BASE_URL=$BASE_URL" >> $GITHUB_OUTPUT
         shell: bash
@@ -696,7 +696,7 @@ jobs:
       - name: Deploy Ops Stack (CDK)
         run: |
           npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- \
-            npx cdk deploy OpsStack-${{ needs.names.outputs.deployment-name }} \
+            npx cdk deploy ${{ needs.names.outputs.deployment-name }}-OpsStack \
               --exclusively \
               --require-approval never \
               --ci true \

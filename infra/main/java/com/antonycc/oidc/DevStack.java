@@ -105,25 +105,25 @@ public class DevStack extends Stack {
                 .build();
 
         // Output key information
-        CfnOutput.Builder.create(this, props.resourceNamePrefix + "-EcrRepositoryArn")
+        CfnOutput.Builder.create(this, "EcrRepositoryArn")
                 .value(this.ecrRepository.getRepositoryArn())
                 .description("ARN of the ECR repository")
                 .build();
-        CfnOutput.Builder.create(this, props.resourceNamePrefix + "-EcrRepositoryName")
+        CfnOutput.Builder.create(this,  "EcrRepositoryName")
                 .value(this.ecrRepository.getRepositoryName())
                 .description("Name of the ECR repository")
                 .build();
-        CfnOutput.Builder.create(this, props.resourceNamePrefix + "-EcrRepositoryUri")
+        CfnOutput.Builder.create(this, "EcrRepositoryUri")
                 .value(this.ecrRepository.getRepositoryUri())
                 .description("URI of the ECR repository")
                 .build();
 
-        CfnOutput.Builder.create(this, props.resourceNamePrefix + "-EcrLogGroupArn")
+        CfnOutput.Builder.create(this,  "EcrLogGroupArn")
                 .value(this.ecrLogGroup.getLogGroupArn())
                 .description("ARN of the ECR CloudWatch Log Group")
                 .build();
 
-        CfnOutput.Builder.create(this, props.resourceNamePrefix + "-EcrPublishRoleArn")
+        CfnOutput.Builder.create(this, "EcrPublishRoleArn")
                 .value(this.ecrPublishRole.getRoleArn())
                 .description("ARN of the ECR publish role")
                 .build();

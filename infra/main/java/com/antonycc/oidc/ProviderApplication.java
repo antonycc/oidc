@@ -1,12 +1,12 @@
 package com.antonycc.oidc;
 
-import software.amazon.awscdk.App;
-import software.amazon.awscdk.CfnOutputProps;
-import software.amazon.awscdk.Environment;
-
 import static com.antonycc.oidc.ResourceNameUtils.buildDashedDomainName;
 import static com.antonycc.oidc.ResourceNameUtils.generateCompressedResourceNamePrefix;
 import static com.antonycc.oidc.ResourceNameUtils.generateResourceNamePrefix;
+
+import software.amazon.awscdk.App;
+import software.amazon.awscdk.CfnOutputProps;
+import software.amazon.awscdk.Environment;
 
 public class ProviderApplication {
 
@@ -78,14 +78,14 @@ public class ProviderApplication {
             } else {
                 // For branch deployments like ci-branchname
                 this.application.domainName =
-                        //getConfig("DOMAIN_NAME", this.application.deploymentName + "-dev.oidc.antonycc.com");
+                        // getConfig("DOMAIN_NAME", this.application.deploymentName + "-dev.oidc.antonycc.com");
                         this.application.deploymentName + "-" + getConfig("DOMAIN_NAME", "dev.oidc.antonycc.com");
                 // this.authDomainName = System.getenv().getOrDefault("AUTH_DOMAIN_NAME", deploymentName +
                 // ".auth.oidc.example.com");
             }
             this.application.dashedDomainName = buildDashedDomainName(
                     this.application.envName, this.application.deploymentName, this.application.domainName);
-                    //this.application.envName, this.application.domainName);
+            // this.application.envName, this.application.domainName);
             this.application.baseUrl = "https://" + this.application.domainName;
 
             // Generate predictable resource name prefix based on domain and environment

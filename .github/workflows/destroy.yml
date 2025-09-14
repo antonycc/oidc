@@ -104,7 +104,45 @@ jobs:
       - name: Build CDK and synth
         run: ./mvnw --errors clean package
 
-      - name: Destroy ephemeral OIDC stack
+      - name: Destroy EdgeStack
         if: ${{ env.DEPLOYMENT_NAME != 'prod' }}
-        run: npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk destroy AppStack-${DEPLOYMENT_NAME} --exclusively --force
+        run: npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk destroy ${DEPLOYMENT_NAME}-EdgeStack --exclusively --force
+        env:
+          DEPLOYMENT_NAME: ${{ env.DEPLOYMENT_NAME }}
+          ENV_NAME: ${{ env.ENV_NAME }}
+
+      - name: Destroy OpsStack
+        if: ${{ env.DEPLOYMENT_NAME != 'prod' }}
+        run: npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk destroy ${DEPLOYMENT_NAME}-OpsStack --exclusively --force
+        env:
+          DEPLOYMENT_NAME: ${{ env.DEPLOYMENT_NAME }}
+          ENV_NAME: ${{ env.ENV_NAME }}
+
+      - name: Destroy AppStack
+        if: ${{ env.DEPLOYMENT_NAME != 'prod' }}
+        run: npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk destroy ${DEPLOYMENT_NAME}-AppStack --exclusively --force
+        env:
+          DEPLOYMENT_NAME: ${{ env.DEPLOYMENT_NAME }}
+          ENV_NAME: ${{ env.ENV_NAME }}
+
+      - name: Destroy WebStack
+        if: ${{ env.DEPLOYMENT_NAME != 'prod' }}
+        run: npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk destroy ${DEPLOYMENT_NAME}-WebStack --exclusively --force
+        env:
+          DEPLOYMENT_NAME: ${{ env.DEPLOYMENT_NAME }}
+          ENV_NAME: ${{ env.ENV_NAME }}
+
+      - name: Destroy DevStack
+        if: ${{ env.DEPLOYMENT_NAME != 'prod' }}
+        run: npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk destroy ${DEPLOYMENT_NAME}-DevStack --exclusively --force
+        env:
+          DEPLOYMENT_NAME: ${{ env.DEPLOYMENT_NAME }}
+          ENV_NAME: ${{ env.ENV_NAME }}
+
+      - name: Destroy ObservabilityStack
+        if: ${{ env.DEPLOYMENT_NAME != 'prod' }}
+        run: npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk destroy ${DEPLOYMENT_NAME}-ObservabilityStack --exclusively --force
+        env:
+          DEPLOYMENT_NAME: ${{ env.DEPLOYMENT_NAME }}
+          ENV_NAME: ${{ env.ENV_NAME }}
 

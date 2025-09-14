@@ -27,11 +27,8 @@ import encoding from "k6/encoding";
 const BASE_URL = __ENV.BASE_URL || "https://oidc.antonycc.com";
 const TEST_USERNAME = __ENV.TEST_USERNAME || "test-user";
 const TEST_PASSWORD = __ENV.TEST_PASSWORD || "";
-const DURATION = __ENV.DURATION || "40s";
-
-// Convert the duration string to seconds for k6 options and divide by 4 for stages
-const durationSeconds = parseInt(DURATION) || 40;
-const stageDuration = `${Math.floor(durationSeconds / 4)}s`;
+const DURATION = __ENV.DURATION || "120s";
+const PROFILE = __ENV.PROFILE || "peek";
 
 // OIDC flow parameters matching api.live.test.ts
 const CLIENT_ID = "self-client";
@@ -273,12 +270,18 @@ export const options = {
       timeUnit: "1s",
       preAllocatedVUs: 10,
       maxVUs: 20,
-      stages: [
-        { duration: stageDuration, target: 1 }, // Steady state
-        { duration: stageDuration, target: 10 }, // 10 x Peak
-        { duration: stageDuration, target: 1 }, // Steady state
-        { duration: stageDuration, target: 0 }, // Cool down to 0 RPS
-      ],
+      stages:
+        PROFILE === "flat"
+          ? [
+              { duration: DURATION, target: 3 }, // Steady state
+            ]
+          : [
+              // Default "peek" profile with ramp-up and ramp-down
+              { duration: "10s", target: 3 }, // Steady state
+              { duration: DURATION, target: 10 }, // Peak
+              { duration: "10s", target: 3 }, // Steady state
+              { duration: "10s", target: 0 }, // Cool down to 0 RPS
+            ],
     },
   },
   thresholds: {

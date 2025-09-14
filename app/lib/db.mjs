@@ -104,7 +104,7 @@ export const put = (TableName, Item) => {
  * Retrieve an item from DynamoDB or in-memory storage
  * @param {string} TableName - Source table name
  * @param {Object} Key - Primary key of item to retrieve
- * @returns {Promise<Object>} Item data or null if not found
+ * @returns {Promise<{Item?: Object}>} DynamoDB response object with optional Item property
  */
 export const get = (TableName, Key) => {
   if (isMem(TableName)) {

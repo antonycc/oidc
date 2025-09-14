@@ -249,19 +249,20 @@ public class EdgeStack extends Stack {
                 .build();
 
         // Deploy the well-known website files to the well-known bucket under /.well-known/ with a random suffix on the
-        // Translate "https://oidc.antonycc.com" in well-known/openid-configuration to `baseUrl` using asset bundling options
-        //var assetOptions = AssetOptions.builder().assetHashType(AssetHashType.SOURCE).build();
+        // Translate "https://oidc.antonycc.com" in well-known/openid-configuration to `baseUrl` using asset bundling
+        // options
+        // var assetOptions = AssetOptions.builder().assetHashType(AssetHashType.SOURCE).build();
         var wellKnownDirectory = "well-known";
         var openIdConfigFilepath = "openid-configuration"; // inside bundling context root
         var prodBaseUrl = "https://oidc.antonycc.com";
         var assetOptionsCommand = List.of(
-            "bash",
-            "-c",
-            "set -euo pipefail; " +
-            "cp -R /asset-input/* /asset-output/; " +
-            "sed -i \"s|" + prodBaseUrl + "|" + this.baseUrl + "|g\" /asset-output/" + openIdConfigFilepath + ";"
-        );
-        var assetBundlingImage = software.amazon.awscdk.DockerImage.fromRegistry("public.ecr.aws/amazonlinux/amazonlinux:2023");
+                "bash",
+                "-c",
+                "set -euo pipefail; " + "cp -R /asset-input/* /asset-output/; "
+                        + "sed -i \"s|"
+                        + prodBaseUrl + "|" + this.baseUrl + "|g\" /asset-output/" + openIdConfigFilepath + ";");
+        var assetBundlingImage =
+                software.amazon.awscdk.DockerImage.fromRegistry("public.ecr.aws/amazonlinux/amazonlinux:2023");
         var assetOptions = AssetOptions.builder()
                 .assetHashType(AssetHashType.OUTPUT)
                 .bundling(software.amazon.awscdk.BundlingOptions.builder()
@@ -282,7 +283,7 @@ public class EdgeStack extends Stack {
                 .destinationBucket(props.wellKnownBucket)
                 .destinationKeyPrefix("." + wellKnownDirectory + "/")
                 .distribution(this.distribution)
-                .distributionPaths(List.of("." + wellKnownDirectory + "/*"))
+                .distributionPaths(List.of("/." + wellKnownDirectory + "/*"))
                 .retainOnDelete(false)
                 .logGroup(wellKnownDeploymentLogGroup)
                 .expires(Expiration.after(Duration.minutes(5)))

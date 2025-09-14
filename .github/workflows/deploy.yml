@@ -753,7 +753,7 @@ jobs:
         run: npm run users:provision '${{ env.USERS_TABLE }}' '${{ steps.uuid.outputs.TEST_USERNAME }}' '${{ steps.uuid.outputs.TEST_PASSWORD }}'
 
     outputs:
-      base-url: ${{ needs.deploy-edge.outputs.base-url || ( needs.names.outputs.deployment-name == 'prod' && 'https://oidc.antonycc.com/' || format('https://{0}.oidc.antonycc.com/', needs.names.outputs.deployment-name) ) }}
+      base-url: ${{ needs.deploy-edge.outputs.base-url || ( needs.names.outputs.deployment-name == 'prod' && 'https://oidc.antonycc.com' || format('https://{0}.oidc.antonycc.com', needs.names.outputs.deployment-name) ) }}
       test-username: ${{ steps.uuid.outputs.TEST_USERNAME }}
       test-password: ${{ steps.uuid.outputs.TEST_PASSWORD }}
 

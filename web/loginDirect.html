@@ -27,71 +27,84 @@
           <code>/authorize</code>, and redirect back to Post Auth.
         </p>
         <p id="backLinkWrapper"><a id="backLink" href="./login.html">← Back to login options</a></p>
-        <div style="display: flex; gap: 20px; align-items: flex-start">
-          <div style="flex: 1">
-            <form id="loginForm" class="form-card">
-              <fieldset>
-                <legend>Credentials</legend>
-                <label>Username <input type="text" name="username" required minlength="1" /></label>
-                <label>Password 
-                  <div style="display: flex; gap: 5px; align-items: center;">
-                    <input type="password" name="password" required minlength="1" style="flex: 1;" />
-                    <button type="button" id="toggle-password-btn" style="padding: 4px 8px; font-size: 12px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;" title="Show/hide password">👁</button>
-                  </div>
-                </label>
-              </fieldset>
-              <fieldset>
-                <legend>OIDC Parameters</legend>
-                <label
-                  >Client ID
-                  <input type="text" name="client_id" value="self-client" required title="OIDC client identifier"
-                /></label>
-                <label>Redirect URI <input type="url" name="redirect_uri" required /></label>
-                <label>Response Type <input type="text" name="response_type" value="code" required /></label>
-                <label>Scope <input type="text" name="scope" value="openid email profile" required /></label>
-                <label>State <input type="text" name="state" required /></label>
-                <label>Nonce <input type="text" name="nonce" required /></label>
-                <label>Code Challenge <input type="text" name="code_challenge" required /></label>
-                <label
-                  >Code Challenge Method <input type="text" name="code_challenge_method" value="S256" required
-                /></label>
-              </fieldset>
-              <button type="submit">Sign in</button>
-            </form>
-          </div>
-          <div id="demo-credentials" style="flex: 0 0 250px">
-            <div class="form-card" style="padding: 15px">
-              <h3 style="margin: 0 0 10px 0; font-size: 14px">Demo Credentials</h3>
-              <pre
-                id="demo-display"
-                style="
-                  font-family: monospace;
-                  font-size: 11px;
-                  background: #f5f5f5;
-                  padding: 8px;
-                  border-radius: 4px;
-                  margin: 0 0 10px 0;
-                  white-space: pre-wrap;
-                  word-break: break-all;
-                "
-              >Loading...</pre>
-              <button
-                id="demo-fill-btn"
-                type="button"
-                style="
-                  width: 100%;
-                  padding: 8px;
-                  font-size: 12px;
-                  background: #007cba;
-                  color: white;
-                  border: none;
-                  border-radius: 4px;
-                  cursor: pointer;
-                "
-              >
-                Fill Form
-              </button>
-            </div>
+        <form id="loginForm" class="form-card">
+          <fieldset>
+            <legend>Credentials</legend>
+            <label>Username <input type="text" name="username" required minlength="1" /></label>
+            <label
+              >Password
+              <div style="display: flex; gap: 5px; align-items: center">
+                <input type="password" name="password" required minlength="1" style="flex: 1" />
+                <button
+                  type="button"
+                  id="toggle-password-btn"
+                  style="
+                    padding: 4px 8px;
+                    font-size: 12px;
+                    background: #f0f0f0;
+                    border: 1px solid #ccc;
+                    border-radius: 4px;
+                    cursor: pointer;
+                  "
+                  title="Show/hide password"
+                >
+                  👁
+                </button>
+              </div>
+            </label>
+          </fieldset>
+          <fieldset>
+            <legend>OIDC Parameters</legend>
+            <label
+              >Client ID
+              <input type="text" name="client_id" value="self-client" required title="OIDC client identifier"
+            /></label>
+            <label>Redirect URI <input type="url" name="redirect_uri" required /></label>
+            <label>Response Type <input type="text" name="response_type" value="code" required /></label>
+            <label>Scope <input type="text" name="scope" value="openid email profile" required /></label>
+            <label>State <input type="text" name="state" required /></label>
+            <label>Nonce <input type="text" name="nonce" required /></label>
+            <label>Code Challenge <input type="text" name="code_challenge" required /></label>
+            <label
+              >Code Challenge Method <input type="text" name="code_challenge_method" value="S256" required
+            /></label>
+          </fieldset>
+          <button type="submit">Sign in</button>
+        </form>
+        <div id="demo-credentials" style="margin-top: 20px">
+          <div class="form-card" style="padding: 15px; max-width: 400px">
+            <h3 style="margin: 0 0 10px 0; font-size: 14px">Demo Credentials</h3>
+            <pre
+              id="demo-display"
+              style="
+                font-family: monospace;
+                font-size: 11px;
+                background: #f5f5f5;
+                padding: 8px;
+                border-radius: 4px;
+                margin: 0 0 10px 0;
+                white-space: pre-wrap;
+                word-break: break-all;
+              "
+            >
+Loading...</pre
+            >
+            <button
+              id="demo-fill-btn"
+              type="button"
+              style="
+                width: 100%;
+                padding: 8px;
+                font-size: 12px;
+                background: #007cba;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+              "
+            >
+              Fill Form
+            </button>
           </div>
         </div>
         <p class="muted">Form will POST to: <code id="formActionDisplay"></code></p>
@@ -245,19 +258,19 @@
       );
 
       // Password visibility toggle functionality
-      const togglePasswordBtn = document.getElementById('toggle-password-btn');
+      const togglePasswordBtn = document.getElementById("toggle-password-btn");
       const passwordInput = document.querySelector('input[name="password"]');
-      
+
       if (togglePasswordBtn && passwordInput) {
-        togglePasswordBtn.addEventListener('click', function() {
-          if (passwordInput.type === 'password') {
-            passwordInput.type = 'text';
-            togglePasswordBtn.textContent = '🙈';
-            togglePasswordBtn.title = 'Hide password';
+        togglePasswordBtn.addEventListener("click", function () {
+          if (passwordInput.type === "password") {
+            passwordInput.type = "text";
+            togglePasswordBtn.textContent = "🙈";
+            togglePasswordBtn.title = "Hide password";
           } else {
-            passwordInput.type = 'password';
-            togglePasswordBtn.textContent = '👁';
-            togglePasswordBtn.title = 'Show password';
+            passwordInput.type = "password";
+            togglePasswordBtn.textContent = "👁";
+            togglePasswordBtn.title = "Show password";
           }
         });
       }
@@ -303,7 +316,7 @@
 
         if (demoCredentials && demoDisplay) {
           demoDisplay.textContent = `TEST_USERNAME=${demoCredentials.TEST_USERNAME}\nTEST_PASSWORD=${demoCredentials.TEST_PASSWORD}`;
-          
+
           if (fillButton) {
             fillButton.disabled = false;
             fillButton.style.background = "#007cba";
@@ -312,7 +325,7 @@
           }
         } else if (demoDisplay) {
           demoDisplay.textContent = "Demo credentials not available";
-          
+
           if (fillButton) {
             fillButton.disabled = true;
             fillButton.style.background = "#ccc";

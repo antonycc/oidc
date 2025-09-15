@@ -390,7 +390,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
           role-session-name: gha-oidc-deploy
 
-      - name: Deploy Self-Destruct Stack Stack (CDK)
+      - name: Deploy Self-Destruct Stack (CDK)
         run: |
           npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- \
             npx cdk deploy ${{ needs.names.outputs.deployment-name }}-SelfDestructStack \

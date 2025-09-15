@@ -13,6 +13,7 @@ import {
   recordCustomMetric,
   metricsMiddleware,
   getMetricsStatus,
+  flushAllMetrics, // Add this to help clear buffer
 } from "../lib/metrics.mjs";
 
 // Mock AWS CloudWatch SDK
@@ -30,15 +31,26 @@ vi.mock("../lib/utils.mjs", () => ({
 }));
 
 describe("CloudWatch Metrics", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    // Clear any existing metrics buffer to start fresh
+    try {
+      await flushAllMetrics();
+    } catch (e) {
+      // Ignore errors during flush in test mode
+    }
     // Set test environment to ensure metrics are skipped in tests
     process.env.NODE_ENV = "test";
   });
 
-  afterEach(() => {
-    // Clean up environment
-    delete process.env.NODE_ENV;
+  afterEach(async () => {
+    // Clean up environment and buffer state
+    try {
+      await flushAllMetrics();
+    } catch (e) {
+      // Ignore errors during flush in test mode
+    }
+    process.env.NODE_ENV = "test"; // Always set back to test
   });
 
   describe("recordAuthMetrics", () => {

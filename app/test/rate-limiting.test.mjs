@@ -28,13 +28,6 @@ vi.mock("../lib/utils.mjs", () => ({
   logError: vi.fn(),
 }));
 
-// Mock process.env but NOT NODE_ENV since we want to test the actual functionality
-vi.mock("process", () => ({
-  env: {
-    // Don't set NODE_ENV=test here since we want rate limiting to work
-  },
-}));
-
 import { put, get } from "../lib/db.mjs";
 
 describe("Rate Limiting", () => {
@@ -42,10 +35,13 @@ describe("Rate Limiting", () => {
     vi.clearAllMocks();
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2025-01-01T00:00:00.000Z"));
+    // Override NODE_ENV to enable rate limiting functionality during tests
+    vi.stubEnv('NODE_ENV', 'development');
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllEnvs();
   });
 
   describe("getClientIp", () => {

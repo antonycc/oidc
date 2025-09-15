@@ -4,15 +4,16 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import software.amazon.awssdk.services.cloudformation.CloudFormationClient;
+import software.amazon.awssdk.services.cloudformation.model.CloudFormationException;
+import software.amazon.awssdk.services.cloudformation.model.DeleteStackRequest;
+import software.amazon.awssdk.services.cloudformation.model.DescribeStacksRequest;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import software.amazon.awssdk.services.cloudformation.CloudFormationClient;
-import software.amazon.awssdk.services.cloudformation.model.CloudFormationException;
-import software.amazon.awssdk.services.cloudformation.model.DeleteStackRequest;
-import software.amazon.awssdk.services.cloudformation.model.DescribeStacksRequest;
 
 /**
  * AWS Lambda handler for self-destructing CloudFormation stacks.
@@ -74,13 +75,11 @@ public class SelfDestructHandler implements RequestHandler<Map<String, Object>, 
                 results.add(new StackDeletionResult(stackName, "deletion_initiated", null));
                 context.getLogger().log("Deletion initiated for stack: " + stackName);
 
-                // Wait between deletions to avoid conflicts
+                // Wait for stack to be fully deleted before proceeding (except for self-destruct stack)
                 if (!stackName.equals(System.getenv("SELF_DESTRUCT_STACK_NAME"))) {
-                    try {
-                        Thread.sleep(30000); // 30 second delay
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        context.getLogger().log("Thread interrupted during delay");
+                    boolean deleted = waitForStackDeletion(stackName, context, 600); // 10 min timeout
+                    if (!deleted) {
+                        context.getLogger().log("Stack " + stackName + " did not delete in time.");
                     }
                 }
 
@@ -114,6 +113,34 @@ public class SelfDestructHandler implements RequestHandler<Map<String, Object>, 
         if (stackName != null && !stackName.trim().isEmpty()) {
             stackList.add(stackName);
         }
+    }
+
+    private boolean waitForStackDeletion(String stackName, Context context, int maxWaitSeconds) {
+        int waited = 0;
+        int interval = 10; // seconds
+        while (waited < maxWaitSeconds) {
+            try {
+                cloudFormationClient.describeStacks(
+                        DescribeStacksRequest.builder().stackName(stackName).build());
+                context.getLogger().log("Stack " + stackName + " still exists, waiting...");
+            } catch (CloudFormationException e) {
+                if (e.getMessage() != null && e.getMessage().contains("does not exist")) {
+                    context.getLogger().log("Stack " + stackName + " deleted.");
+                    return true;
+                }
+                context.getLogger().log("Error polling stack " + stackName + ": " + e.getMessage());
+            }
+            try {
+                Thread.sleep(interval * 1000L);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                context.getLogger().log("Interrupted while waiting for stack deletion.");
+                break;
+            }
+            waited += interval;
+        }
+        context.getLogger().log("Timeout waiting for stack " + stackName + " deletion.");
+        return false;
     }
 
     /**

@@ -1,7 +1,5 @@
 package com.antonycc.oidc;
 
-import java.util.List;
-import java.util.Map;
 import software.amazon.awscdk.AssetHashType;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
@@ -35,6 +33,9 @@ import software.amazon.awscdk.services.s3.deployment.BucketDeployment;
 import software.amazon.awscdk.services.s3.deployment.Source;
 import software.amazon.awscdk.services.wafv2.CfnWebACL;
 import software.constructs.Construct;
+
+import java.util.List;
+import java.util.Map;
 
 public class EdgeStack extends Stack {
     public final Distribution distribution;
@@ -248,11 +249,28 @@ public class EdgeStack extends Stack {
                 .build();
 
         // Deploy the well-known website files to the well-known bucket under /.well-known/ with a random suffix on the
-        // log group name
-        var wellKnownRootSource = Source.asset(
-                "well-known",
-                AssetOptions.builder().assetHashType(AssetHashType.SOURCE).build());
-
+        // Translate "https://oidc.antonycc.com" in well-known/openid-configuration to `baseUrl` using asset bundling
+        // options
+        // var assetOptions = AssetOptions.builder().assetHashType(AssetHashType.SOURCE).build();
+        var wellKnownDirectory = "well-known";
+        var openIdConfigFilepath = "openid-configuration"; // inside bundling context root
+        var prodBaseUrl = "https://oidc.antonycc.com";
+        var assetOptionsCommand = List.of(
+                "bash",
+                "-c",
+                "set -euo pipefail; " + "cp -R /asset-input/* /asset-output/; "
+                        + "sed -i \"s|"
+                        + prodBaseUrl + "|" + this.baseUrl + "|g\" /asset-output/" + openIdConfigFilepath + ";");
+        var assetBundlingImage =
+                software.amazon.awscdk.DockerImage.fromRegistry("public.ecr.aws/amazonlinux/amazonlinux:2023");
+        var assetOptions = AssetOptions.builder()
+                .assetHashType(AssetHashType.OUTPUT)
+                .bundling(software.amazon.awscdk.BundlingOptions.builder()
+                        .image(assetBundlingImage)
+                        .command(assetOptionsCommand)
+                        .build())
+                .build();
+        var wellKnownRootSource = Source.asset(wellKnownDirectory, assetOptions);
         var wellKnownDeploymentLogGroup = LogGroup.Builder.create(
                         this, props.resourceNamePrefix + "-WellKnownDeploymentLogGroup")
                 .logGroupName("/deployment/" + props.resourceNamePrefix + "-well-known-deployment-" + deployPostfix)
@@ -263,9 +281,9 @@ public class EdgeStack extends Stack {
                         this, props.resourceNamePrefix + "-DocRootToWellKnownOriginDeployment")
                 .sources(List.of(wellKnownRootSource))
                 .destinationBucket(props.wellKnownBucket)
-                .destinationKeyPrefix(".well-known/")
+                .destinationKeyPrefix("." + wellKnownDirectory + "/")
                 .distribution(this.distribution)
-                .distributionPaths(List.of("/*"))
+                .distributionPaths(List.of("/." + wellKnownDirectory + "/*"))
                 .retainOnDelete(false)
                 .logGroup(wellKnownDeploymentLogGroup)
                 .expires(Expiration.after(Duration.minutes(5)))

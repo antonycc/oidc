@@ -1,6 +1,6 @@
 name: deploy
 concurrency:
-  group: "deploy-${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}"
+  group: deploy-${{ github.ref_name }}
   cancel-in-progress: false
 
 on:
@@ -613,7 +613,9 @@ jobs:
       - deploy-app
       - deploy-web
     runs-on: ubuntu-24.04
-    environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
+    environment:
+      name: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
+      url: ${{ steps.edge-outputs.outputs.BASE_URL }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5

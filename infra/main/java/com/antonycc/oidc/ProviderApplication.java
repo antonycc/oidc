@@ -241,6 +241,7 @@ public class ProviderApplication {
                                 .edgeStackName(this.application.edgeStack.getStackName())
                                 .opsStackName(this.application.opsStack.getStackName())
                                 .selfDestructDelayHours(getConfig("SELF_DESTRUCT_DELAY_HOURS", "1"))
+                                .selfDestructHandlerSource(getConfig("SELF_DESTRUCT_HANDLER_SOURCE", "target/self-destruct-lambda.jar"))
                                 .build());
                 // SelfDestructStack has no dependencies - it should be able to delete everything
             }

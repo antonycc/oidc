@@ -121,7 +121,7 @@ public class SelfDestructStack extends Stack {
                 .functionName(functionName)
                 .runtime(Runtime.JAVA_21)
                 .handler("com.antonycc.oidc.functions.SelfDestructHandler::handleRequest")
-                .code(Code.fromAsset("target/self-destruct-lambda.jar"))
+                .code(Code.fromAsset(props.selfDestructHandlerSource))
                 .timeout(Duration.minutes(15)) // Allow time for stack deletions
                 .memorySize(512) // Increased memory for Java runtime
                 .role(this.functionRole)

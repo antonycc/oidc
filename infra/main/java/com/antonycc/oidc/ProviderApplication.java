@@ -222,28 +222,34 @@ public class ProviderApplication {
             this.application.opsStack.addDependency(this.application.appStack);
             this.application.opsStack.addDependency(this.application.webStack);
 
-            // Create the SelfDestruct stack only for non-prod deployments
+            // Create the SelfDestruct stack only for non-prod deployments and when JAR exists
             if (!"prod".equals(this.application.deploymentName)) {
-                String selfDestructStackId = "%s-SelfDestructStack".formatted(this.application.deploymentName);
-                this.application.selfDestructStack = new SelfDestructStack(
-                        app,
-                        selfDestructStackId,
-                        SelfDestructStackProps.builder()
-                                .env(env)
-                                .envName(this.application.envName)
-                                .deploymentName(this.application.deploymentName)
-                                .resourceNamePrefix(this.application.resourceNamePrefix)
-                                .compressedResourceNamePrefix(this.application.compressedResourceNamePrefix)
-                                .observabilityStackName(this.application.observabilityStack.getStackName())
-                                .devStackName(this.application.devStack.getStackName())
-                                .appStackName(this.application.appStack.getStackName())
-                                .webStackName(this.application.webStack.getStackName())
-                                .edgeStackName(this.application.edgeStack.getStackName())
-                                .opsStackName(this.application.opsStack.getStackName())
-                                .selfDestructDelayHours(getConfig("SELF_DESTRUCT_DELAY_HOURS", "1"))
-                                .selfDestructHandlerSource(getConfig("SELF_DESTRUCT_HANDLER_SOURCE", "target/self-destruct-lambda.jar"))
-                                .build());
-                // SelfDestructStack has no dependencies - it should be able to delete everything
+                String handlerSource = getConfig("SELF_DESTRUCT_HANDLER_SOURCE", "target/self-destruct-lambda.jar");
+                java.nio.file.Path handlerPath = java.nio.file.Paths.get(handlerSource);
+                if (java.nio.file.Files.exists(handlerPath)) {
+                    String selfDestructStackId = "%s-SelfDestructStack".formatted(this.application.deploymentName);
+                    this.application.selfDestructStack = new SelfDestructStack(
+                            app,
+                            selfDestructStackId,
+                            SelfDestructStackProps.builder()
+                                    .env(env)
+                                    .envName(this.application.envName)
+                                    .deploymentName(this.application.deploymentName)
+                                    .resourceNamePrefix(this.application.resourceNamePrefix)
+                                    .compressedResourceNamePrefix(this.application.compressedResourceNamePrefix)
+                                    .observabilityStackName(this.application.observabilityStack.getStackName())
+                                    .devStackName(this.application.devStack.getStackName())
+                                    .appStackName(this.application.appStack.getStackName())
+                                    .webStackName(this.application.webStack.getStackName())
+                                    .edgeStackName(this.application.edgeStack.getStackName())
+                                    .opsStackName(this.application.opsStack.getStackName())
+                                    .selfDestructDelayHours(getConfig("SELF_DESTRUCT_DELAY_HOURS", "1"))
+                                    .selfDestructHandlerSource(handlerSource)
+                                    .build());
+                    // SelfDestructStack has no dependencies - it should be able to delete everything
+                } else {
+                    System.out.println("Skipping SelfDestructStack creation - handler JAR not found at: " + handlerSource);
+                }
             }
 
             app.synth();

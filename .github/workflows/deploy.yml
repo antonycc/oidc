@@ -127,6 +127,8 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    outputs:
+      self-destruct-handler-source: ${{ steps.package.outputs.self-destruct-handler-source }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -140,7 +142,17 @@ jobs:
       - name: mvn package
         id: package
         shell: bash
-        run: ./mvnw clean package
+        run: |
+          ./mvnw clean package
+          # Set the self-destruct handler JAR path as output
+          echo "self-destruct-handler-source=target/self-destruct-lambda.jar" >> $GITHUB_OUTPUT
+
+      - name: Upload self-destruct handler JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: self-destruct-handler-${{ github.sha }}
+          path: target/self-destruct-lambda.jar
+          retention-days: 1
 
   docker-build:
     name: 'docker build'
@@ -198,6 +210,7 @@ jobs:
     if: ${{ inputs.skipDeploy != 'true' }}
     needs:
       - names
+      - mvn-test
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -221,6 +234,12 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           cache: 'maven'
 
+      - name: Download self-destruct handler JAR
+        uses: actions/download-artifact@v5
+        with:
+          name: self-destruct-handler-${{ github.sha }}
+          path: target/
+
       - name: Build CDK and synthesize all stacks
         run: |
           ./mvnw --errors clean package -DskipTests \
@@ -230,6 +249,7 @@ jobs:
           ENV_NAME: ${{ needs.names.outputs.environment-name }}
           DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
           SELF_DESTRUCT_DELAY_HOURS: ${{ inputs.selfDestructDelayHours || '1' }}
+          SELF_DESTRUCT_HANDLER_SOURCE: ${{ needs.mvn-test.outputs.self-destruct-handler-source }}
 
       - name: Upload CDK synthesis artifacts
         uses: actions/upload-artifact@v4
@@ -356,6 +376,7 @@ jobs:
       - names
       - npm-test
       - build-cdk
+      - mvn-test
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
     steps:
@@ -383,6 +404,12 @@ jobs:
           name: cdk-synthesis
           path: cdk.out/
 
+      - name: Download self-destruct handler JAR
+        uses: actions/download-artifact@v5
+        with:
+          name: self-destruct-handler-${{ github.sha }}
+          path: target/
+
       - name: Configure AWS creds via OIDC
         uses: aws-actions/configure-aws-credentials@v5
         with:
@@ -402,6 +429,7 @@ jobs:
           ENV_NAME: ${{ needs.names.outputs.environment-name }}
           DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
           SELF_DESTRUCT_DELAY_HOURS: ${{ inputs.selfDestructDelayHours || '1' }}
+          SELF_DESTRUCT_HANDLER_SOURCE: ${{ needs.mvn-test.outputs.self-destruct-handler-source }}
 
   deploy-dev:
     name: 'deploy dev'

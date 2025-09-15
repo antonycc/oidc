@@ -170,11 +170,11 @@ public class SelfDestructStack extends Stack {
 
     private String generateSelfDestructCode() {
         return """
-                const { CloudFormationClient, DeleteStackCommand, DescribeStacksCommand } = require('@aws-sdk/client-cloudformation');
+                import { CloudFormationClient, DeleteStackCommand, DescribeStacksCommand } from '@aws-sdk/client-cloudformation';
 
                 const cloudformation = new CloudFormationClient({});
 
-                exports.handler = async (event) => {
+                export const handler = async (event) => {
                     console.log('Starting self-destruct sequence...');
 
                     // Stack deletion order (reverse of creation dependency order)

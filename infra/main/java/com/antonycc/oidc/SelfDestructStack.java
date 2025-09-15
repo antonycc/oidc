@@ -1,5 +1,10 @@
 package com.antonycc.oidc;
 
+import static com.antonycc.oidc.ResourceNameUtils.generateIamCompatibleName;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.Duration;
@@ -22,12 +27,6 @@ import software.amazon.awscdk.services.lambda.Tracing;
 import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.logs.RetentionDays;
 import software.constructs.Construct;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import static com.antonycc.oidc.ResourceNameUtils.generateIamCompatibleName;
 
 public class SelfDestructStack extends Stack {
     public final LogGroup logGroup;
@@ -72,7 +71,8 @@ public class SelfDestructStack extends Stack {
                 .managedPolicies(List.of(
                         ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSLambdaBasicExecutionRole"),
                         ManagedPolicy.fromAwsManagedPolicyName("AWSXRayDaemonWriteAccess")))
-                .inlinePolicies(Map.of("SelfDestructPolicy",
+                .inlinePolicies(Map.of(
+                        "SelfDestructPolicy",
                         software.amazon.awscdk.services.iam.PolicyDocument.Builder.create()
                                 .statements(List.of(
                                         // CloudFormation permissions to delete stacks
@@ -119,11 +119,11 @@ public class SelfDestructStack extends Stack {
         // Lambda function for self-destruction
         this.selfDestructFunction = Function.Builder.create(this, props.resourceNamePrefix + "-SelfDestructFunction")
                 .functionName(functionName)
-                .runtime(Runtime.NODEJS_22_X)
-                .handler("index.handler")
-                .code(Code.fromInline(generateSelfDestructCode()))
+                .runtime(Runtime.JAVA_21)
+                .handler("com.antonycc.oidc.functions.SelfDestructHandler::handleRequest")
+                .code(Code.fromAsset("target/self-destruct-lambda.jar"))
                 .timeout(Duration.minutes(15)) // Allow time for stack deletions
-                .memorySize(256)
+                .memorySize(512) // Increased memory for Java runtime
                 .role(this.functionRole)
                 .environment(environment)
                 .tracing(Tracing.ACTIVE)
@@ -138,103 +138,47 @@ public class SelfDestructStack extends Stack {
                 .description("Automatically triggers self-destruct after " + delayHours + " hours")
                 .schedule(Schedule.rate(Duration.hours(delayHours)))
                 .targets(List.of(LambdaFunction.Builder.create(this.selfDestructFunction)
-                        .event(RuleTargetInput.fromObject(
-                                Map.of("source", "eventbridge-schedule",
-                                       "deploymentName", props.deploymentName,
-                                       "delayHours", delayHours)))
+                        .event(RuleTargetInput.fromObject(Map.of(
+                                "source",
+                                "eventbridge-schedule",
+                                "deploymentName",
+                                props.deploymentName,
+                                "delayHours",
+                                delayHours)))
                         .build()))
                 .build();
 
         // Output the function ARN for manual invocation
-        new CfnOutput(this, "SelfDestructFunctionArn", CfnOutputProps.builder()
-                .value(this.selfDestructFunction.getFunctionArn())
-                .description("ARN of the self-destruct Lambda function")
-                .build());
+        new CfnOutput(
+                this,
+                "SelfDestructFunctionArn",
+                CfnOutputProps.builder()
+                        .value(this.selfDestructFunction.getFunctionArn())
+                        .description("ARN of the self-destruct Lambda function")
+                        .build());
 
-        new CfnOutput(this, "SelfDestructScheduleArn", CfnOutputProps.builder()
-                .value(this.selfDestructSchedule.getRuleArn())
-                .description("ARN of the EventBridge rule for scheduled self-destruct")
-                .build());
+        new CfnOutput(
+                this,
+                "SelfDestructScheduleArn",
+                CfnOutputProps.builder()
+                        .value(this.selfDestructSchedule.getRuleArn())
+                        .description("ARN of the EventBridge rule for scheduled self-destruct")
+                        .build());
 
-        new CfnOutput(this, "SelfDestructScheduleInfo", CfnOutputProps.builder()
-                .value("Self-destruct will trigger automatically after " + delayHours + " hours")
-                .description("Automatic self-destruct schedule information")
-                .build());
+        new CfnOutput(
+                this,
+                "SelfDestructScheduleInfo",
+                CfnOutputProps.builder()
+                        .value("Self-destruct will trigger automatically after " + delayHours + " hours")
+                        .description("Automatic self-destruct schedule information")
+                        .build());
 
-        new CfnOutput(this, "SelfDestructInstructions", CfnOutputProps.builder()
-                .value("aws lambda invoke --function-name " + functionName + " /tmp/response.json")
-                .description("Command to trigger immediate manual self-destruction")
-                .build());
-    }
-
-    private String generateSelfDestructCode() {
-        return """
-                import { CloudFormationClient, DeleteStackCommand, DescribeStacksCommand } from '@aws-sdk/client-cloudformation';
-
-                const cloudformation = new CloudFormationClient({});
-
-                export const handler = async (event) => {
-                    console.log('Starting self-destruct sequence...');
-
-                    // Stack deletion order (reverse of creation dependency order)
-                    const stacksToDelete = [
-                        process.env.OPS_STACK_NAME,
-                        process.env.EDGE_STACK_NAME,
-                        process.env.WEB_STACK_NAME,
-                        process.env.APP_STACK_NAME,
-                        process.env.DEV_STACK_NAME,
-                        process.env.OBSERVABILITY_STACK_NAME,
-                        process.env.SELF_DESTRUCT_STACK_NAME // Delete self last
-                    ].filter(name => name); // Filter out any undefined stack names
-
-                    console.log('Stacks to delete in order:', stacksToDelete);
-
-                    const results = [];
-
-                    for (const stackName of stacksToDelete) {
-                        try {
-                            console.log(`Checking if stack ${stackName} exists...`);
-
-                            // Check if stack exists
-                            try {
-                                await cloudformation.send(new DescribeStacksCommand({ StackName: stackName }));
-                            } catch (err) {
-                                if (err.name === 'ValidationError') {
-                                    console.log(`Stack ${stackName} does not exist, skipping`);
-                                    results.push({ stackName, status: 'not_found' });
-                                    continue;
-                                }
-                                throw err;
-                            }
-
-                            console.log(`Deleting stack: ${stackName}`);
-                            await cloudformation.send(new DeleteStackCommand({ StackName: stackName }));
-
-                            results.push({ stackName, status: 'deletion_initiated' });
-                            console.log(`Deletion initiated for stack: ${stackName}`);
-
-                            // Wait between deletions to avoid conflicts
-                            if (stackName !== process.env.SELF_DESTRUCT_STACK_NAME) {
-                                await new Promise(resolve => setTimeout(resolve, 30000)); // 30 second delay
-                            }
-
-                        } catch (error) {
-                            console.error(`Error deleting stack ${stackName}:`, error);
-                            results.push({ stackName, status: 'error', error: error.message });
-                        }
-                    }
-
-                    console.log('Self-destruct sequence completed');
-
-                    return {
-                        statusCode: 200,
-                        body: JSON.stringify({
-                            message: 'Self-destruct sequence completed',
-                            results: results,
-                            timestamp: new Date().toISOString()
-                        })
-                    };
-                };
-                """;
+        new CfnOutput(
+                this,
+                "SelfDestructInstructions",
+                CfnOutputProps.builder()
+                        .value("aws lambda invoke --function-name " + functionName + " /tmp/response.json")
+                        .description("Command to trigger immediate manual self-destruction")
+                        .build());
     }
 }

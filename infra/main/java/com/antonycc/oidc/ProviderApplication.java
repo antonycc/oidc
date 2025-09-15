@@ -28,6 +28,7 @@ public class ProviderApplication {
     public WebStack webStack;
     public EdgeStack edgeStack;
     public OpsStack opsStack;
+    public SelfDestructStack selfDestructStack;
 
     public ProviderApplication() {}
 
@@ -221,6 +222,29 @@ public class ProviderApplication {
             this.application.opsStack.addDependency(this.application.appStack);
             this.application.opsStack.addDependency(this.application.webStack);
 
+            // Create the SelfDestruct stack only for non-prod deployments
+            if (!"prod".equals(this.application.deploymentName)) {
+                String selfDestructStackId = "%s-SelfDestructStack".formatted(this.application.deploymentName);
+                this.application.selfDestructStack = new SelfDestructStack(
+                        app,
+                        selfDestructStackId,
+                        SelfDestructStackProps.builder()
+                                .env(env)
+                                .envName(this.application.envName)
+                                .deploymentName(this.application.deploymentName)
+                                .resourceNamePrefix(this.application.resourceNamePrefix)
+                                .compressedResourceNamePrefix(this.application.compressedResourceNamePrefix)
+                                .observabilityStackName(this.application.observabilityStack.getStackName())
+                                .devStackName(this.application.devStack.getStackName())
+                                .appStackName(this.application.appStack.getStackName())
+                                .webStackName(this.application.webStack.getStackName())
+                                .edgeStackName(this.application.edgeStack.getStackName())
+                                .opsStackName(this.application.opsStack.getStackName())
+                                .selfDestructDelayHours(getConfig("SELF_DESTRUCT_DELAY_HOURS", "1"))
+                                .build());
+                // SelfDestructStack has no dependencies - it should be able to delete everything
+            }
+
             app.synth();
 
             CfnOutputProps.builder()
@@ -299,6 +323,12 @@ public class ProviderApplication {
                     .exportName("%s-OpsStackName".formatted(this.application.deploymentName))
                     .value(this.application.opsStack.getStackName())
                     .build();
+            if (this.application.selfDestructStack != null) {
+                CfnOutputProps.builder()
+                        .exportName("%s-SelfDestructStackName".formatted(this.application.deploymentName))
+                        .value(this.application.selfDestructStack.getStackName())
+                        .build();
+            }
 
             return this.application;
         }

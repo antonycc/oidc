@@ -22,6 +22,10 @@ on:
         description: 'Deployment name (ci for shared CI, or custom name)'
         required: false
         default: ''
+      selfDestructDelayHours:
+        description: 'Hours before self-destruct triggers for non-prod environments'
+        required: false
+        default: '1'
 
   push:
     branches:
@@ -225,6 +229,7 @@ jobs:
         env:
           ENV_NAME: ${{ needs.names.outputs.environment-name }}
           DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
+          SELF_DESTRUCT_DELAY_HOURS: ${{ inputs.selfDestructDelayHours || '1' }}
 
       - name: Upload CDK synthesis artifacts
         uses: actions/upload-artifact@v4
@@ -343,6 +348,60 @@ jobs:
         env:
           ENV_NAME: ${{ needs.names.outputs.environment-name }}
           DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
+
+  deploy-self-destruct:
+    name: 'deploy self-destruct'
+    if: ${{ inputs.skipDeploy != 'true' && needs.names.outputs.environment-name != 'prod' }}
+    needs:
+      - names
+      - npm-test
+      - build-cdk
+    runs-on: ubuntu-24.04
+    environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Node dependencies
+        run: npm ci
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'maven'
+
+      - name: Download CDK synthesis artifacts
+        uses: actions/download-artifact@v5
+        with:
+          name: cdk-synthesis
+          path: cdk.out/
+
+      - name: Configure AWS creds via OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-oidc-deploy
+
+      - name: Deploy Self-Destruct Stack (CDK)
+        run: |
+          npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- \
+            npx cdk deploy ${{ needs.names.outputs.deployment-name }}-SelfDestructStack \
+              --require-approval never \
+              --ci true \
+              --outputs-file cdk.out/cdk-outputs-self-destructStack.json \
+          ;
+        env:
+          ENV_NAME: ${{ needs.names.outputs.environment-name }}
+          DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
+          SELF_DESTRUCT_DELAY_HOURS: ${{ inputs.selfDestructDelayHours || '1' }}
 
   deploy-dev:
     name: 'deploy dev'

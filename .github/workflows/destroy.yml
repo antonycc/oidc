@@ -140,6 +140,13 @@ jobs:
           DEPLOYMENT_NAME: ${{ env.DEPLOYMENT_NAME }}
           ENV_NAME: ${{ env.ENV_NAME }}
 
+      - name: Destroy SelfDestructStack
+        if: ${{ env.DEPLOYMENT_NAME != 'prod' }}
+        run: npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk destroy ${DEPLOYMENT_NAME}-SelfDestructStack --exclusively --force
+        env:
+          DEPLOYMENT_NAME: ${{ env.DEPLOYMENT_NAME }}
+          ENV_NAME: ${{ env.ENV_NAME }}
+
       - name: Destroy ObservabilityStack
         if: ${{ env.DEPLOYMENT_NAME != 'prod' }}
         run: npx dotenv -e .env.${{ env.ENV_NAME }} -- npx cdk destroy ${DEPLOYMENT_NAME}-ObservabilityStack --exclusively --force

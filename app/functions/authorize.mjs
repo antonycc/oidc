@@ -10,6 +10,7 @@ import {
   isPkceRequired,
 } from "../lib/clients.mjs";
 import { log, logError, maskSensitive, parseFormBody, createJsonResponse } from "../lib/utils.mjs";
+import { checkRateLimit, recordAttempt, recordAuthFailure, getClientIp } from "../lib/rate-limiting.mjs";
 
 // Create a safe version of query params for logging (mask sensitive fields)
 const createSafeQpForLogging = (qp) => {
@@ -36,6 +37,31 @@ const createSafeQpForLogging = (qp) => {
  */
 export const handler = async (event) => {
   try {
+    // Apply rate limiting first
+    const clientIp = getClientIp(event);
+    const rateLimitResult = await checkRateLimit("authorize", clientIp);
+    
+    if (!rateLimitResult.allowed) {
+      const retryAfter = rateLimitResult.resetTime - Math.floor(Date.now() / 1000);
+      log("authorize_rate_limited", clientIp, `retry_after_${retryAfter}s`);
+      
+      return {
+        statusCode: 429,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": retryAfter.toString(),
+          "X-RateLimit-Limit": "20",
+          "X-RateLimit-Remaining": "0",
+          "X-RateLimit-Reset": rateLimitResult.resetTime.toString(),
+        },
+        body: JSON.stringify({
+          error: "rate_limit_exceeded",
+          error_description: "Too many authorization requests. Please try again later.",
+          retry_after: retryAfter,
+        }),
+      };
+    }
+
     const method = event.requestContext?.http?.method || "GET";
     const url = new URL(event.rawPath + (event.rawQueryString ? "?" + event.rawQueryString : ""), "https://issuer");
     const qp = Object.fromEntries(url.searchParams.entries());
@@ -48,6 +74,9 @@ export const handler = async (event) => {
     const body = parseFormBody(event);
     for (const [k, v] of body.entries()) qp[k] = v;
     log("authorize", method, JSON.stringify(createSafeQpForLogging(qp)));
+
+    // Record the attempt (not a failure yet)
+    await recordAttempt("authorize", clientIp, false);
 
     const req = [
       "client_id",
@@ -105,6 +134,10 @@ export const handler = async (event) => {
       const hash = got.Item?.passwordHash || "$2a$10$zCwQ6QJkQ6QJkQ6QJkQ6QOeQ6QJkQ6QJkQ6QJkQ6QJkQ6QJkQ6QJk"; // bcrypt hash for "dummy"
       const ok = !!qp.password && bcrypt.compareSync(qp.password, hash);
       if (!ok || !got.Item?.passwordHash) {
+        // Record authentication failure for rate limiting
+        await recordAuthFailure(clientIp, username);
+        log("auth_failure", clientIp, username, "invalid_credentials");
+        
         // Redirect back to direct login page with error instead of showing form
         const loginUrl =
           `/loginDirect.html?error=${encodeURIComponent("Invalid username or password")}&` +
@@ -114,6 +147,7 @@ export const handler = async (event) => {
           `state=${encodeURIComponent(qp.state || "")}`;
         return { statusCode: 302, headers: { Location: loginUrl }, body: "" };
       }
+      log("auth_success", clientIp, username);
     }
 
     const code = ulid();

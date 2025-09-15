@@ -3,6 +3,7 @@ import { get, conditionalDelete, put, update, tables } from "../lib/db.mjs";
 import { signJwt } from "../lib/crypto.mjs";
 import { validateClientAuth, isPkceRequired } from "../lib/clients.mjs";
 import { log, logError, maskSensitive, parseFormBody, createJsonResponse } from "../lib/utils.mjs";
+import { checkRateLimit, recordAttempt, getClientIp } from "../lib/rate-limiting.mjs";
 
 /**
  * OIDC Token endpoint handler
@@ -18,6 +19,34 @@ import { log, logError, maskSensitive, parseFormBody, createJsonResponse } from 
 export const handler = async (event) => {
   try {
     if (event.requestContext.http.method !== "POST") return createJsonResponse(405, { error: "method_not_allowed" });
+
+    // Apply rate limiting first
+    const clientIp = getClientIp(event);
+    const rateLimitResult = await checkRateLimit("token", clientIp);
+    
+    if (!rateLimitResult.allowed) {
+      const retryAfter = rateLimitResult.resetTime - Math.floor(Date.now() / 1000);
+      log("token_rate_limited", clientIp, `retry_after_${retryAfter}s`);
+      
+      return {
+        statusCode: 429,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": retryAfter.toString(),
+          "X-RateLimit-Limit": "10",
+          "X-RateLimit-Remaining": "0", 
+          "X-RateLimit-Reset": rateLimitResult.resetTime.toString(),
+        },
+        body: JSON.stringify({
+          error: "rate_limit_exceeded",
+          error_description: "Too many token requests. Please try again later.",
+          retry_after: retryAfter,
+        }),
+      };
+    }
+
+    // Record the attempt
+    await recordAttempt("token", clientIp, false);
 
     const body = parseFormBody(event);
     const grant = body.get("grant_type");

@@ -37,6 +37,24 @@ const RATE_LIMITS = {
     maxAttempts: 100,
     blockDurationSeconds: 300, // 5 minutes
   },
+  // User management: moderate limits for account operations
+  userMgmt: {
+    windowSeconds: 300, // 5 minutes
+    maxAttempts: 50,
+    blockDurationSeconds: 1200, // 20 minutes
+  },
+  // Token introspection: moderate limits for validation requests
+  introspect: {
+    windowSeconds: 60, // 1 minute
+    maxAttempts: 30,
+    blockDurationSeconds: 600, // 10 minutes
+  },
+  // Token revocation: conservative limits for security operations
+  revoke: {
+    windowSeconds: 60, // 1 minute
+    maxAttempts: 20,
+    blockDurationSeconds: 600, // 10 minutes
+  },
 };
 
 /**

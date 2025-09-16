@@ -759,7 +759,7 @@ jobs:
       base-url: ${{ steps.edge-outputs.outputs.BASE_URL }}
 
   deploy-publish:
-    name: 'deploy edge'
+    name: 'deploy publish'
     if: ${{ inputs.skipDeploy != 'true' }}
     needs:
       - names

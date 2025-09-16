@@ -76,18 +76,18 @@ public class PublishStack extends Stack {
                 .sources(List.of(webDocRootSource))
                 .destinationBucket(props.webBucket)
                 //.distribution(distribution)
-                .distributionPaths(List.of(
-                    "/env.demo",
-                    "/index.html",
-                    "/login.html",
-                    "/loginDirect.html",
-                    "/oidc.css",
-                    "/oidc.js",
-                    "/oidc-antonycc-logo.png",
-                    "/openapi.yaml",
-                    "/post-auth.html",
-                    "/swagger.html"
-                ))
+//                .distributionPaths(List.of(
+//                    "/env.demo",
+//                    "/index.html",
+//                    "/login.html",
+//                    "/loginDirect.html",
+//                    "/oidc.css",
+//                    "/oidc.js",
+//                    "/oidc-antonycc-logo.png",
+//                    "/openapi.yaml",
+//                    "/post-auth.html",
+//                    "/swagger.html"
+//                ))
                 .retainOnDelete(true)
                 .logGroup(webDeploymentLogGroup)
                 .expires(Expiration.after(Duration.minutes(5)))

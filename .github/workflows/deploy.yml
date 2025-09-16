@@ -1029,6 +1029,7 @@ jobs:
       - names
       - build-cdk
       - deploy-edge
+      - deploy-publish
       - test-parameters
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}

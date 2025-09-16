@@ -1,4 +1,4 @@
-package com.antonycc.oidc;
+package com.antonycc.oidc.stacks;
 
 import java.util.List;
 import software.amazon.awscdk.CfnOutput;
@@ -35,9 +35,9 @@ public class OpsStack extends Stack {
         // Apply cost allocation tags for all resources in this stack
         Tags.of(this).add("Environment", props.envName);
         Tags.of(this).add("Application", "oidc-provider");
-        Tags.of(this).add("CostCenter", "authentication");
-        Tags.of(this).add("Owner", "platform-team");
-        Tags.of(this).add("Project", "identity-management");
+        Tags.of(this).add("CostCenter", "@antonycc/oidc");
+        Tags.of(this).add("Owner", "@antonycc/oidc");
+        Tags.of(this).add("Project", "oidc-provider");
         Tags.of(this).add("DeploymentName", props.deploymentName);
         Tags.of(this).add("Stack", "OpsStack");
         Tags.of(this).add("ManagedBy", "aws-cdk");
@@ -45,9 +45,9 @@ public class OpsStack extends Stack {
         // Enhanced cost optimization tags
         Tags.of(this).add("BillingPurpose", "authentication-infrastructure");
         Tags.of(this).add("ResourceType", "serverless-oidc");
-        Tags.of(this).add("Criticality", "high");
-        Tags.of(this).add("DataClassification", "confidential");
-        Tags.of(this).add("BackupRequired", "true");
+        Tags.of(this).add("Criticality", "low");
+        Tags.of(this).add("DataClassification", "public");
+        Tags.of(this).add("BackupRequired", "false");
         Tags.of(this).add("MonitoringEnabled", "true");
 
         // Use resources from the passed props

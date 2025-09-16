@@ -1,10 +1,9 @@
-package com.antonycc.oidc;
+package com.antonycc.oidc.stacks;
 
 import java.util.Map;
 import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.services.cloudfront.BehaviorOptions;
-import software.amazon.awscdk.services.s3.Bucket;
 
 public class EdgeStackProps implements StackProps {
     public final Environment env;
@@ -18,9 +17,9 @@ public class EdgeStackProps implements StackProps {
     public final String compressedResourceNamePrefix;
     public final String certificateArn;
     public final String logsBucketArn;
-    public final Bucket webBucket;
+    // public final Bucket webBucket;
     public final BehaviorOptions webBehaviorOptions;
-    public final Bucket wellKnownBucket;
+    // public final Bucket wellKnownBucket;
     public final BehaviorOptions wellKnownBehaviorOptions;
     public final String jwksEndpointFunctionArn;
     public final String authorizeEndpointFunctionArn;
@@ -40,9 +39,9 @@ public class EdgeStackProps implements StackProps {
         this.compressedResourceNamePrefix = builder.compressedResourceNamePrefix;
         this.certificateArn = builder.certificateArn;
         this.logsBucketArn = builder.logsBucketArn;
-        this.webBucket = builder.webBucket;
+        // this.webBucket = builder.webBucket;
         this.webBehaviorOptions = builder.webBehaviorOptions;
-        this.wellKnownBucket = builder.wellKnownBucket;
+        // this.wellKnownBucket = builder.wellKnownBucket;
         this.wellKnownBehaviorOptions = builder.wellKnownBehaviorOptions;
         this.jwksEndpointFunctionArn = builder.jwksEndpointFunctionArn;
         this.authorizeEndpointFunctionArn = builder.authorizeEndpointFunctionArn;
@@ -72,9 +71,9 @@ public class EdgeStackProps implements StackProps {
         private String compressedResourceNamePrefix;
         private String certificateArn;
         private String logsBucketArn;
-        private Bucket webBucket;
+        // private Bucket webBucket;
         private BehaviorOptions webBehaviorOptions;
-        private Bucket wellKnownBucket;
+        // private Bucket wellKnownBucket;
         private BehaviorOptions wellKnownBehaviorOptions;
         private String jwksEndpointFunctionArn;
         private String authorizeEndpointFunctionArn;
@@ -137,20 +136,20 @@ public class EdgeStackProps implements StackProps {
             return this;
         }
 
-        public Builder webBucket(Bucket webBucket) {
-            this.webBucket = webBucket;
-            return this;
-        }
+        // public Builder webBucket(Bucket webBucket) {
+        //    this.webBucket = webBucket;
+        //    return this;
+        // }
 
         public Builder webBehaviorOptions(BehaviorOptions webBehaviorOptions) {
             this.webBehaviorOptions = webBehaviorOptions;
             return this;
         }
 
-        public Builder wellKnownBucket(Bucket wellKnownBucket) {
-            this.wellKnownBucket = wellKnownBucket;
-            return this;
-        }
+        // public Builder wellKnownBucket(Bucket wellKnownBucket) {
+        //    this.wellKnownBucket = wellKnownBucket;
+        //    return this;
+        // }
 
         public Builder wellKnownBehaviorOptions(BehaviorOptions wellKnownBehaviorOptions) {
             this.wellKnownBehaviorOptions = wellKnownBehaviorOptions;

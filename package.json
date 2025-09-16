@@ -10,15 +10,15 @@
     "app/oidc"
   ],
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.888.0",
-    "@aws-sdk/lib-dynamodb": "^3.888.0",
+    "@aws-sdk/client-dynamodb": "^3.890.0",
+    "@aws-sdk/lib-dynamodb": "^3.890.0",
     "bcryptjs": "^2.4.3",
     "jose": "^5.10.0",
     "ulid": "^2.4.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0",
-    "@types/node": "^24.3.3",
+    "@types/node": "^24.5.0",
     "aws-cdk": "^2.1029.1",
     "dotenv": "^17.2.2",
     "dotenv-cli": "^9.0.0",

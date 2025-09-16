@@ -75,12 +75,13 @@ class SynthTest {
         assertNotNull(application.webStack);
         assertNotNull(application.edgeStack);
         assertNotNull(application.opsStack);
-        
+
         // SelfDestructStack is only created for non-prod deployments when JAR exists
         // During testing, the JAR may not exist yet, so we check conditionally
         String envName = System.getProperty("ENV_NAME", "test");
         if (!"prod".equals(System.getProperty("DEPLOYMENT_NAME", envName))) {
-            String handlerSource = System.getProperty("SELF_DESTRUCT_HANDLER_SOURCE", "target/self-destruct-lambda.jar");
+            String handlerSource =
+                    System.getProperty("SELF_DESTRUCT_HANDLER_SOURCE", "target/self-destruct-lambda.jar");
             if (java.nio.file.Files.exists(java.nio.file.Paths.get(handlerSource))) {
                 assertNotNull(application.selfDestructStack);
             }

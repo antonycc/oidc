@@ -185,7 +185,9 @@ jobs:
             -f Dockerfile .
 
       - name: Save image artifact
-        run: docker save -o docker-image/image.tar 'oidc-endpoint-function:${{ github.sha }}'
+        run: |
+          mkdir docker-image
+          docker save -o docker-image/image.tar 'oidc-endpoint-function:${{ github.sha }}'
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v4

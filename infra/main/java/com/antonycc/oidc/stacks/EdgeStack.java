@@ -1,5 +1,7 @@
 package com.antonycc.oidc.stacks;
 
+import java.util.List;
+import java.util.Map;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.Stack;
@@ -24,9 +26,6 @@ import software.amazon.awscdk.services.s3.Bucket;
 import software.amazon.awscdk.services.s3.IBucket;
 import software.amazon.awscdk.services.wafv2.CfnWebACL;
 import software.constructs.Construct;
-
-import java.util.List;
-import java.util.Map;
 
 public class EdgeStack extends Stack {
     public final Distribution distribution;

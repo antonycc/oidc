@@ -1,5 +1,9 @@
 package com.antonycc.oidc;
 
+import static com.antonycc.oidc.utils.ResourceNameUtils.buildDashedDomainName;
+import static com.antonycc.oidc.utils.ResourceNameUtils.generateCompressedResourceNamePrefix;
+import static com.antonycc.oidc.utils.ResourceNameUtils.generateResourceNamePrefix;
+
 import com.antonycc.oidc.stacks.AppStack;
 import com.antonycc.oidc.stacks.AppStackProps;
 import com.antonycc.oidc.stacks.DevStack;
@@ -19,10 +23,6 @@ import com.antonycc.oidc.stacks.WebStackProps;
 import software.amazon.awscdk.App;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.Environment;
-
-import static com.antonycc.oidc.utils.ResourceNameUtils.buildDashedDomainName;
-import static com.antonycc.oidc.utils.ResourceNameUtils.generateCompressedResourceNamePrefix;
-import static com.antonycc.oidc.utils.ResourceNameUtils.generateResourceNamePrefix;
 
 public class ProviderApplication {
 

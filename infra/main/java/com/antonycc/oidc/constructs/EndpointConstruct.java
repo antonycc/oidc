@@ -1,5 +1,10 @@
 package com.antonycc.oidc.constructs;
 
+import static com.antonycc.oidc.utils.ResourceNameUtils.generateIamCompatibleName;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.Fn;
 import software.amazon.awscdk.RemovalPolicy;
@@ -27,12 +32,6 @@ import software.amazon.awscdk.services.lambda.Tracing;
 import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.logs.RetentionDays;
 import software.constructs.Construct;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import static com.antonycc.oidc.utils.ResourceNameUtils.generateIamCompatibleName;
 
 public class EndpointConstruct extends Construct {
     public final LogGroup logGroup;

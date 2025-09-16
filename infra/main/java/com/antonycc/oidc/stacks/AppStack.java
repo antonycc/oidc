@@ -2,6 +2,9 @@ package com.antonycc.oidc.stacks;
 
 import com.antonycc.oidc.constructs.EndpointConstruct;
 import com.antonycc.oidc.constructs.EndpointConstructProps;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.Duration;
@@ -28,10 +31,6 @@ import software.amazon.awscdk.services.s3.BlockPublicAccess;
 import software.amazon.awscdk.services.s3.Bucket;
 import software.amazon.awscdk.services.s3.BucketEncryption;
 import software.constructs.Construct;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 public class AppStack extends Stack {
     public final Bucket wellKnownBucket;

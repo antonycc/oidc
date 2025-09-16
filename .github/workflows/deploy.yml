@@ -363,6 +363,9 @@ jobs:
             npx cdk deploy ${{ needs.names.outputs.deployment-name }}-ObservabilityStack \
               --require-approval never \
               --ci true \
+              --concurrency 4 \
+              --asset-parallelism \
+              --asset-prebuild \
               --outputs-file cdk.out/cdk-outputs-observability.json \
           ;
         env:
@@ -423,6 +426,9 @@ jobs:
             npx cdk deploy ${{ needs.names.outputs.deployment-name }}-SelfDestructStack \
               --require-approval never \
               --ci true \
+              --concurrency 4 \
+              --asset-parallelism \
+              --asset-prebuild \
               --outputs-file cdk.out/cdk-outputs-self-destructStack.json \
           ;
         env:
@@ -478,6 +484,9 @@ jobs:
             npx cdk deploy ${{ needs.names.outputs.deployment-name }}-DevStack \
               --require-approval never \
               --ci true \
+              --concurrency 4 \
+              --asset-parallelism \
+              --asset-prebuild \
               --outputs-file cdk.out/cdk-outputs-dev.json \
           ;
         env:
@@ -608,6 +617,9 @@ jobs:
               --exclusively \
               --require-approval never \
               --ci true \
+              --concurrency 4 \
+              --asset-parallelism \
+              --asset-prebuild \
               --outputs-file cdk.out/cdk-outputs-app.json \
             ;
         env:
@@ -673,6 +685,9 @@ jobs:
               --exclusively \
               --require-approval never \
               --ci true \
+              --concurrency 4 \
+              --asset-parallelism \
+              --asset-prebuild \
               --outputs-file cdk.out/cdk-outputs-web.json \
             ;
         env:
@@ -742,6 +757,9 @@ jobs:
               --exclusively \
               --require-approval never \
               --ci true \
+              --concurrency 4 \
+              --asset-parallelism \
+              --asset-prebuild \
               --outputs-file cdk.out/cdk-outputs-edge.json \
             ;
         env:
@@ -811,6 +829,9 @@ jobs:
               --exclusively \
               --require-approval never \
               --ci true \
+              --concurrency 4 \
+              --asset-parallelism \
+              --asset-prebuild \
               --outputs-file cdk.out/cdk-outputs-edge.json \
             ;
         env:
@@ -867,6 +888,9 @@ jobs:
               --exclusively \
               --require-approval never \
               --ci true \
+              --concurrency 4 \
+              --asset-parallelism \
+              --asset-prebuild \
               --outputs-file cdk.out/cdk-outputs-ops.json \
             ;
         env:

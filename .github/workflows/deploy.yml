@@ -503,7 +503,7 @@ jobs:
     outputs:
       ecr-repository-uri: ${{ steps.dev-outputs.outputs.ECR_REPOSITORY_URI }}
 
-  build-images:
+  push-images:
     name: 'build and push images'
     if: ${{ inputs.skipDeploy != 'true' }}
     needs:
@@ -575,7 +575,7 @@ jobs:
       - npm-test
       - build-cdk
       - deploy-dev
-      - build-images
+      - push-images
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
     steps:
@@ -625,7 +625,7 @@ jobs:
         env:
           ENV_NAME: ${{ needs.names.outputs.environment-name }}
           DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
-          BASE_IMAGE_TAG: ${{ needs.build-images.outputs.image-tag }}
+          BASE_IMAGE_TAG: ${{ needs.push-images.outputs.image-tag }}
 
       - name: Resolve stack outputs
         id: app-outputs

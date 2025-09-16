@@ -124,7 +124,7 @@ public class SelfDestructHandler implements RequestHandler<Map<String, Object>, 
                         DescribeStacksRequest.builder().stackName(stackName).build());
                 context.getLogger().log("Stack " + stackName + " still exists, waiting...");
             } catch (CloudFormationException e) {
-                if (e.getMessage() != null && e.getMessage().contains("does not exist")) {
+                if (e.awsErrorDetails() != null && "ValidationError".equals(e.awsErrorDetails().errorCode())) {
                     context.getLogger().log("Stack " + stackName + " deleted.");
                     return true;
                 }

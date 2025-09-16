@@ -950,6 +950,7 @@ jobs:
     needs:
       - names
       - deploy-edge
+      - deploy-publish
       - demo-credentials
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}

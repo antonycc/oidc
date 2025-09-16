@@ -881,6 +881,7 @@ jobs:
       - deploy-app
       - deploy-web
       - deploy-edge
+      - deploy-publish
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
     steps:

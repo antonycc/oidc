@@ -1,4 +1,4 @@
-package com.antonycc.oidc;
+package com.antonycc.oidc.constructs;
 
 import java.util.List;
 import java.util.Map;

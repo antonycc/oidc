@@ -363,6 +363,9 @@ jobs:
             npx cdk deploy ${{ needs.names.outputs.deployment-name }}-ObservabilityStack \
               --require-approval never \
               --ci true \
+              --concurrency 4 \
+              --asset-parallelism \
+              --asset-prebuild \
               --outputs-file cdk.out/cdk-outputs-observability.json \
           ;
         env:
@@ -423,6 +426,9 @@ jobs:
             npx cdk deploy ${{ needs.names.outputs.deployment-name }}-SelfDestructStack \
               --require-approval never \
               --ci true \
+              --concurrency 4 \
+              --asset-parallelism \
+              --asset-prebuild \
               --outputs-file cdk.out/cdk-outputs-self-destructStack.json \
           ;
         env:
@@ -478,6 +484,9 @@ jobs:
             npx cdk deploy ${{ needs.names.outputs.deployment-name }}-DevStack \
               --require-approval never \
               --ci true \
+              --concurrency 4 \
+              --asset-parallelism \
+              --asset-prebuild \
               --outputs-file cdk.out/cdk-outputs-dev.json \
           ;
         env:
@@ -608,6 +617,9 @@ jobs:
               --exclusively \
               --require-approval never \
               --ci true \
+              --concurrency 4 \
+              --asset-parallelism \
+              --asset-prebuild \
               --outputs-file cdk.out/cdk-outputs-app.json \
             ;
         env:
@@ -673,6 +685,9 @@ jobs:
               --exclusively \
               --require-approval never \
               --ci true \
+              --concurrency 4 \
+              --asset-parallelism \
+              --asset-prebuild \
               --outputs-file cdk.out/cdk-outputs-web.json \
             ;
         env:
@@ -742,6 +757,9 @@ jobs:
               --exclusively \
               --require-approval never \
               --ci true \
+              --concurrency 4 \
+              --asset-parallelism \
+              --asset-prebuild \
               --outputs-file cdk.out/cdk-outputs-edge.json \
             ;
         env:
@@ -757,6 +775,68 @@ jobs:
         shell: bash
     outputs:
       base-url: ${{ steps.edge-outputs.outputs.BASE_URL }}
+
+  deploy-publish:
+    name: 'deploy publish'
+    if: ${{ inputs.skipDeploy != 'true' }}
+    needs:
+      - names
+      - npm-test
+      - build-cdk
+      - deploy-app
+      - deploy-web
+      - deploy-edge
+    runs-on: ubuntu-24.04
+    environment:
+      name: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
+      url: ${{ steps.edge-outputs.outputs.BASE_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Node dependencies
+        run: npm ci
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'maven'
+
+      - name: Download CDK synthesis artifacts
+        uses: actions/download-artifact@v5
+        with:
+          name: cdk-synthesis
+          path: cdk.out/
+
+      - name: Configure AWS creds via OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-oidc-deploy
+
+      - name: Deploy Publish Stack (CDK)
+        run: |
+          npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- \
+            npx cdk deploy ${{ needs.names.outputs.deployment-name }}-PublishStack \
+              --exclusively \
+              --require-approval never \
+              --ci true \
+              --concurrency 4 \
+              --asset-parallelism \
+              --asset-prebuild \
+              --outputs-file cdk.out/cdk-outputs-edge.json \
+            ;
+        env:
+          ENV_NAME: ${{ needs.names.outputs.environment-name }}
+          DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
 
   deploy-ops:
     name: 'deploy ops'
@@ -808,6 +888,9 @@ jobs:
               --exclusively \
               --require-approval never \
               --ci true \
+              --concurrency 4 \
+              --asset-parallelism \
+              --asset-prebuild \
               --outputs-file cdk.out/cdk-outputs-ops.json \
             ;
         env:
@@ -822,6 +905,7 @@ jobs:
       - deploy-app
       - deploy-web
       - deploy-edge
+      - deploy-publish
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
     steps:
@@ -890,6 +974,7 @@ jobs:
     needs:
       - names
       - deploy-edge
+      - deploy-publish
       - demo-credentials
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
@@ -925,6 +1010,7 @@ jobs:
       - names
       - build-cdk
       - deploy-edge
+      - deploy-publish
       - test-parameters
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
@@ -970,6 +1056,7 @@ jobs:
       - names
       - build-cdk
       - deploy-edge
+      - deploy-publish
       - test-parameters
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
@@ -1014,6 +1101,7 @@ jobs:
       - names
       - build-cdk
       - deploy-edge
+      - deploy-publish
       - test-parameters
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}

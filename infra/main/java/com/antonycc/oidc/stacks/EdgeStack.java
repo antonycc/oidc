@@ -1,13 +1,7 @@
-package com.antonycc.oidc;
+package com.antonycc.oidc.stacks;
 
-import java.util.List;
-import java.util.Map;
-import software.amazon.awscdk.AssetHashType;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
-import software.amazon.awscdk.Duration;
-import software.amazon.awscdk.Expiration;
-import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.Tags;
 import software.amazon.awscdk.services.certificatemanager.Certificate;
@@ -19,8 +13,6 @@ import software.amazon.awscdk.services.lambda.FunctionAttributes;
 import software.amazon.awscdk.services.lambda.FunctionUrlAuthType;
 import software.amazon.awscdk.services.lambda.IFunction;
 import software.amazon.awscdk.services.lambda.Permission;
-import software.amazon.awscdk.services.logs.LogGroup;
-import software.amazon.awscdk.services.logs.RetentionDays;
 import software.amazon.awscdk.services.route53.ARecord;
 import software.amazon.awscdk.services.route53.ARecordProps;
 import software.amazon.awscdk.services.route53.HostedZone;
@@ -30,16 +22,14 @@ import software.amazon.awscdk.services.route53.RecordTarget;
 import software.amazon.awscdk.services.route53.targets.CloudFrontTarget;
 import software.amazon.awscdk.services.s3.Bucket;
 import software.amazon.awscdk.services.s3.IBucket;
-import software.amazon.awscdk.services.s3.assets.AssetOptions;
-import software.amazon.awscdk.services.s3.deployment.BucketDeployment;
-import software.amazon.awscdk.services.s3.deployment.Source;
 import software.amazon.awscdk.services.wafv2.CfnWebACL;
 import software.constructs.Construct;
 
+import java.util.List;
+import java.util.Map;
+
 public class EdgeStack extends Stack {
     public final Distribution distribution;
-    public final BucketDeployment webDeployment;
-    public final BucketDeployment wellKnownDeployment;
     public final ARecord aliasRecord;
     public final String baseUrl;
 
@@ -49,9 +39,9 @@ public class EdgeStack extends Stack {
         // Apply cost allocation tags for all resources in this stack
         Tags.of(this).add("Environment", props.envName);
         Tags.of(this).add("Application", "oidc-provider");
-        Tags.of(this).add("CostCenter", "authentication");
-        Tags.of(this).add("Owner", "platform-team");
-        Tags.of(this).add("Project", "identity-management");
+        Tags.of(this).add("CostCenter", "@antonycc/oidc");
+        Tags.of(this).add("Owner", "@antonycc/oidc");
+        Tags.of(this).add("Project", "oidc-provider");
         Tags.of(this).add("DeploymentName", props.deploymentName);
         Tags.of(this).add("Stack", "EdgeStack");
         Tags.of(this).add("ManagedBy", "aws-cdk");
@@ -59,9 +49,9 @@ public class EdgeStack extends Stack {
         // Enhanced cost optimization tags
         Tags.of(this).add("BillingPurpose", "authentication-infrastructure");
         Tags.of(this).add("ResourceType", "serverless-oidc");
-        Tags.of(this).add("Criticality", "high");
-        Tags.of(this).add("DataClassification", "confidential");
-        Tags.of(this).add("BackupRequired", "true");
+        Tags.of(this).add("Criticality", "low");
+        Tags.of(this).add("DataClassification", "public");
+        Tags.of(this).add("BackupRequired", "false");
         Tags.of(this).add("MonitoringEnabled", "true");
 
         // Use Resources from the passed props
@@ -223,71 +213,6 @@ public class EdgeStack extends Stack {
                 props.compressedResourceNamePrefix + "-cf-userinfo", invokeFunctionUrlPermission);
         jwksEndpointFunction.addPermission(
                 props.compressedResourceNamePrefix + "-cf-jwks", invokeFunctionUrlPermission);
-
-        var deployPostfix = java.util.UUID.randomUUID().toString().substring(0, 8);
-
-        // Deploy the web website files to the web website bucket and invalidate distribution
-        var webDocRootSource = Source.asset(
-                "web",
-                AssetOptions.builder().assetHashType(AssetHashType.SOURCE).build());
-        var webDeploymentLogGroup = LogGroup.Builder.create(this, props.resourceNamePrefix + "-WebDeploymentLogGroup")
-                .logGroupName("/deployment/" + props.resourceNamePrefix + "-web-deployment-" + deployPostfix)
-                .retention(RetentionDays.ONE_DAY)
-                .removalPolicy(RemovalPolicy.DESTROY)
-                .build();
-        this.webDeployment = BucketDeployment.Builder.create(
-                        this, props.resourceNamePrefix + "-DocRootToWebOriginDeployment")
-                .sources(List.of(webDocRootSource))
-                .destinationBucket(props.webBucket)
-                .distribution(this.distribution)
-                .distributionPaths(List.of("/*"))
-                .retainOnDelete(false)
-                .logGroup(webDeploymentLogGroup)
-                .expires(Expiration.after(Duration.minutes(5)))
-                .prune(true)
-                .build();
-
-        // Deploy the well-known website files to the well-known bucket under /.well-known/ with a random suffix on the
-        // Translate "https://oidc.antonycc.com" in well-known/openid-configuration to `baseUrl` using asset bundling
-        // options
-        // var assetOptions = AssetOptions.builder().assetHashType(AssetHashType.SOURCE).build();
-        var wellKnownDirectory = "well-known";
-        var openIdConfigFilepath = "openid-configuration"; // inside bundling context root
-        var prodBaseUrl = "https://oidc.antonycc.com";
-        var assetOptionsCommand = List.of(
-                "bash",
-                "-c",
-                "set -euo pipefail; " + "cp -R /asset-input/* /asset-output/; "
-                        + "sed -i \"s|"
-                        + prodBaseUrl + "|" + this.baseUrl + "|g\" /asset-output/" + openIdConfigFilepath + ";");
-        var assetBundlingImage =
-                software.amazon.awscdk.DockerImage.fromRegistry("public.ecr.aws/amazonlinux/amazonlinux:2023");
-        var assetOptions = AssetOptions.builder()
-                .assetHashType(AssetHashType.OUTPUT)
-                .bundling(software.amazon.awscdk.BundlingOptions.builder()
-                        .image(assetBundlingImage)
-                        .command(assetOptionsCommand)
-                        .build())
-                .build();
-        var wellKnownRootSource = Source.asset(wellKnownDirectory, assetOptions);
-        var wellKnownDeploymentLogGroup = LogGroup.Builder.create(
-                        this, props.resourceNamePrefix + "-WellKnownDeploymentLogGroup")
-                .logGroupName("/deployment/" + props.resourceNamePrefix + "-well-known-deployment-" + deployPostfix)
-                .retention(RetentionDays.ONE_DAY)
-                .removalPolicy(RemovalPolicy.DESTROY)
-                .build();
-        this.wellKnownDeployment = BucketDeployment.Builder.create(
-                        this, props.resourceNamePrefix + "-DocRootToWellKnownOriginDeployment")
-                .sources(List.of(wellKnownRootSource))
-                .destinationBucket(props.wellKnownBucket)
-                .destinationKeyPrefix("." + wellKnownDirectory + "/")
-                .distribution(this.distribution)
-                .distributionPaths(List.of("/." + wellKnownDirectory + "/*"))
-                .retainOnDelete(false)
-                .logGroup(wellKnownDeploymentLogGroup)
-                .expires(Expiration.after(Duration.minutes(5)))
-                .prune(true)
-                .build();
 
         // A record
         this.aliasRecord = new ARecord(

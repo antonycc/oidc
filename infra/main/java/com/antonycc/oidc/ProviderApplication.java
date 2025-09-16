@@ -1,12 +1,28 @@
 package com.antonycc.oidc;
 
-import static com.antonycc.oidc.ResourceNameUtils.buildDashedDomainName;
-import static com.antonycc.oidc.ResourceNameUtils.generateCompressedResourceNamePrefix;
-import static com.antonycc.oidc.ResourceNameUtils.generateResourceNamePrefix;
-
+import com.antonycc.oidc.stacks.AppStack;
+import com.antonycc.oidc.stacks.AppStackProps;
+import com.antonycc.oidc.stacks.DevStack;
+import com.antonycc.oidc.stacks.DevStackProps;
+import com.antonycc.oidc.stacks.EdgeStack;
+import com.antonycc.oidc.stacks.EdgeStackProps;
+import com.antonycc.oidc.stacks.ObservabilityStack;
+import com.antonycc.oidc.stacks.ObservabilityStackProps;
+import com.antonycc.oidc.stacks.OpsStack;
+import com.antonycc.oidc.stacks.OpsStackProps;
+import com.antonycc.oidc.stacks.PublishStack;
+import com.antonycc.oidc.stacks.PublishStackProps;
+import com.antonycc.oidc.stacks.SelfDestructStack;
+import com.antonycc.oidc.stacks.SelfDestructStackProps;
+import com.antonycc.oidc.stacks.WebStack;
+import com.antonycc.oidc.stacks.WebStackProps;
 import software.amazon.awscdk.App;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.Environment;
+
+import static com.antonycc.oidc.utils.ResourceNameUtils.buildDashedDomainName;
+import static com.antonycc.oidc.utils.ResourceNameUtils.generateCompressedResourceNamePrefix;
+import static com.antonycc.oidc.utils.ResourceNameUtils.generateResourceNamePrefix;
 
 public class ProviderApplication {
 
@@ -27,6 +43,7 @@ public class ProviderApplication {
     public AppStack appStack;
     public WebStack webStack;
     public EdgeStack edgeStack;
+    public PublishStack publishStack;
     public OpsStack opsStack;
     public SelfDestructStack selfDestructStack;
 
@@ -180,9 +197,9 @@ public class ProviderApplication {
                             .compressedResourceNamePrefix(this.application.compressedResourceNamePrefix)
                             .certificateArn(this.application.certificateArn)
                             .logsBucketArn(this.application.observabilityStack.logsBucket.getBucketArn())
-                            .webBucket(this.application.webStack.webBucket)
+                            // .webBucket(this.application.webStack.webBucket)
                             .webBehaviorOptions(this.application.webStack.behaviorOptions)
-                            .wellKnownBucket(this.application.appStack.wellKnownBucket)
+                            // .wellKnownBucket(this.application.appStack.wellKnownBucket)
                             .wellKnownBehaviorOptions(this.application.appStack.wellKnownBehaviorOptions)
                             .jwksEndpointFunctionArn(this.application.appStack.jwksEndpoint.function.getFunctionArn())
                             .authorizeEndpointFunctionArn(
@@ -196,6 +213,26 @@ public class ProviderApplication {
             this.application.edgeStack.addDependency(this.application.observabilityStack);
             this.application.edgeStack.addDependency(this.application.appStack);
             this.application.edgeStack.addDependency(this.application.webStack);
+
+            // Create the Publish stack (Bucket Deployments to CloudFront)
+            String publishStackId = "%s-PublishStack".formatted(this.application.deploymentName);
+            this.application.publishStack = new PublishStack(
+                    app,
+                    publishStackId,
+                    PublishStackProps.builder()
+                            .env(env)
+                            .envName(this.application.envName)
+                            .deploymentName(this.application.deploymentName)
+                            .domainName(this.application.domainName)
+                            .baseUrl(this.application.baseUrl)
+                            .resourceNamePrefix(this.application.resourceNamePrefix)
+                            .distributionId(this.application.edgeStack.distribution.getDistributionId())
+                            .webBucket(this.application.webStack.webBucket)
+                            .wellKnownBucket(this.application.appStack.wellKnownBucket)
+                            .build());
+            this.application.publishStack.addDependency(this.application.edgeStack);
+            this.application.publishStack.addDependency(this.application.appStack);
+            this.application.publishStack.addDependency(this.application.webStack);
 
             // Create the Ops stack (Alarms, etc.)
             String opsStackId = "%s-OpsStack".formatted(this.application.deploymentName);
@@ -248,7 +285,8 @@ public class ProviderApplication {
                                     .build());
                     // SelfDestructStack has no dependencies - it should be able to delete everything
                 } else {
-                    System.out.println("Skipping SelfDestructStack creation - handler JAR not found at: " + handlerSource);
+                    System.out.println(
+                            "Skipping SelfDestructStack creation - handler JAR not found at: " + handlerSource);
                 }
             }
 

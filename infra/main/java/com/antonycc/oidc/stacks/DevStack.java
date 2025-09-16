@@ -1,6 +1,6 @@
-package com.antonycc.oidc;
+package com.antonycc.oidc.stacks;
 
-import static com.antonycc.oidc.ResourceNameUtils.generateIamCompatibleName;
+import static com.antonycc.oidc.utils.ResourceNameUtils.generateIamCompatibleName;
 
 import java.util.List;
 import software.amazon.awscdk.CfnOutput;

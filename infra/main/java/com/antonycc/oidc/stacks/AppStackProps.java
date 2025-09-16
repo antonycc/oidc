@@ -1,4 +1,4 @@
-package com.antonycc.oidc;
+package com.antonycc.oidc.stacks;
 
 import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.StackProps;

@@ -1,4 +1,4 @@
-package com.antonycc.oidc;
+package com.antonycc.oidc.stacks;
 
 import java.util.List;
 import java.util.Map;
@@ -178,9 +178,9 @@ public class ObservabilityStack extends Stack {
     private void applyCostAllocationTags(ObservabilityStackProps props) {
         Tags.of(this).add("Environment", props.envName);
         Tags.of(this).add("Application", "oidc-provider");
-        Tags.of(this).add("CostCenter", "authentication");
-        Tags.of(this).add("Owner", "platform-team");
-        Tags.of(this).add("Project", "identity-management");
+        Tags.of(this).add("CostCenter", "@antonycc/oidc");
+        Tags.of(this).add("Owner", "@antonycc/oidc");
+        Tags.of(this).add("Project", "oidc-provider");
         Tags.of(this).add("Stack", "ObservabilityStack");
         Tags.of(this).add("ManagedBy", "aws-cdk");
     }

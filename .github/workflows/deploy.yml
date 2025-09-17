@@ -162,6 +162,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Node dependencies
+        run: npm ci
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
@@ -169,11 +178,26 @@ jobs:
             image=moby/buildkit:latest
 
       - name: Build base image
-        id: build
         run: |
           docker buildx build \
             --load \
+            -t 'oidc-endpoint-function:${{ github.sha }}' \
             -f Dockerfile .
+
+      - name: Save image artifact
+        run: |
+          mkdir docker-image
+          docker save -o docker-image/image.tar 'oidc-endpoint-function:${{ github.sha }}'
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: docker-image/image.tar
+          if-no-files-found: error
+
+    outputs:
+      image-tag: ${{ github.sha }}
 
   npm-test-cdk:
     name: 'npm test cdk'
@@ -210,6 +234,7 @@ jobs:
     if: ${{ inputs.skipDeploy != 'true' }}
     needs:
       - names
+      - mvn-test
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -502,13 +527,14 @@ jobs:
     outputs:
       ecr-repository-uri: ${{ steps.dev-outputs.outputs.ECR_REPOSITORY_URI }}
 
-  build-images:
+  push-images:
     name: 'build and push images'
     if: ${{ inputs.skipDeploy != 'true' }}
     needs:
       - names
       - build-cdk
       - deploy-dev
+      - docker-build
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
     steps:
@@ -524,23 +550,14 @@ jobs:
       - name: Node dependencies
         run: npm ci
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Download image artifact
+        uses: actions/download-artifact@v5
         with:
-          driver-opts: |
-            image=moby/buildkit:latest
+          name: docker-image
+          path: docker-image/
 
-      - name: Build base image
-        id: build
-        run: |
-          npx dotenv -e .env.${{ needs.names.outputs.environment-name }} -- \
-            docker buildx build \
-              --load \
-              -t 'oidc-endpoint-function:${{ github.sha }}' \
-              -f Dockerfile .
-        env:
-          ENV_NAME: ${{ needs.names.outputs.environment-name }}
-          DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
+      - name: Load Docker image
+        run: docker load -i docker-image/image.tar
 
       - name: Configure AWS creds via OIDC
         uses: aws-actions/configure-aws-credentials@v5
@@ -574,7 +591,7 @@ jobs:
       - npm-test
       - build-cdk
       - deploy-dev
-      - build-images
+      - push-images
     runs-on: ubuntu-24.04
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'ci' }}
     steps:
@@ -624,7 +641,7 @@ jobs:
         env:
           ENV_NAME: ${{ needs.names.outputs.environment-name }}
           DEPLOYMENT_NAME: ${{ needs.names.outputs.deployment-name }}
-          BASE_IMAGE_TAG: ${{ needs.build-images.outputs.image-tag }}
+          BASE_IMAGE_TAG: ${{ needs.push-images.outputs.image-tag }}
 
       - name: Resolve stack outputs
         id: app-outputs

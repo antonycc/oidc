@@ -40,6 +40,7 @@ public class SelfDestructHandler implements RequestHandler<Map<String, Object>, 
         // Stack deletion order (reverse of creation dependency order)
         List<String> stacksToDelete = new ArrayList<>();
         addStackNameIfPresent(stacksToDelete, System.getenv("OPS_STACK_NAME"));
+        addStackNameIfPresent(stacksToDelete, System.getenv("PUBLISH_STACK_NAME"));
         addStackNameIfPresent(stacksToDelete, System.getenv("EDGE_STACK_NAME"));
         addStackNameIfPresent(stacksToDelete, System.getenv("WEB_STACK_NAME"));
         addStackNameIfPresent(stacksToDelete, System.getenv("APP_STACK_NAME"));

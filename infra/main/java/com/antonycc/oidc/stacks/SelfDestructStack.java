@@ -1,10 +1,5 @@
 package com.antonycc.oidc.stacks;
 
-import static com.antonycc.oidc.utils.ResourceNameUtils.generateIamCompatibleName;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.Duration;
@@ -27,6 +22,12 @@ import software.amazon.awscdk.services.lambda.Tracing;
 import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.logs.RetentionDays;
 import software.constructs.Construct;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static com.antonycc.oidc.utils.ResourceNameUtils.generateIamCompatibleName;
 
 public class SelfDestructStack extends Stack {
     public final LogGroup logGroup;
@@ -113,6 +114,7 @@ public class SelfDestructStack extends Stack {
         environment.put("APP_STACK_NAME", props.appStackName);
         environment.put("WEB_STACK_NAME", props.webStackName);
         environment.put("EDGE_STACK_NAME", props.edgeStackName);
+        environment.put("PUBLISH_STACK_NAME", props.publishStackName);
         environment.put("OPS_STACK_NAME", props.opsStackName);
         environment.put("SELF_DESTRUCT_STACK_NAME", this.getStackName());
 

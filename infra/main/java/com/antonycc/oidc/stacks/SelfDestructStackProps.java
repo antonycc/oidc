@@ -14,6 +14,7 @@ public class SelfDestructStackProps implements StackProps {
     public final String appStackName;
     public final String webStackName;
     public final String edgeStackName;
+    public final String publishStackName;
     public final String opsStackName;
     public final String selfDestructDelayHours;
     public final String selfDestructHandlerSource;
@@ -29,6 +30,7 @@ public class SelfDestructStackProps implements StackProps {
         this.appStackName = builder.appStackName;
         this.webStackName = builder.webStackName;
         this.edgeStackName = builder.edgeStackName;
+        this.publishStackName = builder.publishStackName;
         this.opsStackName = builder.opsStackName;
         this.selfDestructDelayHours = builder.selfDestructDelayHours;
         this.selfDestructHandlerSource = builder.selfDestructHandlerSource;
@@ -54,6 +56,7 @@ public class SelfDestructStackProps implements StackProps {
         private String appStackName;
         private String webStackName;
         private String edgeStackName;
+        private String publishStackName;
         private String opsStackName;
         private String selfDestructDelayHours;
         private String selfDestructHandlerSource;
@@ -105,6 +108,11 @@ public class SelfDestructStackProps implements StackProps {
 
         public Builder edgeStackName(String edgeStackName) {
             this.edgeStackName = edgeStackName;
+            return this;
+        }
+
+        public Builder publishStackName(String publishStackName) {
+            this.publishStackName = publishStackName;
             return this;
         }
 

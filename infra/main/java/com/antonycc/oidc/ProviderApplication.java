@@ -279,6 +279,7 @@ public class ProviderApplication {
                                     .appStackName(this.application.appStack.getStackName())
                                     .webStackName(this.application.webStack.getStackName())
                                     .edgeStackName(this.application.edgeStack.getStackName())
+                                    .publishStackName(this.application.publishStack.getStackName())
                                     .opsStackName(this.application.opsStack.getStackName())
                                     .selfDestructDelayHours(getConfig("SELF_DESTRUCT_DELAY_HOURS", "1"))
                                     .selfDestructHandlerSource(handlerSource)

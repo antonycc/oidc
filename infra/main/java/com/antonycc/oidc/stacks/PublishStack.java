@@ -59,15 +59,15 @@ public class PublishStack extends Stack {
         IDistribution distribution = Distribution.fromDistributionAttributes(
                 this, props.resourceNamePrefix + "-ImportedWebDist", distributionAttributes);
 
-        // var deployPostfix = java.util.UUID.randomUUID().toString().substring(0, 8);
+        var deployPostfix = java.util.UUID.randomUUID().toString().substring(0, 8);
 
         // Deploy the web website files to the web website bucket and invalidate distribution
         var webDocRootSource = Source.asset(
                 "web",
                 AssetOptions.builder().assetHashType(AssetHashType.SOURCE).build());
-        var webDeploymentLogGroup = LogGroup.Builder.create(this, props.resourceNamePrefix + "-WebDeploymentLogGroup")
-                // .logGroupName("/deployment/" + props.resourceNamePrefix + "-web-deployment-" + deployPostfix)
-                .logGroupName("/deployment/" + props.resourceNamePrefix + "-web-deployment")
+        var webDeploymentLogGroup = LogGroup.Builder.create(this, props.resourceNamePrefix + "-WebDeploymentLogGroup-" + deployPostfix)
+                .logGroupName("/deployment/" + props.resourceNamePrefix + "-web-deployment-" + deployPostfix)
+                //.logGroupName("/deployment/" + props.resourceNamePrefix + "-web-deployment")
                 .retention(RetentionDays.ONE_DAY)
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
@@ -126,8 +126,8 @@ public class PublishStack extends Stack {
         //var wellKnownRootSource = Source.asset(wellKnownDirectory, assetOptions);
         var wellKnownRootSource = Source.data(openIdConfigFilepath, rendered);
         var wellKnownDeploymentLogGroup = LogGroup.Builder.create(
-                        this, props.resourceNamePrefix + "-WellKnownDeploymentLogGroup")
-                .logGroupName("/deployment/" + props.resourceNamePrefix + "-well-known-deployment")
+                        this, props.resourceNamePrefix + "-WellKnownDeploymentLogGroup-" + deployPostfix)
+                .logGroupName("/deployment/" + props.resourceNamePrefix + "-well-known-deployment-" + deployPostfix)
                 .retention(RetentionDays.ONE_DAY)
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();

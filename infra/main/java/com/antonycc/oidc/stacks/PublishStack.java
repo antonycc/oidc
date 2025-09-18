@@ -33,12 +33,12 @@ public class PublishStack extends Stack {
         super(scope, id, props);
 
         // Apply cost allocation tags for all resources in this stack
-        Tags.of(this).add("Environment", props.envName);
+        Tags.of(this).add("Environment", props.envName());
         Tags.of(this).add("Application", "oidc-provider");
         Tags.of(this).add("CostCenter", "@antonycc/oidc");
         Tags.of(this).add("Owner", "@antonycc/oidc");
         Tags.of(this).add("Project", "oidc-provider");
-        Tags.of(this).add("DeploymentName", props.deploymentName);
+        Tags.of(this).add("DeploymentName", props.deploymentName());
         Tags.of(this).add("Stack", "EdgeStack");
         Tags.of(this).add("ManagedBy", "aws-cdk");
 
@@ -51,13 +51,13 @@ public class PublishStack extends Stack {
         Tags.of(this).add("MonitoringEnabled", "true");
 
         // Use Resources from the passed props
-        this.baseUrl = props.baseUrl;
+        this.baseUrl = props.baseUrl();
         DistributionAttributes distributionAttributes = DistributionAttributes.builder()
-                .domainName(props.domainName)
-                .distributionId(props.distributionId)
+                .domainName(props.domainName())
+                .distributionId(props.distributionId())
                 .build();
         IDistribution distribution = Distribution.fromDistributionAttributes(
-                this, props.resourceNamePrefix + "-ImportedWebDist", distributionAttributes);
+                this, props.resourceNamePrefix() + "-ImportedWebDist", distributionAttributes);
 
         var deployPostfix = java.util.UUID.randomUUID().toString().substring(0, 8);
 
@@ -65,16 +65,16 @@ public class PublishStack extends Stack {
         var webDocRootSource = Source.asset(
                 "web",
                 AssetOptions.builder().assetHashType(AssetHashType.SOURCE).build());
-        var webDeploymentLogGroup = LogGroup.Builder.create(this, props.resourceNamePrefix + "-WebDeploymentLogGroup-" + deployPostfix)
-                .logGroupName("/deployment/" + props.resourceNamePrefix + "-web-deployment-" + deployPostfix)
-                //.logGroupName("/deployment/" + props.resourceNamePrefix + "-web-deployment")
+        var webDeploymentLogGroup = LogGroup.Builder.create(this, props.resourceNamePrefix() + "-WebDeploymentLogGroup-" + deployPostfix)
+                .logGroupName("/deployment/" + props.resourceNamePrefix() + "-web-deployment-" + deployPostfix)
+                //.logGroupName("/deployment/" + props.resourceNamePrefix() + "-web-deployment")
                 .retention(RetentionDays.ONE_DAY)
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
         this.webDeployment = BucketDeployment.Builder.create(
-                        this, props.resourceNamePrefix + "-DocRootToWebOriginDeployment")
+                        this, props.resourceNamePrefix() + "-DocRootToWebOriginDeployment")
                 .sources(List.of(webDocRootSource))
-                .destinationBucket(props.webBucket)
+                .destinationBucket(props.webBucket())
                 //.distribution(distribution)
 //                .distributionPaths(List.of(
 //                    "/env.demo",
@@ -106,7 +106,7 @@ public class PublishStack extends Stack {
         //        "-c",
         //        "set -euo pipefail; " + "cp -R /asset-input/" + openIdConfigFilepath + " /asset-output/ ; "
         //                + "sed -i \"s|"
-        //                + prodBaseUrl + "|" + props.baseUrl + "|g\" /asset-output/" + openIdConfigFilepath + " ;");
+        //                + prodBaseUrl + "|" + props.baseUrl() + "|g\" /asset-output/" + openIdConfigFilepath + " ;");
         //var assetBundlingImageName = "public.ecr.aws/amazonlinux/amazonlinux:2023";
         //var assetBundlingImage = software.amazon.awscdk.DockerImage.fromRegistry(assetBundlingImageName);
         //var assetOptions = AssetOptions.builder()
@@ -122,19 +122,19 @@ public class PublishStack extends Stack {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        var rendered = template.replace(prodBaseUrl, props.baseUrl);
+        var rendered = template.replace(prodBaseUrl, props.baseUrl());
         //var wellKnownRootSource = Source.asset(wellKnownDirectory, assetOptions);
         var wellKnownRootSource = Source.data(openIdConfigFilepath, rendered);
         var wellKnownDeploymentLogGroup = LogGroup.Builder.create(
-                        this, props.resourceNamePrefix + "-WellKnownDeploymentLogGroup-" + deployPostfix)
-                .logGroupName("/deployment/" + props.resourceNamePrefix + "-well-known-deployment-" + deployPostfix)
+                        this, props.resourceNamePrefix() + "-WellKnownDeploymentLogGroup-" + deployPostfix)
+                .logGroupName("/deployment/" + props.resourceNamePrefix() + "-well-known-deployment-" + deployPostfix)
                 .retention(RetentionDays.ONE_DAY)
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
         this.wellKnownDeployment = BucketDeployment.Builder.create(
-                        this, props.resourceNamePrefix + "-DocRootToWellKnownOriginDeployment")
+                        this, props.resourceNamePrefix() + "-DocRootToWellKnownOriginDeployment")
                 .sources(List.of(wellKnownRootSource))
-                .destinationBucket(props.wellKnownBucket)
+                .destinationBucket(props.wellKnownBucket())
                 .destinationKeyPrefix("." + wellKnownDirectory + "/")
                 //.distribution(distribution)
                 //.distributionPaths(List.of(

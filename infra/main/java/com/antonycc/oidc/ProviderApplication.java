@@ -220,7 +220,7 @@ public class ProviderApplication {
                     app,
                     publishStackId,
                     PublishStackProps.builder()
-                            .env(env)
+                            .environment(env)
                             .envName(this.application.envName)
                             .deploymentName(this.application.deploymentName)
                             .domainName(this.application.domainName)
@@ -240,7 +240,7 @@ public class ProviderApplication {
                     app,
                     opsStackId,
                     OpsStackProps.builder()
-                            .env(env)
+                            .environment(env)
                             .envName(this.application.envName)
                             .deploymentName(this.application.deploymentName)
                             .domainName(this.application.domainName)

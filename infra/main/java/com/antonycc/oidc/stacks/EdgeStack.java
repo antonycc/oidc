@@ -37,12 +37,12 @@ public class EdgeStack extends Stack {
         super(scope, id, props);
 
         // Apply cost allocation tags for all resources in this stack
-        Tags.of(this).add("Environment", props.envName);
+        Tags.of(this).add("Environment", props.envName());
         Tags.of(this).add("Application", "oidc-provider");
         Tags.of(this).add("CostCenter", "@antonycc/oidc");
         Tags.of(this).add("Owner", "@antonycc/oidc");
         Tags.of(this).add("Project", "oidc-provider");
-        Tags.of(this).add("DeploymentName", props.deploymentName);
+        Tags.of(this).add("DeploymentName", props.deploymentName());
         Tags.of(this).add("Stack", "EdgeStack");
         Tags.of(this).add("ManagedBy", "aws-cdk");
 
@@ -55,60 +55,60 @@ public class EdgeStack extends Stack {
         Tags.of(this).add("MonitoringEnabled", "true");
 
         // Use Resources from the passed props
-        this.baseUrl = props.baseUrl;
-        IBucket logsBucket = Bucket.fromBucketArn(this, props.resourceNamePrefix + "-LogsBucket", props.logsBucketArn);
+        this.baseUrl = props.baseUrl();
+        IBucket logsBucket = Bucket.fromBucketArn(this, props.resourceNamePrefix() + "-LogsBucket", props.logsBucketArn());
         IFunction jwksEndpointFunction = Function.fromFunctionAttributes(
                 this,
-                props.resourceNamePrefix + "-JwksEndpointFunction",
+                props.resourceNamePrefix() + "-JwksEndpointFunction",
                 FunctionAttributes.builder()
-                        .functionArn(props.jwksEndpointFunctionArn)
+                        .functionArn(props.jwksEndpointFunctionArn())
                         .sameEnvironment(true)
                         .build());
         IFunction authorizeEndpointFunction = Function.fromFunctionAttributes(
                 this,
-                props.resourceNamePrefix + "-AuthorizeEndpointFunction",
+                props.resourceNamePrefix() + "-AuthorizeEndpointFunction",
                 FunctionAttributes.builder()
-                        .functionArn(props.authorizeEndpointFunctionArn)
+                        .functionArn(props.authorizeEndpointFunctionArn())
                         .sameEnvironment(true)
                         .build());
         IFunction tokenEndpointFunction = Function.fromFunctionAttributes(
                 this,
-                props.resourceNamePrefix + "-TokenEndpointFunction",
+                props.resourceNamePrefix() + "-TokenEndpointFunction",
                 FunctionAttributes.builder()
-                        .functionArn(props.tokenEndpointFunctionArn)
+                        .functionArn(props.tokenEndpointFunctionArn())
                         .sameEnvironment(true)
                         .build());
         IFunction userinfoEndpointFunction = Function.fromFunctionAttributes(
                 this,
-                props.resourceNamePrefix + "-UserinfoEndpointFunction",
+                props.resourceNamePrefix() + "-UserinfoEndpointFunction",
                 FunctionAttributes.builder()
-                        .functionArn(props.userinfoEndpointFunctionArn)
+                        .functionArn(props.userinfoEndpointFunctionArn())
                         .sameEnvironment(true)
                         .build());
 
         // Hosted zone (must exist)
         IHostedZone zone = HostedZone.fromHostedZoneAttributes(
                 this,
-                props.resourceNamePrefix + "-Zone",
+                props.resourceNamePrefix() + "-Zone",
                 HostedZoneAttributes.builder()
-                        .hostedZoneId(props.hostedZoneId)
-                        .zoneName(props.hostedZoneName)
+                        .hostedZoneId(props.hostedZoneId())
+                        .zoneName(props.hostedZoneName())
                         .build());
-        String domainName = props.domainName;
-        String recordName = props.hostedZoneName.equals(props.domainName)
+        String domainName = props.domainName();
+        String recordName = props.hostedZoneName().equals(props.domainName())
                 ? null
-                : (props.domainName.endsWith("." + props.hostedZoneName)
-                        ? props.domainName.substring(0, props.domainName.length() - (props.hostedZoneName.length() + 1))
-                        : props.domainName);
+                : (props.domainName().endsWith("." + props.hostedZoneName())
+                        ? props.domainName().substring(0, props.domainName().length() - (props.hostedZoneName().length() + 1))
+                        : props.domainName());
 
         // TLS certificate from existing ACM (must be in us-east-1 for CloudFront)
-        var cert = Certificate.fromCertificateArn(this, props.resourceNamePrefix + "-WebCert", props.certificateArn);
+        var cert = Certificate.fromCertificateArn(this, props.resourceNamePrefix() + "-WebCert", props.certificateArn());
 
         // Buckets
 
         // AWS WAF WebACL for CloudFront protection against common attacks and rate limiting
-        CfnWebACL webAcl = CfnWebACL.Builder.create(this, props.resourceNamePrefix + "-WebAcl")
-                .name(props.compressedResourceNamePrefix + "-waf")
+        CfnWebACL webAcl = CfnWebACL.Builder.create(this, props.resourceNamePrefix() + "-WebAcl")
+                .name(props.compressedResourceNamePrefix() + "-waf")
                 .scope("CLOUDFRONT")
                 .defaultAction(CfnWebACL.DefaultActionProperty.builder()
                         .allow(CfnWebACL.AllowActionProperty.builder().build())
@@ -180,13 +180,13 @@ public class EdgeStack extends Stack {
                         "WAF WebACL for OIDC provider CloudFront distribution - provides rate limiting and protection against common attacks")
                 .visibilityConfig(CfnWebACL.VisibilityConfigProperty.builder()
                         .cloudWatchMetricsEnabled(true)
-                        .metricName(props.compressedResourceNamePrefix + "-waf")
+                        .metricName(props.compressedResourceNamePrefix() + "-waf")
                         .sampledRequestsEnabled(true)
                         .build())
                 .build();
-        this.distribution = Distribution.Builder.create(this, props.resourceNamePrefix + "-WebDist")
-                .defaultBehavior(props.webBehaviorOptions)
-                .additionalBehaviors(props.additionalOriginsBehaviourMappings)
+        this.distribution = Distribution.Builder.create(this, props.resourceNamePrefix() + "-WebDist")
+                .defaultBehavior(props.webBehaviorOptions())
+                .additionalBehaviors(props.additionalOriginsBehaviourMappings())
                 .domainNames(List.of(domainName))
                 .certificate(cert)
                 .defaultRootObject("index.html")
@@ -206,18 +206,18 @@ public class EdgeStack extends Stack {
                 .sourceArn(this.distribution.getDistributionArn())
                 .build();
         authorizeEndpointFunction.addPermission(
-                props.compressedResourceNamePrefix + "-cf-auth", invokeFunctionUrlPermission);
+                props.compressedResourceNamePrefix() + "-cf-auth", invokeFunctionUrlPermission);
         tokenEndpointFunction.addPermission(
-                props.compressedResourceNamePrefix + "-cf-token", invokeFunctionUrlPermission);
+                props.compressedResourceNamePrefix() + "-cf-token", invokeFunctionUrlPermission);
         userinfoEndpointFunction.addPermission(
-                props.compressedResourceNamePrefix + "-cf-userinfo", invokeFunctionUrlPermission);
+                props.compressedResourceNamePrefix() + "-cf-userinfo", invokeFunctionUrlPermission);
         jwksEndpointFunction.addPermission(
-                props.compressedResourceNamePrefix + "-cf-jwks", invokeFunctionUrlPermission);
+                props.compressedResourceNamePrefix() + "-cf-jwks", invokeFunctionUrlPermission);
 
         // A record
         this.aliasRecord = new ARecord(
                 this,
-                props.resourceNamePrefix + "-AliasRecord",
+                props.resourceNamePrefix() + "-AliasRecord",
                 ARecordProps.builder()
                         .recordName(recordName)
                         .zone(zone)

@@ -5,7 +5,7 @@ import software.amazon.awscdk.StackProps;
 
 @Value.Immutable
 public interface DevStackProps extends StackProps {
-    String env();
+    String envName();
     String domainName();
     String dashedDomainName();
     String resourceNamePrefix();

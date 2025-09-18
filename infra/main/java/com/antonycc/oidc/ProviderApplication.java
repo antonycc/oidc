@@ -140,7 +140,7 @@ public class ProviderApplication {
                     app,
                     devStackId,
                     DevStackProps.builder()
-                            .env(this.application.envName)
+                            .envName(this.application.envName)
                             .hostedZoneName(this.application.hostedZoneName)
                             .domainName(this.application.domainName)
                             .dashedDomainName(this.application.dashedDomainName)
@@ -186,7 +186,7 @@ public class ProviderApplication {
                     app,
                     edgeStackId,
                     EdgeStackProps.builder()
-                            .env(env)
+                            .environment(env)
                             .envName(this.application.envName)
                             .deploymentName(this.application.deploymentName)
                             .hostedZoneName(this.application.hostedZoneName)

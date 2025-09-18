@@ -36,3 +36,4 @@ target/
 # Temporary test files
 /tmp/
 *.log
+/dependency-reduced-pom.xml

@@ -127,7 +127,7 @@ public class ProviderApplication {
                     app,
                     observabilityStackId,
                     ObservabilityStackProps.builder()
-                            .env(env)
+                            .environment(env)
                             .envName(this.application.envName)
                             .domainName(this.application.domainName)
                             .resourceNamePrefix(this.application.resourceNamePrefix)
@@ -140,7 +140,7 @@ public class ProviderApplication {
                     app,
                     devStackId,
                     DevStackProps.builder()
-                            .env(this.application.envName)
+                            .envName(this.application.envName)
                             .hostedZoneName(this.application.hostedZoneName)
                             .domainName(this.application.domainName)
                             .dashedDomainName(this.application.dashedDomainName)
@@ -154,13 +154,16 @@ public class ProviderApplication {
                     app,
                     appStackId,
                     AppStackProps.builder()
-                            .env(env)
+                            .environment(env)
                             .envName(this.application.envName)
                             .deploymentName(this.application.deploymentName)
                             .ecrRepositoryArn(this.application.devStack.ecrRepository.getRepositoryArn())
                             .ecrRepositoryName(this.application.devStack.ecrRepository.getRepositoryName())
                             .baseImageTag(this.application.baseImageTag)
                             .domainName(this.application.domainName)
+                            .hostedZoneName(this.application.hostedZoneName)
+                            .hostedZoneId(this.application.hostedZoneId)
+                            .certificateArn(this.application.certificateArn)
                             .resourceNamePrefix(this.application.resourceNamePrefix)
                             .compressedResourceNamePrefix(this.application.compressedResourceNamePrefix)
                             .build());
@@ -172,7 +175,7 @@ public class ProviderApplication {
                     app,
                     webStackId,
                     WebStackProps.builder()
-                            .env(env)
+                            .environment(env)
                             .envName(this.application.envName)
                             .deploymentName(this.application.deploymentName)
                             .domainName(this.application.domainName)
@@ -186,7 +189,7 @@ public class ProviderApplication {
                     app,
                     edgeStackId,
                     EdgeStackProps.builder()
-                            .env(env)
+                            .environment(env)
                             .envName(this.application.envName)
                             .deploymentName(this.application.deploymentName)
                             .hostedZoneName(this.application.hostedZoneName)
@@ -220,7 +223,7 @@ public class ProviderApplication {
                     app,
                     publishStackId,
                     PublishStackProps.builder()
-                            .env(env)
+                            .environment(env)
                             .envName(this.application.envName)
                             .deploymentName(this.application.deploymentName)
                             .domainName(this.application.domainName)
@@ -240,7 +243,7 @@ public class ProviderApplication {
                     app,
                     opsStackId,
                     OpsStackProps.builder()
-                            .env(env)
+                            .environment(env)
                             .envName(this.application.envName)
                             .deploymentName(this.application.deploymentName)
                             .domainName(this.application.domainName)
@@ -269,7 +272,7 @@ public class ProviderApplication {
                             app,
                             selfDestructStackId,
                             SelfDestructStackProps.builder()
-                                    .env(env)
+                                    .environment(env)
                                     .envName(this.application.envName)
                                     .deploymentName(this.application.deploymentName)
                                     .resourceNamePrefix(this.application.resourceNamePrefix)

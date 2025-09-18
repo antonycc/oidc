@@ -33,12 +33,12 @@ public class OpsStack extends Stack {
         super(scope, id, props);
 
         // Apply cost allocation tags for all resources in this stack
-        Tags.of(this).add("Environment", props.envName);
+        Tags.of(this).add("Environment", props.envName());
         Tags.of(this).add("Application", "oidc-provider");
         Tags.of(this).add("CostCenter", "@antonycc/oidc");
         Tags.of(this).add("Owner", "@antonycc/oidc");
         Tags.of(this).add("Project", "oidc-provider");
-        Tags.of(this).add("DeploymentName", props.deploymentName);
+        Tags.of(this).add("DeploymentName", props.deploymentName());
         Tags.of(this).add("Stack", "OpsStack");
         Tags.of(this).add("ManagedBy", "aws-cdk");
 
@@ -53,41 +53,41 @@ public class OpsStack extends Stack {
         // Use resources from the passed props
         IFunction jwksEndpointFunction = Function.fromFunctionAttributes(
                 this,
-                props.resourceNamePrefix + "-JwksEndpointFunction",
+                props.resourceNamePrefix() + "-JwksEndpointFunction",
                 FunctionAttributes.builder()
-                        .functionArn(props.jwksEndpointFunctionArn)
+                        .functionArn(props.jwksEndpointFunctionArn())
                         .sameEnvironment(true)
                         .build());
         IFunction authorizeEndpointFunction = Function.fromFunctionAttributes(
                 this,
-                props.resourceNamePrefix + "-AuthorizeEndpointFunction",
+                props.resourceNamePrefix() + "-AuthorizeEndpointFunction",
                 FunctionAttributes.builder()
-                        .functionArn(props.authorizeEndpointFunctionArn)
+                        .functionArn(props.authorizeEndpointFunctionArn())
                         .sameEnvironment(true)
                         .build());
         IFunction tokenEndpointFunction = Function.fromFunctionAttributes(
                 this,
-                props.resourceNamePrefix + "-TokenEndpointFunction",
+                props.resourceNamePrefix() + "-TokenEndpointFunction",
                 FunctionAttributes.builder()
-                        .functionArn(props.tokenEndpointFunctionArn)
+                        .functionArn(props.tokenEndpointFunctionArn())
                         .sameEnvironment(true)
                         .build());
         IFunction userinfoEndpointFunction = Function.fromFunctionAttributes(
                 this,
-                props.resourceNamePrefix + "-UserinfoEndpointFunction",
+                props.resourceNamePrefix() + "-UserinfoEndpointFunction",
                 FunctionAttributes.builder()
-                        .functionArn(props.userinfoEndpointFunctionArn)
+                        .functionArn(props.userinfoEndpointFunctionArn())
                         .sameEnvironment(true)
                         .build());
-        ITable usersTable = Table.fromTableArn(this, props.resourceNamePrefix + "-UsersTable", props.usersTableArn);
+        ITable usersTable = Table.fromTableArn(this, props.resourceNamePrefix() + "-UsersTable", props.usersTableArn());
         ITable authCodesTable =
-                Table.fromTableArn(this, props.resourceNamePrefix + "-AuthCodesTable", props.authCodesTableArn);
+                Table.fromTableArn(this, props.resourceNamePrefix() + "-AuthCodesTable", props.authCodesTableArn());
         ITable refreshTokensTable =
-                Table.fromTableArn(this, props.resourceNamePrefix + "-RefreshTokensTable", props.refreshTokensTableArn);
+                Table.fromTableArn(this, props.resourceNamePrefix() + "-RefreshTokensTable", props.refreshTokensTableArn());
 
         // Error rate alarm for authorize endpoint
-        this.authorizeErrorAlarm = Alarm.Builder.create(this, props.resourceNamePrefix + "-AuthorizeErrorAlarm")
-                .alarmName(props.compressedResourceNamePrefix + "-authorize-errors")
+        this.authorizeErrorAlarm = Alarm.Builder.create(this, props.resourceNamePrefix() + "-AuthorizeErrorAlarm")
+                .alarmName(props.compressedResourceNamePrefix() + "-authorize-errors")
                 .metric(authorizeEndpointFunction.metricErrors())
                 .threshold(3.0) // Alert on 3+ errors in evaluation period
                 .evaluationPeriods(2) // Over 2 evaluation periods (10 minutes)
@@ -97,8 +97,8 @@ public class OpsStack extends Stack {
                 .build();
 
         // Duration alarm for authorize endpoint (cold start monitoring)
-        this.authorizeDurationAlarm = Alarm.Builder.create(this, props.resourceNamePrefix + "-AuthorizeDurationAlarm")
-                .alarmName(props.compressedResourceNamePrefix + "-authorize-duration")
+        this.authorizeDurationAlarm = Alarm.Builder.create(this, props.resourceNamePrefix() + "-AuthorizeDurationAlarm")
+                .alarmName(props.compressedResourceNamePrefix() + "-authorize-duration")
                 .metric(authorizeEndpointFunction.metricDuration())
                 .threshold(10000.0) // Alert if duration > 10 seconds
                 .evaluationPeriods(3) // Over 3 evaluation periods (15 minutes)
@@ -108,8 +108,8 @@ public class OpsStack extends Stack {
                 .build();
 
         // Error rate alarm for token endpoint (most critical)
-        this.tokenErrorAlarm = Alarm.Builder.create(this, props.resourceNamePrefix + "-TokenErrorAlarm")
-                .alarmName(props.compressedResourceNamePrefix + "-token-errors")
+        this.tokenErrorAlarm = Alarm.Builder.create(this, props.resourceNamePrefix() + "-TokenErrorAlarm")
+                .alarmName(props.compressedResourceNamePrefix() + "-token-errors")
                 .metric(tokenEndpointFunction.metricErrors())
                 .threshold(2.0) // Lower threshold for critical token endpoint
                 .evaluationPeriods(2)
@@ -119,8 +119,8 @@ public class OpsStack extends Stack {
                 .build();
 
         // Throttle alarm for all endpoints (simplified approach)
-        this.lambdaThrottleAlarm = Alarm.Builder.create(this, props.resourceNamePrefix + "-LambdaThrottleAlarm")
-                .alarmName(props.compressedResourceNamePrefix + "-lambda-throttles")
+        this.lambdaThrottleAlarm = Alarm.Builder.create(this, props.resourceNamePrefix() + "-LambdaThrottleAlarm")
+                .alarmName(props.compressedResourceNamePrefix() + "-lambda-throttles")
                 .metric(authorizeEndpointFunction.metricThrottles())
                 .threshold(1.0) // Alert on any throttling
                 .evaluationPeriods(1)
@@ -141,8 +141,8 @@ public class OpsStack extends Stack {
 
         // DynamoDB user table throttling alarm
         this.dynamoDbUserThrottleAlarm = Alarm.Builder.create(
-                        this, props.resourceNamePrefix + "-DynamoDbUserThrottleAlarm")
-                .alarmName(props.compressedResourceNamePrefix + "-dynamodb-user-throttles")
+                        this, props.resourceNamePrefix() + "-DynamoDbUserThrottleAlarm")
+                .alarmName(props.compressedResourceNamePrefix() + "-dynamodb-user-throttles")
                 .metric(usersTable.metricThrottledRequestsForOperations(dynamoDbMetricOptions))
                 .threshold(1.0) // Alert on any throttling
                 .evaluationPeriods(2) // Over 2 evaluation periods (10 minutes)
@@ -153,8 +153,8 @@ public class OpsStack extends Stack {
 
         // DynamoDB auth codes table throttling alarm
         this.dynamoDbAuthCodeThrottleAlarm = Alarm.Builder.create(
-                        this, props.resourceNamePrefix + "-DynamoDbAuthCodesThrottleAlarm")
-                .alarmName(props.compressedResourceNamePrefix + "-dynamodb-auth-codes-throttles")
+                        this, props.resourceNamePrefix() + "-DynamoDbAuthCodesThrottleAlarm")
+                .alarmName(props.compressedResourceNamePrefix() + "-dynamodb-auth-codes-throttles")
                 .metric(authCodesTable.metricThrottledRequestsForOperations(dynamoDbMetricOptions))
                 .threshold(1.0)
                 .evaluationPeriods(2)
@@ -165,8 +165,8 @@ public class OpsStack extends Stack {
 
         // DynamoDB refresh tokens table throttling alarm
         this.dynamoDbRefreshTokenThrottleAlarm = Alarm.Builder.create(
-                        this, props.resourceNamePrefix + "-DynamoDbRefreshTokensThrottleAlarm")
-                .alarmName(props.compressedResourceNamePrefix + "-dynamodb-refresh-tokens-throttles")
+                        this, props.resourceNamePrefix() + "-DynamoDbRefreshTokensThrottleAlarm")
+                .alarmName(props.compressedResourceNamePrefix() + "-dynamodb-refresh-tokens-throttles")
                 .metric(refreshTokensTable.metricThrottledRequestsForOperations(dynamoDbMetricOptions))
                 .threshold(1.0)
                 .evaluationPeriods(2)
@@ -176,8 +176,8 @@ public class OpsStack extends Stack {
                 .build();
 
         // Create CloudWatch dashboard with key metrics
-        this.operationalDashboard = Dashboard.Builder.create(this, props.resourceNamePrefix + "-OperationalDashboard")
-                .dashboardName(props.compressedResourceNamePrefix + "-operations")
+        this.operationalDashboard = Dashboard.Builder.create(this, props.resourceNamePrefix() + "-OperationalDashboard")
+                .dashboardName(props.compressedResourceNamePrefix() + "-operations")
                 .widgets(List.of(List.of(
                         // Lambda invocation metrics
                         GraphWidget.Builder.create()

@@ -172,7 +172,7 @@ public class ProviderApplication {
                     app,
                     webStackId,
                     WebStackProps.builder()
-                            .env(env)
+                            .environment(env)
                             .envName(this.application.envName)
                             .deploymentName(this.application.deploymentName)
                             .domainName(this.application.domainName)

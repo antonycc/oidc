@@ -29,12 +29,12 @@ public class WebStack extends Stack {
         super(scope, id, props);
 
         // Apply cost allocation tags for all resources in this stack
-        Tags.of(this).add("Environment", props.envName);
+        Tags.of(this).add("Environment", props.envName());
         Tags.of(this).add("Application", "oidc-provider");
         Tags.of(this).add("CostCenter", "@antonycc/oidc");
         Tags.of(this).add("Owner", "@antonycc/oidc");
         Tags.of(this).add("Project", "oidc-provider");
-        Tags.of(this).add("DeploymentName", props.deploymentName);
+        Tags.of(this).add("DeploymentName", props.deploymentName());
         Tags.of(this).add("Stack", "WebStack");
         Tags.of(this).add("ManagedBy", "aws-cdk");
 
@@ -48,8 +48,8 @@ public class WebStack extends Stack {
 
         // Bucket
 
-        this.webBucket = Bucket.Builder.create(this, props.resourceNamePrefix + "-WebBucket")
-                .bucketName(props.resourceNamePrefix + "-" + "web")
+        this.webBucket = Bucket.Builder.create(this, props.resourceNamePrefix() + "-WebBucket")
+                .bucketName(props.resourceNamePrefix() + "-" + "web")
                 .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
                 .enforceSsl(true)
                 .encryption(BucketEncryption.S3_MANAGED) // Explicit SSE-S3 encryption (zero cost)
@@ -60,7 +60,7 @@ public class WebStack extends Stack {
 
         // Create the OriginAccessIdentity for CloudFront access
         this.originAccessIdentity = OriginAccessIdentity.Builder.create(
-                        this, props.resourceNamePrefix + "-OriginAccessIdentity")
+                        this, props.resourceNamePrefix() + "-OriginAccessIdentity")
                 // .comment(props.oaiComment)
                 .build();
 

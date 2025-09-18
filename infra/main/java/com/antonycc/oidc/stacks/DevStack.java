@@ -31,8 +31,8 @@ public class DevStack extends Stack {
         super(scope, id, props);
 
         // ECR Repository with lifecycle rules
-        String ecrRepositoryName = "%s-ecr".formatted(props.dashedDomainName);
-        this.ecrRepository = Repository.Builder.create(this, props.resourceNamePrefix + "-EcrRepository")
+        String ecrRepositoryName = "%s-ecr".formatted(props.dashedDomainName());
+        this.ecrRepository = Repository.Builder.create(this, props.resourceNamePrefix() + "-EcrRepository")
                 .repositoryName(ecrRepositoryName)
                 .imageScanOnPush(true) // Enable vulnerability scanning
                 .imageTagMutability(software.amazon.awscdk.services.ecr.TagMutability.MUTABLE)
@@ -48,20 +48,20 @@ public class DevStack extends Stack {
                 .build();
 
         // CloudWatch Log Group for ECR operations with 7-day retention
-        String ecrLogGroupName = "/aws/ecr/%s".formatted(props.dashedDomainName);
-        this.ecrLogGroup = LogGroup.Builder.create(this, props.resourceNamePrefix + "-EcrLogGroup")
+        String ecrLogGroupName = "/aws/ecr/%s".formatted(props.dashedDomainName());
+        this.ecrLogGroup = LogGroup.Builder.create(this, props.resourceNamePrefix() + "-EcrLogGroup")
                 .logGroupName(ecrLogGroupName)
                 .retention(RetentionDays.ONE_WEEK) // 7-day retention as requested
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
 
         // IAM Role for ECR publishing with comprehensive permissions
-        String ecrPublishRoleName = generateIamCompatibleName(props.dashedDomainName, "ecr-publish-role");
-        this.ecrPublishRole = Role.Builder.create(this, props.resourceNamePrefix + "-EcrPublishRole")
+        String ecrPublishRoleName = generateIamCompatibleName(props.dashedDomainName(), "ecr-publish-role");
+        this.ecrPublishRole = Role.Builder.create(this, props.resourceNamePrefix() + "-EcrPublishRole")
                 .roleName(ecrPublishRoleName)
                 .assumedBy(new ServicePrincipal("lambda.amazonaws.com"))
                 .inlinePolicies(java.util.Map.of(
-                        props.resourceNamePrefix + "-EcrPublishPolicy",
+                        props.resourceNamePrefix() + "-EcrPublishPolicy",
                         PolicyDocument.Builder.create()
                                 .statements(List.of(
                                         // ECR repository permissions

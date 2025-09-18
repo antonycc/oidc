@@ -127,7 +127,7 @@ public class ProviderApplication {
                     app,
                     observabilityStackId,
                     ObservabilityStackProps.builder()
-                            .env(env)
+                            .environment(env)
                             .envName(this.application.envName)
                             .domainName(this.application.domainName)
                             .resourceNamePrefix(this.application.resourceNamePrefix)
@@ -154,7 +154,7 @@ public class ProviderApplication {
                     app,
                     appStackId,
                     AppStackProps.builder()
-                            .env(env)
+                            .environment(env)
                             .envName(this.application.envName)
                             .deploymentName(this.application.deploymentName)
                             .ecrRepositoryArn(this.application.devStack.ecrRepository.getRepositoryArn())

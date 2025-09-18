@@ -52,12 +52,12 @@ public class AppStack extends Stack {
         super(scope, id, props);
 
         // Apply cost allocation tags for all resources in this stack
-        Tags.of(this).add("Environment", props.envName);
+        Tags.of(this).add("Environment", props.envName());
         Tags.of(this).add("Application", "oidc-provider");
         Tags.of(this).add("CostCenter", "@antonycc/oidc");
         Tags.of(this).add("Owner", "@antonycc/oidc");
         Tags.of(this).add("Project", "oidc-provider");
-        Tags.of(this).add("DeploymentName", props.deploymentName);
+        Tags.of(this).add("DeploymentName", props.deploymentName());
         Tags.of(this).add("Stack", "AppStack");
         Tags.of(this).add("ManagedBy", "aws-cdk");
 
@@ -76,8 +76,8 @@ public class AppStack extends Stack {
         // Buckets
 
         // Well-known origin bucket
-        this.wellKnownBucket = Bucket.Builder.create(this, props.resourceNamePrefix + "-WellKnownBucket")
-                .bucketName(props.resourceNamePrefix + "-" + "well-known")
+        this.wellKnownBucket = Bucket.Builder.create(this, props.resourceNamePrefix() + "-WellKnownBucket")
+                .bucketName(props.resourceNamePrefix() + "-" + "well-known")
                 .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
                 .enforceSsl(true)
                 .encryption(BucketEncryption.S3_MANAGED) // Explicit SSE-S3 encryption (zero cost)
@@ -86,8 +86,8 @@ public class AppStack extends Stack {
                 .serverAccessLogsPrefix("s3/well-known/")
                 .build();
 
-        this.wellKnownCachePolicy = CachePolicy.Builder.create(this, props.resourceNamePrefix + "-ShortTTL")
-                .cachePolicyName(props.resourceNamePrefix + "-short-ttl")
+        this.wellKnownCachePolicy = CachePolicy.Builder.create(this, props.resourceNamePrefix() + "-ShortTTL")
+                .cachePolicyName(props.resourceNamePrefix() + "-short-ttl")
                 .defaultTtl(Duration.seconds(60))
                 .minTtl(Duration.seconds(0))
                 .maxTtl(Duration.minutes(5))
@@ -97,7 +97,7 @@ public class AppStack extends Stack {
 
         // Create the OriginAccessIdentity for CloudFront access
         this.wellKnownOriginAccessIdentity = OriginAccessIdentity.Builder.create(
-                        this, props.resourceNamePrefix + "-OriginAccessIdentity")
+                        this, props.resourceNamePrefix() + "-OriginAccessIdentity")
                 // .comment(props.oaiComment)
                 .build();
 
@@ -125,8 +125,8 @@ public class AppStack extends Stack {
         // DynamoDB tables
 
         // DDB tables with enhanced security and backup configuration
-        this.usersTable = Table.Builder.create(this, props.resourceNamePrefix + "-Users")
-                .tableName(props.resourceNamePrefix + "-users")
+        this.usersTable = Table.Builder.create(this, props.resourceNamePrefix() + "-Users")
+                .tableName(props.resourceNamePrefix() + "-users")
                 .partitionKey(Attribute.builder()
                         .name("username")
                         .type(AttributeType.STRING)
@@ -139,8 +139,8 @@ public class AppStack extends Stack {
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
 
-        this.authCodesTable = Table.Builder.create(this, props.resourceNamePrefix + "-AuthCodes")
-                .tableName(props.resourceNamePrefix + "-auth-codes")
+        this.authCodesTable = Table.Builder.create(this, props.resourceNamePrefix() + "-AuthCodes")
+                .tableName(props.resourceNamePrefix() + "-auth-codes")
                 .partitionKey(Attribute.builder()
                         .name("code")
                         .type(AttributeType.STRING)
@@ -154,8 +154,8 @@ public class AppStack extends Stack {
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
 
-        this.refreshTokensTable = Table.Builder.create(this, props.resourceNamePrefix + "-RefreshTokens")
-                .tableName(props.resourceNamePrefix + "-refresh-tokens")
+        this.refreshTokensTable = Table.Builder.create(this, props.resourceNamePrefix() + "-RefreshTokens")
+                .tableName(props.resourceNamePrefix() + "-refresh-tokens")
                 .partitionKey(Attribute.builder()
                         .name("rt")
                         .type(AttributeType.STRING)
@@ -174,12 +174,12 @@ public class AppStack extends Stack {
         // Authorize endpoint via construct
         this.authorizeEndpoint = new EndpointConstruct(
                 this,
-                props.resourceNamePrefix + "-AuthorizeEndpoint",
+                props.resourceNamePrefix() + "-AuthorizeEndpoint",
                 EndpointConstructProps.builder()
-                        .functionName(props.resourceNamePrefix + "-authorize")
-                        .ecrRepositoryArn(props.ecrRepositoryArn)
-                        .ecrRepositoryName(props.ecrRepositoryName)
-                        .baseImageTag(props.baseImageTag)
+                        .functionName(props.resourceNamePrefix() + "-authorize")
+                        .ecrRepositoryArn(props.ecrRepositoryArn())
+                        .ecrRepositoryName(props.ecrRepositoryName())
+                        .baseImageTag(props.baseImageTag())
                         .handler(List.of("app/functions/authorize.handler"))
                         .pathPattern("/authorize")
                         .allowedMethods(AllowedMethods.ALLOW_ALL)
@@ -187,7 +187,7 @@ public class AppStack extends Stack {
                                 "USERS_TABLE", this.usersTable.getTableName(),
                                 "CODES_TABLE", this.authCodesTable.getTableName()))
                         .build());
-        this.authorizeEndpoint.function.addEnvironment("ISSUER", "https://" + props.domainName);
+        this.authorizeEndpoint.function.addEnvironment("ISSUER", "https://" + props.domainName());
         this.additionalOriginsBehaviourMappings.put("/authorize", this.authorizeEndpoint.behaviorOptions);
         this.usersTable.grantReadData(this.authorizeEndpoint.function);
         this.authCodesTable.grantReadWriteData(this.authorizeEndpoint.function);
@@ -195,12 +195,12 @@ public class AppStack extends Stack {
         // Token endpoint via construct
         this.tokenEndpoint = new EndpointConstruct(
                 this,
-                props.resourceNamePrefix + "-TokenEndpoint",
+                props.resourceNamePrefix() + "-TokenEndpoint",
                 EndpointConstructProps.builder()
-                        .functionName(props.resourceNamePrefix + "-token")
-                        .ecrRepositoryArn(props.ecrRepositoryArn)
-                        .ecrRepositoryName(props.ecrRepositoryName)
-                        .baseImageTag(props.baseImageTag)
+                        .functionName(props.resourceNamePrefix() + "-token")
+                        .ecrRepositoryArn(props.ecrRepositoryArn())
+                        .ecrRepositoryName(props.ecrRepositoryName())
+                        .baseImageTag(props.baseImageTag())
                         .handler(List.of("app/functions/token.handler"))
                         .pathPattern("/token")
                         .allowedMethods(AllowedMethods.ALLOW_ALL)
@@ -209,7 +209,7 @@ public class AppStack extends Stack {
                                 "REFRESH_TABLE", this.refreshTokensTable.getTableName(),
                                 "CODES_TABLE", this.authCodesTable.getTableName()))
                         .build());
-        this.tokenEndpoint.function.addEnvironment("ISSUER", "https://" + props.domainName);
+        this.tokenEndpoint.function.addEnvironment("ISSUER", "https://" + props.domainName());
         this.additionalOriginsBehaviourMappings.put("/token", this.tokenEndpoint.behaviorOptions);
         this.authCodesTable.grantReadWriteData(this.tokenEndpoint.function);
         this.refreshTokensTable.grantReadWriteData(this.tokenEndpoint.function);
@@ -219,41 +219,41 @@ public class AppStack extends Stack {
         // UserInfo endpoint via construct
         this.userinfoEndpoint = new EndpointConstruct(
                 this,
-                props.resourceNamePrefix + "-UserInfoEndpoint",
+                props.resourceNamePrefix() + "-UserInfoEndpoint",
                 EndpointConstructProps.builder()
-                        .functionName(props.resourceNamePrefix + "-userinfo")
-                        .ecrRepositoryArn(props.ecrRepositoryArn)
-                        .ecrRepositoryName(props.ecrRepositoryName)
-                        .baseImageTag(props.baseImageTag)
+                        .functionName(props.resourceNamePrefix() + "-userinfo")
+                        .ecrRepositoryArn(props.ecrRepositoryArn())
+                        .ecrRepositoryName(props.ecrRepositoryName())
+                        .baseImageTag(props.baseImageTag())
                         .handler(List.of("app/functions/userinfo.handler"))
                         .pathPattern("/userinfo")
                         .allowedMethods(AllowedMethods.ALLOW_ALL)
                         .extraEnv(Map.of("USERS_TABLE", this.usersTable.getTableName()))
                         .build());
-        this.userinfoEndpoint.function.addEnvironment("ISSUER", "https://" + props.domainName);
+        this.userinfoEndpoint.function.addEnvironment("ISSUER", "https://" + props.domainName());
         this.additionalOriginsBehaviourMappings.put("/userinfo", this.userinfoEndpoint.behaviorOptions);
         this.usersTable.grantReadData(this.userinfoEndpoint.function);
 
         // JWKS endpoint via construct
         this.jwksEndpoint = new EndpointConstruct(
                 this,
-                props.resourceNamePrefix + "-JwksEndpoint",
+                props.resourceNamePrefix() + "-JwksEndpoint",
                 EndpointConstructProps.builder()
-                        .functionName(props.resourceNamePrefix + "-jwks")
-                        .ecrRepositoryArn(props.ecrRepositoryArn)
-                        .ecrRepositoryName(props.ecrRepositoryName)
-                        .baseImageTag(props.baseImageTag)
+                        .functionName(props.resourceNamePrefix() + "-jwks")
+                        .ecrRepositoryArn(props.ecrRepositoryArn())
+                        .ecrRepositoryName(props.ecrRepositoryName())
+                        .baseImageTag(props.baseImageTag())
                         .handler(List.of("app/functions/jwks.handler"))
                         .pathPattern("/jwks")
                         .allowedMethods(AllowedMethods.ALLOW_GET_HEAD_OPTIONS)
                         .extraEnv(Map.of("CODES_TABLE", this.authCodesTable.getTableName()))
                         .build());
-        this.jwksEndpoint.function.addEnvironment("ISSUER", "https://" + props.domainName);
+        this.jwksEndpoint.function.addEnvironment("ISSUER", "https://" + props.domainName());
         this.additionalOriginsBehaviourMappings.put("/jwks", this.jwksEndpoint.behaviorOptions);
         this.authCodesTable.grantReadWriteData(this.jwksEndpoint.function);
 
         // Create a custom resource to fix the well-known configuration with correct domain
-        // createWellKnownConfigFix(props.resourceNamePrefix, props.domainName);
+        // createWellKnownConfigFix(props.resourceNamePrefix(), props.domainName());
 
         // Outputs
         new CfnOutput(

@@ -45,8 +45,8 @@ public class ObservabilityStack extends Stack {
         applyCostAllocationTags(props);
 
         // Log bucket for CloudFront and S3 access logs
-        this.logsBucket = Bucket.Builder.create(this, props.resourceNamePrefix + "-LogsBucket")
-                .bucketName(props.resourceNamePrefix + "-logs")
+        this.logsBucket = Bucket.Builder.create(this, props.resourceNamePrefix() + "-LogsBucket")
+                .bucketName(props.resourceNamePrefix() + "-logs")
                 .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
                 .enforceSsl(true)
                 .encryption(BucketEncryption.S3_MANAGED) // Explicit SSE-S3 encryption (zero cost)
@@ -73,20 +73,20 @@ public class ObservabilityStack extends Stack {
                 .build());
 
         // CloudTrail - capture management events and deliver to S3 and CloudWatch Logs
-        this.trailLogGroup = LogGroup.Builder.create(this, props.resourceNamePrefix + "-CloudTrailLogGroup")
-                .logGroupName("/aws/cloudtrail/" + props.resourceNamePrefix)
+        this.trailLogGroup = LogGroup.Builder.create(this, props.resourceNamePrefix() + "-CloudTrailLogGroup")
+                .logGroupName("/aws/cloudtrail/" + props.resourceNamePrefix())
                 .retention(RetentionDays.ONE_DAY) // Reduced from ONE_WEEK for cost optimization
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
-        this.auditTrail = Trail.Builder.create(this, props.resourceNamePrefix + "-AuditTrail")
-                .trailName(props.resourceNamePrefix + "-audit-trail")
+        this.auditTrail = Trail.Builder.create(this, props.resourceNamePrefix() + "-AuditTrail")
+                .trailName(props.resourceNamePrefix() + "-audit-trail")
                 .bucket(this.logsBucket)
                 .cloudWatchLogGroup(this.trailLogGroup)
                 .build();
 
         // X-Ray Group for Lambda traces
-        this.xrayGroup = CfnGroup.Builder.create(this, props.resourceNamePrefix + "-XRayGroup")
-                .groupName(props.compressedResourceNamePrefix + "-lambda-traces")
+        this.xrayGroup = CfnGroup.Builder.create(this, props.resourceNamePrefix() + "-XRayGroup")
+                .groupName(props.compressedResourceNamePrefix() + "-lambda-traces")
                 .filterExpression("service(\"lambda\")")
                 .insightsConfiguration(CfnGroup.InsightsConfigurationProperty.builder()
                         .insightsEnabled(true)
@@ -95,7 +95,7 @@ public class ObservabilityStack extends Stack {
 
         // Security Monitoring: Metric Filters and Alarms for authentication failures
         this.authFailureMetricFilter = MetricFilter.Builder.create(
-                        this, props.resourceNamePrefix + "-AuthFailureMetricFilter")
+                        this, props.resourceNamePrefix() + "-AuthFailureMetricFilter")
                 .logGroup(this.trailLogGroup)
                 .metricNamespace("OIDC/Security")
                 .metricName("AuthenticationFailures")
@@ -103,7 +103,7 @@ public class ObservabilityStack extends Stack {
                 .metricValue("1")
                 .build();
 
-        this.authFailureAlarm = Alarm.Builder.create(this, props.resourceNamePrefix + "-AuthFailureAlarm")
+        this.authFailureAlarm = Alarm.Builder.create(this, props.resourceNamePrefix() + "-AuthFailureAlarm")
                 .metric(Metric.Builder.create()
                         .namespace("OIDC/Security")
                         .metricName("AuthenticationFailures")
@@ -119,7 +119,7 @@ public class ObservabilityStack extends Stack {
 
         // Security Monitoring: Metric Filter for general security events
         this.securityEventMetricFilter = MetricFilter.Builder.create(
-                        this, props.resourceNamePrefix + "-SecurityEventMetricFilter")
+                        this, props.resourceNamePrefix() + "-SecurityEventMetricFilter")
                 .logGroup(this.trailLogGroup)
                 .metricNamespace("OIDC/Security")
                 .metricName("SecurityEvents")
@@ -127,7 +127,7 @@ public class ObservabilityStack extends Stack {
                 .metricValue("1")
                 .build();
 
-        this.securityEventAlarm = Alarm.Builder.create(this, props.resourceNamePrefix + "-SecurityEventAlarm")
+        this.securityEventAlarm = Alarm.Builder.create(this, props.resourceNamePrefix() + "-SecurityEventAlarm")
                 .metric(Metric.Builder.create()
                         .namespace("OIDC/Security")
                         .metricName("SecurityEvents")
@@ -176,7 +176,7 @@ public class ObservabilityStack extends Stack {
      * Apply comprehensive cost allocation tags for all resources in the stack
      */
     private void applyCostAllocationTags(ObservabilityStackProps props) {
-        Tags.of(this).add("Environment", props.envName);
+        Tags.of(this).add("Environment", props.envName());
         Tags.of(this).add("Application", "oidc-provider");
         Tags.of(this).add("CostCenter", "@antonycc/oidc");
         Tags.of(this).add("Owner", "@antonycc/oidc");

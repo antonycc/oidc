@@ -161,6 +161,9 @@ public class ProviderApplication {
                             .ecrRepositoryName(this.application.devStack.ecrRepository.getRepositoryName())
                             .baseImageTag(this.application.baseImageTag)
                             .domainName(this.application.domainName)
+                            .hostedZoneName(this.application.hostedZoneName)
+                            .hostedZoneId(this.application.hostedZoneId)
+                            .certificateArn(this.application.certificateArn)
                             .resourceNamePrefix(this.application.resourceNamePrefix)
                             .compressedResourceNamePrefix(this.application.compressedResourceNamePrefix)
                             .build());

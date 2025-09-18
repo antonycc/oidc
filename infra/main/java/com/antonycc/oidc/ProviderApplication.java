@@ -269,7 +269,7 @@ public class ProviderApplication {
                             app,
                             selfDestructStackId,
                             SelfDestructStackProps.builder()
-                                    .env(env)
+                                    .environment(env)
                                     .envName(this.application.envName)
                                     .deploymentName(this.application.deploymentName)
                                     .resourceNamePrefix(this.application.resourceNamePrefix)

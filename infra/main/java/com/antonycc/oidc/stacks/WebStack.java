@@ -1,9 +1,12 @@
 package com.antonycc.oidc.stacks;
 
+import org.immutables.value.Value;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
+import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
+import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.Tags;
 import software.amazon.awscdk.services.cloudfront.AllowedMethods;
 import software.amazon.awscdk.services.cloudfront.BehaviorOptions;
@@ -24,6 +27,25 @@ public class WebStack extends Stack {
     public final OriginAccessIdentity originAccessIdentity;
     public final IOrigin origin;
     public final BehaviorOptions behaviorOptions;
+
+    @Value.Immutable
+    public static interface WebStackProps extends StackProps {
+        Environment environment();
+        String envName();
+        String deploymentName();
+        String domainName();
+        String resourceNamePrefix();
+        String compressedResourceNamePrefix();
+
+        @Override
+        default Environment getEnv() {
+            return environment();
+        }
+
+        static ImmutableWebStackProps.Builder builder() {
+            return ImmutableWebStackProps.builder();
+        }
+    }
 
     public WebStack(final Construct scope, final String id, final WebStackProps props) {
         super(scope, id, props);

@@ -1,10 +1,14 @@
 package com.antonycc.oidc.stacks;
 
+import org.immutables.value.Value;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
+import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.Stack;
+import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.Tags;
 import software.amazon.awscdk.services.certificatemanager.Certificate;
+import software.amazon.awscdk.services.cloudfront.BehaviorOptions;
 import software.amazon.awscdk.services.cloudfront.Distribution;
 import software.amazon.awscdk.services.cloudfront.SSLMethod;
 import software.amazon.awscdk.services.iam.ServicePrincipal;
@@ -32,6 +36,37 @@ public class EdgeStack extends Stack {
     public final Distribution distribution;
     public final ARecord aliasRecord;
     public final String baseUrl;
+
+    @Value.Immutable
+    public static interface EdgeStackProps extends StackProps {
+        Environment environment();
+        String envName();
+        String deploymentName();
+        String hostedZoneName();
+        String hostedZoneId();
+        String domainName();
+        String baseUrl();
+        String resourceNamePrefix();
+        String compressedResourceNamePrefix();
+        String certificateArn();
+        String logsBucketArn();
+        BehaviorOptions webBehaviorOptions();
+        BehaviorOptions wellKnownBehaviorOptions();
+        String jwksEndpointFunctionArn();
+        String authorizeEndpointFunctionArn();
+        String tokenEndpointFunctionArn();
+        String userinfoEndpointFunctionArn();
+        Map<String, BehaviorOptions> additionalOriginsBehaviourMappings();
+
+        @Override
+        default Environment getEnv() {
+            return environment();
+        }
+
+        static ImmutableEdgeStackProps.Builder builder() {
+            return ImmutableEdgeStackProps.builder();
+        }
+    }
 
     public EdgeStack(final Construct scope, final String id, final EdgeStackProps props) {
         super(scope, id, props);

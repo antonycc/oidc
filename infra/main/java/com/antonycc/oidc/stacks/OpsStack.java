@@ -1,9 +1,11 @@
 package com.antonycc.oidc.stacks;
 
-import java.util.List;
+import org.immutables.value.Value;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
+import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.Stack;
+import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.Tags;
 import software.amazon.awscdk.services.cloudwatch.Alarm;
 import software.amazon.awscdk.services.cloudwatch.ComparisonOperator;
@@ -19,6 +21,8 @@ import software.amazon.awscdk.services.lambda.FunctionAttributes;
 import software.amazon.awscdk.services.lambda.IFunction;
 import software.constructs.Construct;
 
+import java.util.List;
+
 public class OpsStack extends Stack {
     public final Alarm authorizeErrorAlarm;
     public final Alarm authorizeDurationAlarm;
@@ -28,6 +32,32 @@ public class OpsStack extends Stack {
     public final Alarm dynamoDbAuthCodeThrottleAlarm;
     public final Alarm dynamoDbRefreshTokenThrottleAlarm;
     public final Dashboard operationalDashboard;
+
+    @Value.Immutable
+    public static interface OpsStackProps extends StackProps {
+        Environment environment();
+        String envName();
+        String deploymentName();
+        String domainName();
+        String resourceNamePrefix();
+        String compressedResourceNamePrefix();
+        String jwksEndpointFunctionArn();
+        String authorizeEndpointFunctionArn();
+        String tokenEndpointFunctionArn();
+        String userinfoEndpointFunctionArn();
+        String usersTableArn();
+        String authCodesTableArn();
+        String refreshTokensTableArn();
+
+        @Override
+        default Environment getEnv() {
+            return environment();
+        }
+
+        static ImmutableOpsStackProps.Builder builder() {
+            return ImmutableOpsStackProps.builder();
+        }
+    }
 
     public OpsStack(final Construct scope, final String id, final OpsStackProps props) {
         super(scope, id, props);

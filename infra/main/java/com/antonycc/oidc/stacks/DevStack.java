@@ -1,12 +1,11 @@
 package com.antonycc.oidc.stacks;
 
-import static com.antonycc.oidc.utils.ResourceNameUtils.generateIamCompatibleName;
-
-import java.util.List;
+import org.immutables.value.Value;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
+import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.services.ecr.IRepository;
 import software.amazon.awscdk.services.ecr.LifecycleRule;
 import software.amazon.awscdk.services.ecr.Repository;
@@ -20,12 +19,30 @@ import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.logs.RetentionDays;
 import software.constructs.Construct;
 
+import java.util.List;
+
+import static com.antonycc.oidc.utils.ResourceNameUtils.generateIamCompatibleName;
+
 public class DevStack extends Stack {
 
     // Public properties for stack outputs
     public final IRepository ecrRepository;
     public final LogGroup ecrLogGroup;
     public final Role ecrPublishRole;
+
+    @Value.Immutable
+    public static interface DevStackProps extends StackProps {
+        String envName();
+        String domainName();
+        String dashedDomainName();
+        String resourceNamePrefix();
+        String compressedResourceNamePrefix();
+        String hostedZoneName();
+
+        static ImmutableDevStackProps.Builder builder() {
+            return ImmutableDevStackProps.builder();
+        }
+    }
 
     public DevStack(Construct scope, String id, DevStackProps props) {
         super(scope, id, props);

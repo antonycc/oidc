@@ -2,11 +2,14 @@ package com.antonycc.oidc.stacks;
 
 import com.antonycc.oidc.constructs.EndpointConstruct;
 import com.antonycc.oidc.constructs.EndpointConstructProps;
+import org.immutables.value.Value;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.Duration;
+import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
+import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.Tags;
 import software.amazon.awscdk.services.cloudfront.AllowedMethods;
 import software.amazon.awscdk.services.cloudfront.BehaviorOptions;
@@ -47,6 +50,31 @@ public class AppStack extends Stack {
     public final IOrigin wellKnownOrigin;
     public final BehaviorOptions wellKnownBehaviorOptions;
     public final CachePolicy wellKnownCachePolicy;
+
+    @Value.Immutable
+    public interface AppStackProps extends StackProps {
+        Environment environment();
+        String envName();
+        String deploymentName();
+        String ecrRepositoryArn();
+        String ecrRepositoryName();
+        String baseImageTag();
+        String domainName();
+        String hostedZoneName();
+        String hostedZoneId();
+        String certificateArn();
+        String resourceNamePrefix();
+        String compressedResourceNamePrefix();
+
+        @Override
+        default Environment getEnv() {
+            return environment();
+        }
+
+        static ImmutableAppStackProps.Builder builder() {
+            return ImmutableAppStackProps.builder();
+        }
+    }
 
     public AppStack(final Construct scope, final String id, final AppStackProps props) {
         super(scope, id, props);

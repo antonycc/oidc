@@ -1,21 +1,13 @@
 package com.antonycc.oidc;
 
 import com.antonycc.oidc.stacks.AppStack;
-import com.antonycc.oidc.stacks.AppStackProps;
 import com.antonycc.oidc.stacks.DevStack;
-import com.antonycc.oidc.stacks.DevStackProps;
 import com.antonycc.oidc.stacks.EdgeStack;
-import com.antonycc.oidc.stacks.EdgeStackProps;
 import com.antonycc.oidc.stacks.ObservabilityStack;
-import com.antonycc.oidc.stacks.ObservabilityStackProps;
 import com.antonycc.oidc.stacks.OpsStack;
-import com.antonycc.oidc.stacks.OpsStackProps;
 import com.antonycc.oidc.stacks.PublishStack;
-import com.antonycc.oidc.stacks.PublishStackProps;
 import com.antonycc.oidc.stacks.SelfDestructStack;
-import com.antonycc.oidc.stacks.SelfDestructStackProps;
 import com.antonycc.oidc.stacks.WebStack;
-import com.antonycc.oidc.stacks.WebStackProps;
 import software.amazon.awscdk.App;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.Environment;
@@ -126,7 +118,7 @@ public class ProviderApplication {
             this.application.observabilityStack = new ObservabilityStack(
                     app,
                     observabilityStackId,
-                    ObservabilityStackProps.builder()
+                    ObservabilityStack.ObservabilityStackProps.builder()
                             .environment(env)
                             .envName(this.application.envName)
                             .domainName(this.application.domainName)
@@ -139,7 +131,7 @@ public class ProviderApplication {
             this.application.devStack = new DevStack(
                     app,
                     devStackId,
-                    DevStackProps.builder()
+                    DevStack.DevStackProps.builder()
                             .envName(this.application.envName)
                             .hostedZoneName(this.application.hostedZoneName)
                             .domainName(this.application.domainName)
@@ -153,7 +145,7 @@ public class ProviderApplication {
             this.application.appStack = new AppStack(
                     app,
                     appStackId,
-                    AppStackProps.builder()
+                    AppStack.AppStackProps.builder()
                             .environment(env)
                             .envName(this.application.envName)
                             .deploymentName(this.application.deploymentName)
@@ -174,7 +166,7 @@ public class ProviderApplication {
             this.application.webStack = new WebStack(
                     app,
                     webStackId,
-                    WebStackProps.builder()
+                    WebStack.WebStackProps.builder()
                             .environment(env)
                             .envName(this.application.envName)
                             .deploymentName(this.application.deploymentName)
@@ -188,7 +180,7 @@ public class ProviderApplication {
             this.application.edgeStack = new EdgeStack(
                     app,
                     edgeStackId,
-                    EdgeStackProps.builder()
+                    EdgeStack.EdgeStackProps.builder()
                             .environment(env)
                             .envName(this.application.envName)
                             .deploymentName(this.application.deploymentName)
@@ -222,7 +214,7 @@ public class ProviderApplication {
             this.application.publishStack = new PublishStack(
                     app,
                     publishStackId,
-                    PublishStackProps.builder()
+                    PublishStack.PublishStackProps.builder()
                             .environment(env)
                             .envName(this.application.envName)
                             .deploymentName(this.application.deploymentName)
@@ -242,7 +234,7 @@ public class ProviderApplication {
             this.application.opsStack = new OpsStack(
                     app,
                     opsStackId,
-                    OpsStackProps.builder()
+                    OpsStack.OpsStackProps.builder()
                             .environment(env)
                             .envName(this.application.envName)
                             .deploymentName(this.application.deploymentName)
@@ -271,7 +263,7 @@ public class ProviderApplication {
                     this.application.selfDestructStack = new SelfDestructStack(
                             app,
                             selfDestructStackId,
-                            SelfDestructStackProps.builder()
+                            SelfDestructStack.SelfDestructStackProps.builder()
                                     .environment(env)
                                     .envName(this.application.envName)
                                     .deploymentName(this.application.deploymentName)

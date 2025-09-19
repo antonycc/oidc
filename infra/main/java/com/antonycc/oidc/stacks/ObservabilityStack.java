@@ -1,12 +1,13 @@
 package com.antonycc.oidc.stacks;
 
-import java.util.List;
-import java.util.Map;
+import org.immutables.value.Value;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.Duration;
+import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
+import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.Tags;
 import software.amazon.awscdk.services.cloudtrail.Trail;
 import software.amazon.awscdk.services.cloudwatch.Alarm;
@@ -28,6 +29,9 @@ import software.amazon.awscdk.services.s3.ObjectOwnership;
 import software.amazon.awscdk.services.xray.CfnGroup;
 import software.constructs.Construct;
 
+import java.util.List;
+import java.util.Map;
+
 public class ObservabilityStack extends Stack {
     public final Bucket logsBucket;
     public final LogGroup trailLogGroup;
@@ -37,6 +41,24 @@ public class ObservabilityStack extends Stack {
     public final Alarm authFailureAlarm;
     public final MetricFilter securityEventMetricFilter;
     public final Alarm securityEventAlarm;
+
+    @Value.Immutable
+    public static interface ObservabilityStackProps extends StackProps {
+        Environment environment();
+        String envName();
+        String domainName();
+        String resourceNamePrefix();
+        String compressedResourceNamePrefix();
+
+        @Override
+        default Environment getEnv() {
+            return environment();
+        }
+
+        static ImmutableObservabilityStackProps.Builder builder() {
+            return ImmutableObservabilityStackProps.builder();
+        }
+    }
 
     public ObservabilityStack(final Construct scope, final String id, final ObservabilityStackProps props) {
         super(scope, id, props);

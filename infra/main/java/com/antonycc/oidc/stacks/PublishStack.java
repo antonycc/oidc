@@ -1,17 +1,21 @@
 package com.antonycc.oidc.stacks;
 
+import org.immutables.value.Value;
 import software.amazon.awscdk.AssetHashType;
 import software.amazon.awscdk.Duration;
+import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.Expiration;
 import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Size;
 import software.amazon.awscdk.Stack;
+import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.Tags;
 import software.amazon.awscdk.services.cloudfront.Distribution;
 import software.amazon.awscdk.services.cloudfront.DistributionAttributes;
 import software.amazon.awscdk.services.cloudfront.IDistribution;
 import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.logs.RetentionDays;
+import software.amazon.awscdk.services.s3.Bucket;
 import software.amazon.awscdk.services.s3.assets.AssetOptions;
 import software.amazon.awscdk.services.s3.deployment.BucketDeployment;
 import software.amazon.awscdk.services.s3.deployment.CacheControl;
@@ -28,6 +32,28 @@ public class PublishStack extends Stack {
     public final BucketDeployment webDeployment;
     public final BucketDeployment wellKnownDeployment;
     public final String baseUrl;
+
+    @Value.Immutable
+    public static interface PublishStackProps extends StackProps {
+        Environment environment();
+        String envName();
+        String deploymentName();
+        String domainName();
+        String baseUrl();
+        String resourceNamePrefix();
+        String distributionId();
+        Bucket webBucket();
+        Bucket wellKnownBucket();
+
+        @Override
+        default Environment getEnv() {
+            return environment();
+        }
+
+        static ImmutablePublishStackProps.Builder builder() {
+            return ImmutablePublishStackProps.builder();
+        }
+    }
 
     public PublishStack(final Construct scope, final String id, final PublishStackProps props) {
         super(scope, id, props);

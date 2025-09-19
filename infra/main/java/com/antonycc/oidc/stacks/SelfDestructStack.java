@@ -1,10 +1,13 @@
 package com.antonycc.oidc.stacks;
 
+import org.immutables.value.Value;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.Duration;
+import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
+import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.Tags;
 import software.amazon.awscdk.services.events.Rule;
 import software.amazon.awscdk.services.events.RuleTargetInput;
@@ -34,6 +37,33 @@ public class SelfDestructStack extends Stack {
     public final Role functionRole;
     public final Function selfDestructFunction;
     public final Rule selfDestructSchedule;
+
+    @Value.Immutable
+    public static interface SelfDestructStackProps extends StackProps {
+        Environment environment();
+        String envName();
+        String deploymentName();
+        String resourceNamePrefix();
+        String compressedResourceNamePrefix();
+        String observabilityStackName();
+        String devStackName();
+        String appStackName();
+        String webStackName();
+        String edgeStackName();
+        String publishStackName();
+        String opsStackName();
+        String selfDestructDelayHours();
+        String selfDestructHandlerSource();
+
+        @Override
+        default Environment getEnv() {
+            return environment();
+        }
+
+        static ImmutableSelfDestructStackProps.Builder builder() {
+            return ImmutableSelfDestructStackProps.builder();
+        }
+    }
 
     public SelfDestructStack(final Construct scope, final String id, final SelfDestructStackProps props) {
         super(scope, id, props);
